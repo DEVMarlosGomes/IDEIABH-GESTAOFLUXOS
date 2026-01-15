@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import SidebarNova from './SidebarNova';
-import { Bell, Search, Share2, ChevronDown, User, Settings, LogOut, Check } from 'lucide-react';
+import { Bell, Search, Share2, ChevronDown, User, Settings, LogOut, Check, Menu, X } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
-import { mockNotificacoes } from '../data/mockNovo';
+import { mockNotificacoes, mockProjetos, mockContratos } from '../data/mockNovo';
 import './LayoutNovo.css';
 
 const LayoutNovo = ({ children, title, subtitle }) => {
@@ -14,10 +14,92 @@ const LayoutNovo = ({ children, title, subtitle }) => {
   const { user, logout } = useAuth();
   const [notificacoesOpen, setNotificacoesOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [notificacoes, setNotificacoes] = useState(mockNotificacoes);
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   const unreadCount = notificacoes.filter(n => !n.lida).length;
+
+  // Auto-hide navbar on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY < 10) {
+        setIsNavbarVisible(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Scrolling down
+        setIsNavbarVisible(false);
+        setNotificacoesOpen(false);
+        setUserMenuOpen(false);
+        setShowSearchResults(false);
+      } else {
+        // Scrolling up
+        setIsNavbarVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
+
+  // Search functionality
+  useEffect(() => {
+    if (searchTerm.length > 2) {
+      const results = [];
+      
+      // Search in projects
+      const projectResults = mockProjetos
+        .filter(p => 
+          p.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.instituicao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.etapa_atual_nome.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .slice(0, 5)
+        .map(p => ({ ...p, type: 'projeto' }));
+      
+      // Search in contracts
+      const contractResults = mockContratos
+        .filter(c => 
+          c.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.instituicao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          c.numero_contrato.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .slice(0, 5)
+        .map(c => ({ ...c, type: 'contrato' }));
+      
+      results.push(...projectResults, ...contractResults);
+      setSearchResults(results.slice(0, 8));
+      setShowSearchResults(true);
+    } else {
+      setSearchResults([]);
+      setShowSearchResults(false);
+    }
+  }, [searchTerm]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.notification-wrapper')) {
+        setNotificacoesOpen(false);
+      }
+      if (!e.target.closest('.user-menu')) {
+        setUserMenuOpen(false);
+      }
+      if (!e.target.closest('.search-box')) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const getNotificacaoIcon = (tipo) => {
     switch(tipo) {
@@ -39,7 +121,6 @@ const LayoutNovo = ({ children, title, subtitle }) => {
 
   const handleNotificationClick = (notif) => {
     handleMarkAsRead(notif.id);
-    // Se for notificação de atraso, navegar para projetos
     if (notif.tipo === 'alerta' && notif.mensagem.includes('atras')) {
       navigate('/projetos');
       setNotificacoesOpen(false);
@@ -49,6 +130,20 @@ const LayoutNovo = ({ children, title, subtitle }) => {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleSearchResultClick = (result) => {
+    if (result.type === 'projeto') {
+      navigate('/projetos');
+    } else {
+      navigate('/contratos');
+    }
+    setSearchTerm('');
+    setShowSearchResults(false);
+  };
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   return (
