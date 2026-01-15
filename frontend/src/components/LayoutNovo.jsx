@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import SidebarNova from './SidebarNova';
-import { Bell, Search, Share2, ChevronDown } from 'lucide-react';
+import { Bell, Search, Share2, ChevronDown, User, Settings, LogOut, Check } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { mockNotificacoes } from '../data/mockNovo';
@@ -11,11 +11,13 @@ import './LayoutNovo.css';
 const LayoutNovo = ({ children, title, subtitle }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [notificacoesOpen, setNotificacoesOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [notificacoes, setNotificacoes] = useState(mockNotificacoes);
 
-  const unreadCount = mockNotificacoes.filter(n => !n.lida).length;
+  const unreadCount = notificacoes.filter(n => !n.lida).length;
 
   const getNotificacaoIcon = (tipo) => {
     switch(tipo) {
