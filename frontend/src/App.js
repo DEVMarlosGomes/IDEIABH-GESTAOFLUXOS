@@ -147,7 +147,7 @@ function AppRoutes() {
         path="/configuracoes"
         element={
           <ProtectedRoute>
-            <DashboardNovo />
+            <Configuracoes />
           </ProtectedRoute>
         }
       />
