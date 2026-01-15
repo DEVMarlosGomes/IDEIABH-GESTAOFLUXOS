@@ -11,6 +11,7 @@ import ProjetosVisaoGeral from "./pages/ProjetosVisaoGeral";
 import ContratosVisaoGeral from "./pages/ContratosVisaoGeral";
 import DepartamentoView from "./pages/DepartamentoView";
 import AdminUsers from "./pages/AdminUsers";
+import Configuracoes from "./pages/Configuracoes";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
