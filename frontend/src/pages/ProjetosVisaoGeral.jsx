@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -23,11 +24,42 @@ import { mockProjetos, mockContratos, STATUS_ETAPA } from '../data/mockNovo';
 import './ProjetosVisaoGeral.css';
 
 const ProjetosVisaoGeral = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [projetos, setProjetos] = useState(mockProjetos);
   const [selectedProjeto, setSelectedProjeto] = useState(null);
   const [filtroStatus, setFiltroStatus] = useState('todos');
   const [novaObservacao, setNovaObservacao] = useState('');
   const [etapaSelecionada, setEtapaSelecionada] = useState(null);
+  const [highlightedProjetoId, setHighlightedProjetoId] = useState(null);
+  const projetoRefs = useRef({});
+
+  // Handle navigation from notifications with projeto_id
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const projetoId = params.get('projeto_id');
+    
+    if (projetoId) {
+      setHighlightedProjetoId(projetoId);
+      
+      // Scroll to the project card after a short delay
+      setTimeout(() => {
+        if (projetoRefs.current[projetoId]) {
+          projetoRefs.current[projetoId].scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+          
+          // Remove highlight after animation
+          setTimeout(() => {
+            setHighlightedProjetoId(null);
+            // Clean URL
+            navigate('/projetos', { replace: true });
+          }, 3000);
+        }
+      }, 500);
+    }
+  }, [location, navigate]);
 
   const getStatusColor = (status) => {
     switch(status) {
