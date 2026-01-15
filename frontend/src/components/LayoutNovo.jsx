@@ -121,7 +121,14 @@ const LayoutNovo = ({ children, title, subtitle }) => {
 
   const handleNotificationClick = (notif) => {
     handleMarkAsRead(notif.id);
-    if (notif.tipo === 'alerta' && notif.mensagem.includes('atras')) {
+    
+    // Se tiver projeto_id, navega para a página de projetos com destaque
+    if (notif.projeto_id) {
+      navigate(`/projetos?projeto_id=${notif.projeto_id}`);
+      setNotificacoesOpen(false);
+    } 
+    // Se for notificação de atraso genérica, vai para projetos
+    else if (notif.tipo === 'alerta' && notif.mensagem.includes('atras')) {
       navigate('/projetos');
       setNotificacoesOpen(false);
     }
