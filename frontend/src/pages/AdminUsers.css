@@ -242,3 +242,87 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .users-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-users-container {
+    gap: 16px;
+  }
+  
+  .users-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .search-box-users {
+    max-width: 100%;
+    width: 100%;
+  }
+  
+  .add-user-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .users-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .user-card {
+    padding: 16px;
+  }
+  
+  .user-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+  
+  .user-info h3 {
+    font-size: 15px;
+  }
+  
+  .user-email {
+    font-size: 12px;
+  }
+  
+  .user-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-card {
+    padding: 14px;
+  }
+  
+  .user-card-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  
+  .user-avatar {
+    margin: 0 auto;
+  }
+  
+  .user-stats {
+    justify-content: center;
+  }
+}
+
