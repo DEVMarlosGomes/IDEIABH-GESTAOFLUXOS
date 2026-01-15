@@ -822,14 +822,19 @@ export const mockDashboard = {
 };
 
 export const mockNotificacoes = [
-  {
-    id: 'notif-1',
-    titulo: 'Projeto atrasado',
-    mensagem: 'Turma Medicina 2024 está com 8 dias de atraso na etapa Criação',
-    tipo: 'alerta',
-    lida: false,
-    created_at: '2024-05-14T10:30:00'
-  },
+  // Notificações dinâmicas de projetos atrasados
+  ...mockProjetos
+    .filter(p => p.status === 'Atrasado' && p.dias_atraso > 0)
+    .slice(0, 5) // Limita a 5 notificações
+    .map((projeto, index) => ({
+      id: `notif-atraso-${projeto.id}`,
+      titulo: 'Projeto atrasado',
+      mensagem: `${projeto.cliente} está com ${projeto.dias_atraso} dias de atraso na etapa ${projeto.etapa_atual_nome}`,
+      tipo: 'alerta',
+      lida: false,
+      projeto_id: projeto.id,
+      created_at: new Date(Date.now() - index * 3600000).toISOString()
+    })),
   {
     id: 'notif-2',
     titulo: 'Nova observação',
@@ -844,7 +849,16 @@ export const mockNotificacoes = [
     mensagem: 'Turma Administração 2024 foi finalizado com sucesso',
     tipo: 'sucesso',
     lida: true,
+    projeto_id: 'projeto-4',
     created_at: '2024-05-10T09:00:00'
+  },
+  {
+    id: 'notif-4',
+    titulo: 'Novo contrato',
+    mensagem: 'Novo contrato adicionado: Turma Relações Internacionais 2024',
+    tipo: 'info',
+    lida: true,
+    created_at: '2024-05-09T11:30:00'
   }
 ];
 
