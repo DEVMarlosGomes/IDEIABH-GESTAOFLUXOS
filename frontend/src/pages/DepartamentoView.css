@@ -1,0 +1,256 @@
+.departamento-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Layout de 2 Colunas */
+.departamento-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 24px;
+  min-height: calc(100vh - 200px);
+}
+
+/* Coluna de Tarefas */
+.tarefas-card,
+.clientes-card {
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  height: fit-content;
+}
+
+.tarefas-header,
+.clientes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 3px solid;
+}
+
+.tarefas-header h3,
+.clientes-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.tarefas-content,
+.clientes-content {
+  padding: 16px !important;
+}
+
+/* Tarefa Item */
+.tarefa-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+
+.tarefa-item:last-child {
+  margin-bottom: 0;
+}
+
+.tarefa-item:hover {
+  background: #f1f5f9;
+}
+
+.tarefa-item.concluida {
+  opacity: 0.6;
+}
+
+.tarefa-item.concluida .tarefa-nome {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.tarefa-check {
+  flex-shrink: 0;
+}
+
+.tarefa-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tarefa-nome {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.tarefa-duracao {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.projetos-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+/* Cliente Card */
+.cliente-card {
+  padding: 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+.cliente-card:last-child {
+  margin-bottom: 0;
+}
+
+.cliente-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.cliente-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cliente-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cliente-info .cliente-nome {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.cliente-instituicao {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cliente-etapa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.cliente-etapa .etapa-label {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.cliente-etapa .etapa-nome {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.cliente-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.cliente-meta .meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.atraso-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.cliente-progresso {
+  margin-bottom: 12px;
+}
+
+.cliente-progresso .progresso-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cliente-progresso .progresso-percent {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.cliente-progresso .progresso-bar {
+  height: 6px;
+}
+
+.ver-projeto-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  background: #f8fafc;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #3b82f6;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ver-projeto-btn:hover {
+  background: #eff6ff;
+}
+
+/* Empty State */
+.empty-clientes {
+  padding: 40px 20px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .departamento-grid {
+    grid-template-columns: 1fr;
+  }
+}
