@@ -91,21 +91,42 @@ const LayoutNovo = ({ children, title, subtitle }) => {
                 <div className="notification-dropdown">
                   <div className="notification-header">
                     <span>Notificações</span>
-                    <button className="mark-all-read">Marcar como lidas</button>
+                    <button className="mark-all-read" onClick={handleMarkAllAsRead}>
+                      Marcar como lidas
+                    </button>
                   </div>
                   <div className="notification-list">
-                    {mockNotificacoes.map(notif => (
-                      <div 
-                        key={notif.id} 
-                        className={`notification-item ${notif.lida ? '' : 'unread'}`}
-                      >
-                        <span className="notification-icon">{getNotificacaoIcon(notif.tipo)}</span>
-                        <div className="notification-content">
-                          <span className="notification-title">{notif.titulo}</span>
-                          <span className="notification-message">{notif.mensagem}</span>
-                        </div>
+                    {notificacoes.length === 0 ? (
+                      <div className="no-notifications">
+                        <p>Nenhuma notificação</p>
                       </div>
-                    ))}
+                    ) : (
+                      notificacoes.map(notif => (
+                        <div 
+                          key={notif.id} 
+                          className={`notification-item ${notif.lida ? '' : 'unread'}`}
+                          onClick={() => handleNotificationClick(notif)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <span className="notification-icon">{getNotificacaoIcon(notif.tipo)}</span>
+                          <div className="notification-content">
+                            <span className="notification-title">{notif.titulo}</span>
+                            <span className="notification-message">{notif.mensagem}</span>
+                          </div>
+                          {!notif.lida && (
+                            <button 
+                              className="mark-read-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkAsRead(notif.id);
+                              }}
+                            >
+                              <Check size={14} />
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
