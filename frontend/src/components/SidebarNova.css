@@ -8,7 +8,46 @@
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  z-index: 1000;
+  z-index: 999;
+  transition: transform 0.3s ease;
+}
+
+.sidebar-close-btn {
+  display: none;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #f8fafc;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: all 0.2s;
+  z-index: 1001;
+}
+
+.sidebar-close-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* Mobile Sidebar */
+@media (max-width: 1024px) {
+  .sidebar-nova {
+    transform: translateX(-100%);
+  }
+  
+  .sidebar-nova.open {
+    transform: translateX(0);
+  }
+  
+  .sidebar-close-btn {
+    display: flex;
+  }
 }
 
 /* Logo */
