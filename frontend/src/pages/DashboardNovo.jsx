@@ -89,7 +89,12 @@ const DashboardNovo = () => {
         {/* KPI Cards */}
         <div className="kpi-grid-novo">
           {kpiCards.map((kpi, index) => (
-            <Card key={index} className="kpi-card-novo">
+            <Card 
+              key={index} 
+              className="kpi-card-novo clickable"
+              onClick={kpi.onClick}
+              style={{ cursor: 'pointer' }}
+            >
               <CardContent className="kpi-content-novo">
                 <div className="kpi-icon-novo" style={{ backgroundColor: kpi.bgColor }}>
                   <kpi.icon size={24} style={{ color: kpi.color }} />
