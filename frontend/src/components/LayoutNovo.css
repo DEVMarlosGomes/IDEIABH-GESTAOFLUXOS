@@ -355,6 +355,7 @@
 /* Page Header */
 .page-header-novo {
   padding: 24px 32px 0;
+  scroll-margin-top: 80px; /* Offset for sticky navbar */
 }
 
 .page-title-novo {
@@ -374,6 +375,7 @@
 .page-content-novo {
   flex: 1;
   padding: 24px 32px 32px;
+  scroll-margin-top: 80px; /* Offset for sticky navbar */
 }
 
 .user-name-text {
