@@ -140,10 +140,10 @@ const ProjetosVisaoGeral = () => {
               Todos ({projetos.length})
             </button>
             <button 
-              className={`filtro-btn em-dia ${filtroStatus === 'Em Andamento' ? 'active' : ''}`}
-              onClick={() => setFiltroStatus('Em Andamento')}
+              className={`filtro-btn em-dia ${filtroStatus === 'Ativo' ? 'active' : ''}`}
+              onClick={() => setFiltroStatus('Ativo')}
             >
-              Em Dia ({projetos.filter(p => p.status === 'Em Andamento').length})
+              Ativos ({projetos.filter(p => p.status === 'Ativo').length})
             </button>
             <button 
               className={`filtro-btn atrasados ${filtroStatus === 'Atrasado' ? 'active' : ''}`}
