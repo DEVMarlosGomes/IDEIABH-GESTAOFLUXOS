@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -17,7 +18,30 @@ import { mockProjetos, mockContratos, mockDashboard, mockTarefas } from '../data
 import './DashboardNovo.css';
 
 const DashboardNovo = () => {
+  const navigate = useNavigate();
   const { kpis, tarefas_atrasadas, gargalos_responsaveis } = mockDashboard;
+
+  const handleKpiClick = (tipo) => {
+    switch(tipo) {
+      case 'total':
+        navigate('/projetos');
+        break;
+      case 'em_dia':
+        navigate('/projetos');
+        // TODO: Adicionar filtro de ativos na navegação
+        break;
+      case 'atrasados':
+        navigate('/projetos');
+        // TODO: Adicionar filtro de atrasados na navegação
+        break;
+      case 'concluidos':
+        navigate('/projetos');
+        // TODO: Adicionar filtro de concluídos na navegação
+        break;
+      default:
+        break;
+    }
+  };
 
   const kpiCards = [
     {
@@ -25,28 +49,32 @@ const DashboardNovo = () => {
       value: kpis.total_projetos,
       icon: FolderKanban,
       color: '#3b82f6',
-      bgColor: '#eff6ff'
+      bgColor: '#eff6ff',
+      onClick: () => handleKpiClick('total')
     },
     {
       title: 'Em Dia',
       value: kpis.em_dia,
       icon: CheckCircle2,
       color: '#10b981',
-      bgColor: '#ecfdf5'
+      bgColor: '#ecfdf5',
+      onClick: () => handleKpiClick('em_dia')
     },
     {
       title: 'Atrasados',
       value: kpis.atrasados,
       icon: AlertTriangle,
       color: '#dc2626',
-      bgColor: '#fef2f2'
+      bgColor: '#fef2f2',
+      onClick: () => handleKpiClick('atrasados')
     },
     {
       title: 'Concluídos',
       value: kpis.concluidos,
       icon: TrendingUp,
       color: '#8b5cf6',
-      bgColor: '#f5f3ff'
+      bgColor: '#f5f3ff',
+      onClick: () => handleKpiClick('concluidos')
     }
   ];
 
