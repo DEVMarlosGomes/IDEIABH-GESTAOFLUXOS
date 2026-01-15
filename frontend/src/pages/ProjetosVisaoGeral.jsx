@@ -198,12 +198,15 @@ const ProjetosVisaoGeral = () => {
             const contrato = getContrato(projeto.contrato_id);
             const statusColor = getStatusColor(projeto.status);
             const etapaAtrasada = projeto.etapas.find(e => e.status === 'Atrasada');
+            const isHighlighted = highlightedProjetoId === projeto.id;
 
             return (
               <Card 
-                key={projeto.id} 
-                className={`projeto-card-novo ${projeto.status === 'Atrasado' ? 'atrasado' : ''}`}
+                key={projeto.id}
+                ref={(el) => (projetoRefs.current[projeto.id] = el)}
+                className={`projeto-card-novo ${projeto.status === 'Atrasado' ? 'atrasado' : ''} ${isHighlighted ? 'highlighted' : ''}`}
                 onClick={() => setSelectedProjeto(projeto)}
+                style={isHighlighted ? { scrollMarginTop: '100px' } : {}}
               >
                 <CardContent className="projeto-card-content-novo">
                   {/* Header do Card */}
