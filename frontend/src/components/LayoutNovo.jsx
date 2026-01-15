@@ -148,12 +148,22 @@ const LayoutNovo = ({ children, title, subtitle }) => {
 
   return (
     <div className="layout-novo">
-      <SidebarNova />
+      <SidebarNova isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      
+      {/* Overlay for mobile sidebar */}
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
       
       <main className="main-novo">
         {/* Top Bar */}
-        <header className="topbar-novo">
+        <header className={`topbar-novo ${!isNavbarVisible ? 'hidden' : ''}`}>
           <div className="topbar-left">
+            {/* Mobile Menu Button */}
+            <button className="mobile-menu-btn" onClick={toggleSidebar}>
+              <Menu size={24} />
+            </button>
+
             <div className="search-box">
               <Search size={18} className="search-icon" />
               <Input
@@ -163,11 +173,51 @@ const LayoutNovo = ({ children, title, subtitle }) => {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="search-input"
               />
+              
+              {/* Search Results Dropdown */}
+              {showSearchResults && searchResults.length > 0 && (
+                <div className="search-results-dropdown">
+                  <div className="search-results-header">
+                    <span>Resultados da busca</span>
+                    <span className="results-count">{searchResults.length} encontrado(s)</span>
+                  </div>
+                  <div className="search-results-list">
+                    {searchResults.map((result, index) => (
+                      <div 
+                        key={index}
+                        className="search-result-item"
+                        onClick={() => handleSearchResultClick(result)}
+                      >
+                        <div className="result-icon">
+                          {result.type === 'projeto' ? '📁' : '📄'}
+                        </div>
+                        <div className="result-content">
+                          <span className="result-title">{result.cliente}</span>
+                          <span className="result-subtitle">
+                            {result.instituicao} • {result.type === 'projeto' ? result.etapa_atual_nome : result.numero_contrato}
+                          </span>
+                        </div>
+                        <Badge className="result-badge">
+                          {result.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {showSearchResults && searchResults.length === 0 && searchTerm.length > 2 && (
+                <div className="search-results-dropdown">
+                  <div className="no-results">
+                    <p>Nenhum resultado encontrado para "{searchTerm}"</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="topbar-right">
-            <button className="topbar-btn share-btn">
+            <button className="topbar-btn share-btn mobile-hide">
               <Share2 size={18} />
             </button>
 
@@ -235,7 +285,8 @@ const LayoutNovo = ({ children, title, subtitle }) => {
                 <div className="user-avatar-small">
                   {user?.nome?.charAt(0) || 'U'}
                 </div>
-                <ChevronDown size={16} className="chevron" />
+                <span className="user-name-text mobile-hide">{user?.nome?.split(' ')[0] || 'Usuário'}</span>
+                <ChevronDown size={16} className="chevron mobile-hide" />
               </button>
 
               {userMenuOpen && (
