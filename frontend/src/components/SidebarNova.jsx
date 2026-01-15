@@ -104,7 +104,10 @@ const SidebarNova = ({ isOpen, onClose }) => {
     return (
       <button
         className={`sidebar-menu-item ${active ? 'active' : ''}`}
-        onClick={() => navigate(item.path)}
+        onClick={() => {
+          navigate(item.path);
+          if (onClose) onClose(); // Close sidebar on mobile
+        }}
         style={active && item.cor ? { '--accent-color': item.cor } : {}}
       >
         <div className="menu-item-icon" style={item.cor ? { color: item.cor } : {}}>
@@ -117,7 +120,12 @@ const SidebarNova = ({ isOpen, onClose }) => {
   };
 
   return (
-    <aside className="sidebar-nova">
+    <aside className={`sidebar-nova ${isOpen ? 'open' : ''}`}>
+      {/* Close button for mobile */}
+      <button className="sidebar-close-btn" onClick={onClose}>
+        <X size={24} />
+      </button>
+
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="logo-icon">
