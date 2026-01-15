@@ -654,7 +654,7 @@ export const mockDashboard = {
   timestamp: new Date().toISOString(),
   kpis: {
     total_projetos: mockProjetos.length,
-    em_dia: mockProjetos.filter(p => p.status === 'Em Andamento' && p.dias_atraso === 0).length,
+    em_dia: mockProjetos.filter(p => p.status === 'Ativo' && p.dias_atraso === 0).length,
     atrasados: mockProjetos.filter(p => p.status === 'Atrasado').length,
     concluidos: mockProjetos.filter(p => p.status === 'Concluído').length,
     percentual_no_prazo: Math.round((mockProjetos.filter(p => p.dias_atraso === 0).length / mockProjetos.length) * 100)
