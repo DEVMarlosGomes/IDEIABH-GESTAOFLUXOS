@@ -27,6 +27,30 @@ const LayoutNovo = ({ children, title, subtitle }) => {
     }
   };
 
+  const handleMarkAsRead = (notifId) => {
+    setNotificacoes(prev => 
+      prev.map(n => n.id === notifId ? { ...n, lida: true } : n)
+    );
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
+  };
+
+  const handleNotificationClick = (notif) => {
+    handleMarkAsRead(notif.id);
+    // Se for notificação de atraso, navegar para projetos
+    if (notif.tipo === 'alerta' && notif.mensagem.includes('atras')) {
+      navigate('/projetos');
+      setNotificacoesOpen(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <div className="layout-novo">
       <SidebarNova />
