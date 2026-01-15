@@ -547,3 +547,109 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .contratos-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .contratos-visao-container {
+    gap: 20px;
+  }
+  
+  .search-filter-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .search-box-contratos {
+    max-width: 100%;
+    width: 100%;
+  }
+  
+  .search-box-contratos .search-input {
+    height: 40px;
+  }
+  
+  .filtros-status {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .filtro-btn {
+    white-space: nowrap;
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+  
+  .add-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .contratos-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .contrato-card-novo {
+    padding: 16px;
+  }
+  
+  .contrato-header h3 {
+    font-size: 15px;
+  }
+  
+  .contrato-subtitle {
+    font-size: 12px;
+  }
+  
+  .contrato-info-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .info-item label {
+    font-size: 11px;
+  }
+  
+  .info-item span {
+    font-size: 13px;
+  }
+  
+  .contrato-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .contrato-card-novo {
+    padding: 14px;
+  }
+  
+  .contrato-header h3 {
+    font-size: 14px;
+  }
+  
+  .contrato-subtitle {
+    font-size: 11px;
+  }
+  
+  .status-badge {
+    font-size: 10px;
+    padding: 4px 10px;
+  }
+}
+
