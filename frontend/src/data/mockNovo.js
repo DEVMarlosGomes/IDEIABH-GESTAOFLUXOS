@@ -771,7 +771,6 @@ export const mockProjetos = [
   { id: 'projeto-19', contrato_id: 'contrato-19', cliente: 'Turma Marketing 2024', instituicao: 'Centro Universitário BH', etapa_atual: 7, etapa_atual_nome: 'Criação (3ª e 4ª AP)', progresso: 50, status: 'Atrasado', data_entrega: '2024-06-25', dias_restantes: 45, dias_atraso: 9, etapas: [] },
   { id: 'projeto-20', contrato_id: 'contrato-20', cliente: 'Turma Publicidade 2024', instituicao: 'Newton Paiva', etapa_atual: 4, etapa_atual_nome: 'Criação (1ª e 2ª AP)', progresso: 28, status: 'Atrasado', data_entrega: '2024-07-01', dias_restantes: 54, dias_atraso: 6, etapas: [] },
   { id: 'projeto-21', contrato_id: 'contrato-21', cliente: 'Turma Sistemas de Informação 2024', instituicao: 'FUMEC', etapa_atual: 5, etapa_atual_nome: 'Conferência', progresso: 35, status: 'Atrasado', data_entrega: '2024-06-30', dias_restantes: 53, dias_atraso: 10, etapas: [] },
-,
   // Novos Projetos Adicionais (26-35) - Mistos em diferentes etapas
   { id: 'projeto-26', contrato_id: 'contrato-26', cliente: 'Turma Engenharia Civil 2024', instituicao: 'UFOP', etapa_atual: 4, etapa_atual_nome: 'Criação (1ª e 2ª AP)', progresso: 28, status: 'Ativo', data_entrega: '2024-08-25', dias_restantes: 90, dias_atraso: 0, etapas: [] },
   { id: 'projeto-27', contrato_id: 'contrato-27', cliente: 'Turma Ciência da Computação 2024', instituicao: 'UFMG', etapa_atual: 6, etapa_atual_nome: 'Ajuste de Layout', progresso: 42, status: 'Atrasado', data_entrega: '2024-07-20', dias_restantes: 68, dias_atraso: 6, etapas: [] },
@@ -782,8 +781,7 @@ export const mockProjetos = [
   { id: 'projeto-32', contrato_id: 'contrato-32', cliente: 'Turma Matemática 2024', instituicao: 'UFMG', etapa_atual: 8, etapa_atual_nome: 'Aprovação Final', progresso: 57, status: 'Atrasado', data_entrega: '2024-07-25', dias_restantes: 73, dias_atraso: 4, etapas: [] },
   { id: 'projeto-33', contrato_id: 'contrato-33', cliente: 'Turma Sociologia 2024', instituicao: 'PUC Minas', etapa_atual: 2, etapa_atual_nome: 'Ativação', progresso: 14, status: 'Ativo', data_entrega: '2024-09-05', dias_restantes: 110, dias_atraso: 0, etapas: [] },
   { id: 'projeto-34', contrato_id: 'contrato-34', cliente: 'Turma Filosofia 2024', instituicao: 'FUMEC', etapa_atual: 10, etapa_atual_nome: 'Pré-Produção', progresso: 71, status: 'Ativo', data_entrega: '2024-08-15', dias_restantes: 80, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-35', contrato_id: 'contrato-35', cliente: 'Turma Relações Internacionais 2024', instituicao: 'PUC Minas', etapa_atual: 11, etapa_atual_nome: 'Produção', progresso: 78, status: 'Atrasado', data_entrega: '2024-07-10', dias_restantes: 58, dias_atraso: 9, etapas: [] }
-
+  { id: 'projeto-35', contrato_id: 'contrato-35', cliente: 'Turma Relações Internacionais 2024', instituicao: 'PUC Minas', etapa_atual: 11, etapa_atual_nome: 'Produção', progresso: 78, status: 'Atrasado', data_entrega: '2024-07-10', dias_restantes: 58, dias_atraso: 9, etapas: [] },
   // Projetos Concluídos (22-25)
   { id: 'projeto-22', contrato_id: 'contrato-22', cliente: 'Turma Ciências Biológicas 2023', instituicao: 'UFMG', etapa_atual: 14, etapa_atual_nome: 'Pós-Vendas', progresso: 100, status: 'Concluído', data_entrega: '2024-01-15', dias_restantes: 0, dias_atraso: 0, etapas: [] },
   { id: 'projeto-23', contrato_id: 'contrato-23', cliente: 'Turma Geografia 2023', instituicao: 'PUC Minas', etapa_atual: 14, etapa_atual_nome: 'Pós-Vendas', progresso: 100, status: 'Concluído', data_entrega: '2024-02-20', dias_restantes: 0, dias_atraso: 0, etapas: [] },
