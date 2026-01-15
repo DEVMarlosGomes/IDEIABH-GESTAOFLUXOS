@@ -1,0 +1,227 @@
+.tarefas-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Filters */
+.filters-bar {
+  flex-wrap: wrap;
+}
+
+.filter-selects {
+  display: flex;
+  gap: 12px;
+}
+
+.filter-select {
+  width: 180px;
+  height: 42px;
+  border-radius: 10px;
+  border: 2px solid #e5e7eb;
+}
+
+/* Kanban Board */
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  min-height: 600px;
+}
+
+.kanban-column {
+  display: flex;
+  flex-direction: column;
+  background: #f1f5f9;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: white;
+  border-bottom: 3px solid;
+}
+
+.column-indicator {
+  width: 8px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.column-header h3 {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.column-count {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.column-content {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 200px;
+  transition: background-color 0.2s;
+}
+
+.column-content.dragging-over {
+  background: #e2e8f0;
+}
+
+/* Tarefa Card */
+.tarefa-card {
+  display: flex;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.tarefa-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.tarefa-card.dragging {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  transform: rotate(2deg);
+}
+
+.tarefa-card.overdue {
+  border-left: 3px solid #ef4444;
+}
+
+.tarefa-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.tarefa-drag-handle:active {
+  cursor: grabbing;
+}
+
+.tarefa-content {
+  flex: 1;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tarefa-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tarefa-titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.critica-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.tarefa-projeto {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.tarefa-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tarefa-responsavel,
+.tarefa-prazo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.tarefa-prazo.overdue {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.tarefa-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.tarefa-actions button {
+  padding: 4px 8px;
+  height: auto;
+}
+
+.tarefa-actions .delete-btn {
+  color: #dc2626;
+}
+
+.tarefa-actions .delete-btn:hover {
+  background: #fef2f2;
+}
+
+/* Modal */
+.tarefa-modal {
+  max-width: 500px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .kanban-board {
+    grid-template-columns: 1fr;
+  }
+
+  .kanban-column {
+    min-height: auto;
+  }
+
+  .column-content {
+    min-height: 100px;
+  }
+}
+
+@media (max-width: 768px) {
+  .filter-selects {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+}
