@@ -207,7 +207,7 @@ const ProjetosVisaoGeral = () => {
                     <div className="atraso-indicator">
                       <AlertTriangle size={14} />
                       <span>
-                        <strong>{projeto.dias_atraso} dias</strong> de atraso em "{etapaAtrasada.nome}"
+                        <strong>{projeto.dias_atraso} dias</strong> de atraso em &quot;{etapaAtrasada.nome}&quot;
                       </span>
                     </div>
                   )}
