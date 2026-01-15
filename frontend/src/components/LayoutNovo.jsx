@@ -133,10 +133,49 @@ const LayoutNovo = ({ children, title, subtitle }) => {
             </div>
 
             <div className="user-menu">
-              <div className="user-avatar-small">
-                {user?.nome?.charAt(0) || 'U'}
-              </div>
-              <ChevronDown size={16} className="chevron" />
+              <button 
+                className="user-menu-trigger"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+              >
+                <div className="user-avatar-small">
+                  {user?.nome?.charAt(0) || 'U'}
+                </div>
+                <ChevronDown size={16} className="chevron" />
+              </button>
+
+              {userMenuOpen && (
+                <div className="user-menu-dropdown">
+                  <div className="user-menu-header">
+                    <div className="user-avatar-large">
+                      {user?.nome?.charAt(0) || 'U'}
+                    </div>
+                    <div className="user-info">
+                      <span className="user-name">{user?.nome || 'Usuário'}</span>
+                      <span className="user-email">{user?.email || 'email@exemplo.com'}</span>
+                    </div>
+                  </div>
+                  <div className="user-menu-divider"></div>
+                  <div className="user-menu-items">
+                    <button 
+                      className="user-menu-item"
+                      onClick={() => {
+                        navigate('/configuracoes');
+                        setUserMenuOpen(false);
+                      }}
+                    >
+                      <Settings size={18} />
+                      <span>Configurações</span>
+                    </button>
+                    <button 
+                      className="user-menu-item logout"
+                      onClick={handleLogout}
+                    >
+                      <LogOut size={18} />
+                      <span>Sair</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>
