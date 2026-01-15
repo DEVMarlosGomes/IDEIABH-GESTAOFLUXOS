@@ -155,10 +155,10 @@ const ContratosVisaoGeral = () => {
                 Todos
               </button>
               <button 
-                className={`filtro-btn ${filtroStatus === 'Em Andamento' ? 'active' : ''}`}
-                onClick={() => setFiltroStatus('Em Andamento')}
+                className={`filtro-btn ${filtroStatus === 'Ativo' ? 'active' : ''}`}
+                onClick={() => setFiltroStatus('Ativo')}
               >
-                Em Andamento
+                Ativos
               </button>
               <button 
                 className={`filtro-btn ${filtroStatus === 'Atrasado' ? 'active' : ''}`}
