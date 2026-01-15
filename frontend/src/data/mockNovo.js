@@ -527,7 +527,7 @@ export const mockProjetos = [
     etapa_atual: 2,
     etapa_atual_nome: 'Ativação',
     progresso: 14,
-    status: 'Em Andamento',
+    status: 'Ativo',
     data_entrega: '2024-08-30',
     dias_restantes: 106,
     dias_atraso: 0,
