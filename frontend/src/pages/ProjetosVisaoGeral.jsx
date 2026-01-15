@@ -32,7 +32,7 @@ const ProjetosVisaoGeral = () => {
   const getStatusColor = (status) => {
     switch(status) {
       case 'Atrasado': return { bg: '#fee2e2', color: '#dc2626', border: '#fecaca' };
-      case 'Em Andamento': return { bg: '#dbeafe', color: '#1d4ed8', border: '#bfdbfe' };
+      case 'Ativo': return { bg: '#dbeafe', color: '#1d4ed8', border: '#bfdbfe' };
       case 'Concluído': return { bg: '#dcfce7', color: '#15803d', border: '#bbf7d0' };
       default: return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' };
     }
