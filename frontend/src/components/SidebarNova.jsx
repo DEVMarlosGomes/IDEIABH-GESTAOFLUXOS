@@ -14,11 +14,12 @@ import {
   HelpCircle,
   LogOut,
   ChevronRight,
-  FolderKanban
+  FolderKanban,
+  X
 } from 'lucide-react';
 import './SidebarNova.css';
 
-const SidebarNova = () => {
+const SidebarNova = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, hasPermission } = useAuth();
