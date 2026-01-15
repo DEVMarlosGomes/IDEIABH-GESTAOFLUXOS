@@ -1,0 +1,261 @@
+.layout-novo {
+  display: flex;
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+.main-novo {
+  flex: 1;
+  margin-left: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Top Bar */
+.topbar-novo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topbar-left {
+  flex: 1;
+  max-width: 500px;
+}
+
+.search-box {
+  position: relative;
+}
+
+.search-box .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.search-box .search-input {
+  padding-left: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  background: #f8fafc;
+  font-size: 14px;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.search-box .search-input:focus {
+  border-color: #3b82f6;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: none;
+  border-radius: 12px;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.topbar-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.notification-wrapper {
+  position: relative;
+}
+
+.notification-btn {
+  position: relative;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #ef4444;
+  color: white;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 380px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.mark-all-read {
+  font-size: 12px;
+  color: #3b82f6;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.notification-list {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #f8fafc;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.notification-item:hover {
+  background: #f8fafc;
+}
+
+.notification-item.unread {
+  background: #eff6ff;
+}
+
+.notification-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.notification-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.notification-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.notification-message {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 6px;
+  background: #f8fafc;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.user-menu:hover {
+  background: #f1f5f9;
+}
+
+.user-avatar-small {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.user-menu .chevron {
+  color: #94a3b8;
+}
+
+/* Page Header */
+.page-header-novo {
+  padding: 24px 32px 0;
+}
+
+.page-title-novo {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.page-subtitle-novo {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Page Content */
+.page-content-novo {
+  flex: 1;
+  padding: 24px 32px 32px;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .main-novo {
+    margin-left: 0;
+  }
+
+  .topbar-novo {
+    padding: 12px 16px;
+  }
+
+  .page-header-novo,
+  .page-content-novo {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
