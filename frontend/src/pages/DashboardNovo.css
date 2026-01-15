@@ -18,9 +18,14 @@
   transition: all 0.2s;
 }
 
-.kpi-card-novo:hover {
+.kpi-card-novo.clickable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+.kpi-card-novo.clickable:active {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .kpi-content-novo {
