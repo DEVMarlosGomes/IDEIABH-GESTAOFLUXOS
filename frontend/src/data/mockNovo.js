@@ -1,809 +1,633 @@
-// Mock Data Atualizado com Etapas Detalhadas e Sistema de Atrasos
+// ==========================================
+// SISTEMA DE GESTÃO DE FORMATURAS - IDEIABH
+// ==========================================
 
-export const mockUsers = [
+// Definição dos Departamentos
+export const DEPARTAMENTOS = {
+  ATENDIMENTO: {
+    id: 'atendimento',
+    nome: 'Atendimento',
+    cor: '#3b82f6',
+    equipe: ['Ana', 'Larissa', 'Keyla', 'Mickaela'],
+    descricao: 'Receber contrato, cadastrar no sistema e fazer o acompanhamento do cliente até a aprovação'
+  },
+  CRIACAO: {
+    id: 'criacao',
+    nome: 'Criação',
+    cor: '#8b5cf6',
+    equipe: ['Taelsei', 'Juliana', 'Clara', 'Suelen', 'Marcus', 'Fagner', 'Ketlen', 'Gabi'],
+    descricao: 'Desenvolver a identidade visual e todas as peças gráficas do convite'
+  },
+  PRE_PRODUCAO: {
+    id: 'pre-producao',
+    nome: 'Pré-Produção',
+    cor: '#f59e0b',
+    equipe: ['Carlos', 'Emanuel'],
+    descricao: 'Preparar arquivos e materiais para impressão'
+  },
+  PRODUCAO: {
+    id: 'producao',
+    nome: 'Produção/Entrega',
+    cor: '#10b981',
+    equipe: ['Ricardo'],
+    descricao: 'Produção física dos convites e controle de entrega'
+  }
+};
+
+// Função auxiliar para calcular datas
+const addDays = (date, days) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result.toISOString().split('T')[0];
+};
+
+const addMonths = (date, months) => {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
+  return result.toISOString().split('T')[0];
+};
+
+// Definição das Etapas de ATENDIMENTO
+export const ETAPAS_ATENDIMENTO = [
   {
-    id: 'user-1',
-    nome: 'Admin Sistema',
-    email: 'admin@ideiabh.com',
-    role: 'admin',
-    ativo: true,
-    departamento: 'Administração',
-    avatar: 'AS',
-    permissoes: {
-      dashboard: true,
-      contratos_visualizar: true,
-      contratos_criar: true,
-      contratos_editar: true,
-      contratos_excluir: true,
-      contratos_aprovar: true,
-      contratos_finalizar: true,
-      projetos_visualizar: true,
-      projetos_avancar: true,
-      tarefas_visualizar: true,
-      tarefas_criar: true,
-      tarefas_editar: true,
-      tarefas_concluir: true,
-      tarefas_mover: true,
-      admin: true
-    }
+    id: 1,
+    nome: 'Informar recebimento do contrato',
+    departamento: 'atendimento',
+    prazo_dias: 0, // No mesmo dia
+    descricao: 'Informar que recebeu o contrato - No mesmo dia que receber',
+    tipo: 'simples',
+    requer_interacao: false
   },
   {
-    id: 'user-2',
-    nome: 'Maria Letro',
-    email: 'maria@ideiabh.com',
-    role: 'gerente',
-    ativo: true,
-    departamento: 'Criação',
-    avatar: 'ML',
-    permissoes: {
-      dashboard: true,
-      contratos_visualizar: true,
-      contratos_criar: true,
-      contratos_editar: true,
-      projetos_visualizar: true,
-      tarefas_visualizar: true,
-      tarefas_editar: true,
-      admin: false
-    }
+    id: 2,
+    nome: 'Ativar contrato no site',
+    departamento: 'atendimento',
+    prazo_dias: 1,
+    descricao: '1 dia após receber o contrato',
+    tipo: 'simples',
+    requer_interacao: false
   },
   {
-    id: 'user-3',
-    nome: 'João Silva',
-    email: 'joao@ideiabh.com',
-    role: 'operador',
-    ativo: true,
-    departamento: 'Produção',
-    avatar: 'JS',
-    permissoes: {
-      dashboard: true,
-      contratos_visualizar: true,
-      projetos_visualizar: true,
-      tarefas_visualizar: true,
-      tarefas_concluir: true,
-      admin: false
-    }
+    id: 3,
+    nome: '1º contato com a comissão',
+    departamento: 'atendimento',
+    prazo_dias: 1,
+    descricao: '1 dia após receber o contrato',
+    tipo: 'simples',
+    requer_interacao: false
   },
   {
-    id: 'user-4',
-    nome: 'Ana Costa',
-    email: 'ana@ideiabh.com',
-    role: 'operador',
-    ativo: true,
-    departamento: 'Atendimento',
-    avatar: 'AC',
-    permissoes: {
-      dashboard: true,
-      contratos_visualizar: true,
-      projetos_visualizar: true,
-      tarefas_visualizar: true,
-      tarefas_concluir: true,
-      admin: false
-    }
+    id: 4,
+    nome: 'Reunião de atendimento',
+    departamento: 'atendimento',
+    prazo_dias: 15, // 15 dias após o primeiro contato
+    descricao: '15 dias após o primeiro contato com a comissão',
+    tipo: 'interacao',
+    requer_interacao: true,
+    interacao_com: ['criacao'],
+    campo_interacao: 'Atendimento e Criação devem estar cientes sobre a marcação da reunião'
+  },
+  {
+    id: 5,
+    nome: 'Envio do questionário de criação',
+    departamento: 'atendimento',
+    prazo_dias: 1, // 1 dia após reunião
+    descricao: '1 dia após a reunião de atendimento',
+    tipo: 'simples',
+    requer_interacao: false
+  },
+  {
+    id: 6,
+    nome: 'Recebimento do questionário preenchido',
+    departamento: 'atendimento',
+    prazo_dias: 60, // 2 meses
+    descricao: 'Receber questionário preenchido pela comissão',
+    tipo: 'complexo',
+    requer_justificativa: true,
+    lembretes: [
+      { dias_antes: 1, mensagem: 'Cobrar questionário da comissão' },
+      { dias_antes: 0, mensagem: 'Enviar questionário para Criação' },
+      { tipo: 'semanal', mensagem: 'Lembrete semanal até 1 semana antes da entrega de textos' }
+    ],
+    requer_interacao: true,
+    interacao_com: ['criacao'],
+    campo_interacao: 'Criação confirma recebimento do questionário'
+  },
+  {
+    id: 7,
+    nome: 'Envio do e-mail de layout de fotos',
+    departamento: 'atendimento',
+    prazo_dias: 1,
+    descricao: '1 dia após a reunião de atendimento',
+    tipo: 'interacao',
+    requer_interacao: true,
+    interacao_com: ['criacao'],
+    campo_interacao: 'Criação confirma recebimento do layout de fotos'
+  },
+  {
+    id: 8,
+    nome: 'Enviar layout para comissão',
+    departamento: 'atendimento',
+    prazo_dias: 1,
+    descricao: 'Após receber documento da Criação',
+    tipo: 'dependente',
+    depende_de: 'criacao_layout_fotos'
+  },
+  {
+    id: 9,
+    nome: 'Agendar reunião de criação',
+    departamento: 'atendimento',
+    prazo_dias: -10, // 10 dias ANTES da entrega de textos
+    descricao: '10 dias antes da entrega de textos e fotos',
+    tipo: 'interacao',
+    requer_interacao: true,
+    interacao_com: ['criacao'],
+    lembretes: [
+      { dias_antes: 1, mensagem: 'Confirmar reunião com cliente' }
+    ],
+    campo_interacao: 'Atendimento confirma reunião, Criação fica ciente'
+  },
+  {
+    id: 10,
+    nome: 'Liberação das fotos para pré-produção',
+    departamento: 'atendimento',
+    prazo_dias: 1,
+    descricao: '1 dia após recebimento dentro do prazo contratual',
+    tipo: 'contratual',
+    pode_atrasar_ate: 365 // até 1 ano
+  },
+  {
+    id: 11,
+    nome: 'Cadastro de textos/REV1',
+    departamento: 'atendimento',
+    prazo_dias: 1,
+    descricao: '1 dia após cadastro dentro do prazo contratual',
+    tipo: 'contratual',
+    pode_atrasar_ate: 365
+  },
+  {
+    id: 12,
+    nome: 'Acompanhar aprovação',
+    departamento: 'atendimento',
+    prazo_dias: 0,
+    descricao: 'Fazer cobrança após prazo expirado',
+    tipo: 'monitoramento',
+    lembretes: [
+      { dias_antes: 1, mensagem: 'Site vai fechar amanhã' },
+      { dias_antes: 0, mensagem: 'Site fechando hoje' }
+    ]
+  },
+  {
+    id: 13,
+    nome: 'Aditivo contratual',
+    departamento: 'atendimento',
+    prazo_dias: 0,
+    descricao: 'Se prazo perdido em decorrência de atrasos do cliente',
+    tipo: 'condicional',
+    lembretes: [
+      { dias_antes: 7, mensagem: 'Lembrar comissão sobre prazo de cadastro' }
+    ]
+  },
+  {
+    id: 14,
+    nome: 'Cobrança e direcionamento à diretoria',
+    departamento: 'atendimento',
+    prazo_dias: 7,
+    descricao: 'Em caso de atraso das etapas dos criadores',
+    tipo: 'alerta',
+    condicao: 'sem_movimentacao_criacao'
+  },
+  {
+    id: 15,
+    nome: 'Envio de e-mail de conferência de lista',
+    departamento: 'atendimento',
+    prazo_dias: 1,
+    descricao: '1 dia após apresentação do convite',
+    tipo: 'complexo',
+    lembretes: [
+      { dias_apos: 3, mensagem: 'Verificar se financeiro retornou' },
+      { tipo: 'pendencia', prazo_dias: 7, mensagem: 'Resolver pendências da lista' }
+    ]
+  },
+  {
+    id: 16,
+    nome: 'Liberação envelope de saída',
+    departamento: 'atendimento',
+    prazo_dias: 2,
+    descricao: 'Liberar para pré-produção',
+    tipo: 'simples',
+    requer_justificativa: true
+  },
+  {
+    id: 17,
+    nome: 'Atualização planilha geral e relatório',
+    departamento: 'atendimento',
+    prazo_dias: 0,
+    descricao: 'Toda quinta-feira até 17h',
+    tipo: 'semanal',
+    dia_semana: 4, // Quinta-feira
+    hora_limite: '17:00',
+    lembretes: [
+      { dias_antes: 1, mensagem: 'Atualizar planilha amanhã' },
+      { dias_antes: 0, mensagem: 'Atualizar planilha hoje até 17h' }
+    ],
+    destaque: true
   }
 ];
 
-// Definição das Etapas do Sistema
-export const ETAPAS_SISTEMA = [
-  { id: 1, nome: 'Lançamento', departamento: 'Atendimento', duracao_padrao: 2 },
-  { id: 2, nome: 'Ativação', departamento: 'Atendimento', duracao_padrao: 3 },
-  { id: 3, nome: 'Revisão de Texto', departamento: 'Criação', duracao_padrao: 5 },
-  { id: 4, nome: 'Criação (1ª e 2ª AP)', departamento: 'Criação', duracao_padrao: 7 },
-  { id: 5, nome: 'Conferência', departamento: 'Criação', duracao_padrao: 2 },
-  { id: 6, nome: 'Ajuste de Layout', departamento: 'Criação', duracao_padrao: 3 },
-  { id: 7, nome: 'Criação (3ª e 4ª AP)', departamento: 'Criação', duracao_padrao: 5 },
-  { id: 8, nome: 'Aprovação Final', departamento: 'Atendimento', duracao_padrao: 2 },
-  { id: 9, nome: 'Planejamento Produção', departamento: 'Pré-Produção', duracao_padrao: 3 },
-  { id: 10, nome: 'Pré-Produção', departamento: 'Pré-Produção', duracao_padrao: 5 },
-  { id: 11, nome: 'Produção', departamento: 'Produção', duracao_padrao: 10 },
-  { id: 12, nome: 'Controle de Qualidade', departamento: 'Produção', duracao_padrao: 3 },
-  { id: 13, nome: 'Entrega', departamento: 'Produção', duracao_padrao: 2 },
-  { id: 14, nome: 'Pós-Vendas', departamento: 'Atendimento', duracao_padrao: 5 }
+// Definição das Etapas de CRIAÇÃO
+export const ETAPAS_CRIACAO = [
+  {
+    id: 1,
+    nome: 'RC - Reunião de criação',
+    departamento: 'criacao',
+    prazo_dias: 0,
+    descricao: 'Após atendimento agendar',
+    tipo: 'interacao',
+    lembretes: [
+      { tipo: 'agendamento', mensagem: 'Ciente que reunião foi agendada' },
+      { dias_antes: 1, mensagem: 'Confirmar reunião amanhã' },
+      { dias_antes: 0, mensagem: 'Reunião hoje' }
+    ],
+    observacao: 'Desmarcar com 1 dia de antecedência e comunicar atendimento'
+  },
+  {
+    id: 2,
+    nome: 'Envio do briefing de criação',
+    departamento: 'criacao',
+    prazo_dias: 2,
+    descricao: '2 dias após reunião',
+    tipo: 'interacao',
+    requer_interacao: true,
+    interacao_com: ['atendimento'],
+    campo_interacao: 'Atendimento confirma recebimento do documento'
+  },
+  {
+    id: 3,
+    nome: 'Layout de Fotos',
+    departamento: 'criacao',
+    prazo_dias: 3,
+    descricao: '3 dias após receber solicitação do atendimento',
+    tipo: 'dependente',
+    depende_de: 'atendimento_solicita_layout'
+  },
+  {
+    id: 4,
+    nome: 'Arte da Camisa',
+    departamento: 'criacao',
+    prazo_dias: 3,
+    descricao: '3 dias após receber solicitação (quando aplicável)',
+    tipo: 'condicional',
+    depende_de: 'atendimento_solicita_camisa'
+  },
+  {
+    id: 5,
+    nome: 'Textos cadastrados - Notificação',
+    departamento: 'criacao',
+    prazo_dias: 0,
+    descricao: 'Ficar ciente que textos foram cadastrados e revisados',
+    tipo: 'notificacao',
+    campo_informativo: true
+  },
+  {
+    id: 6,
+    nome: 'Recebimento das fotos da pré',
+    departamento: 'criacao',
+    prazo_dias: 0,
+    descricao: 'Ficar ciente que fotos estão recortadas',
+    tipo: 'notificacao',
+    campo_informativo: true
+  },
+  {
+    id: 7,
+    nome: 'Início da criação do convite',
+    departamento: 'criacao',
+    prazo_dias: 10,
+    descricao: '10 dias após entrega de textos e fotos',
+    tipo: 'inicio_projeto',
+    observacao: 'Se prazos diferentes, iniciar com os textos'
+  },
+  {
+    id: 8,
+    nome: 'Dias de criação do convite',
+    departamento: 'criacao',
+    prazo_dias: 3,
+    descricao: '3 dias para criar',
+    tipo: 'producao'
+  },
+  {
+    id: 9,
+    nome: 'Correções',
+    departamento: 'criacao',
+    prazo_dias: 3,
+    descricao: '3 dias após liberar site para correções',
+    tipo: 'revisao'
+  },
+  {
+    id: 10,
+    nome: 'Liberação demais peças',
+    departamento: 'criacao',
+    prazo_dias: 0,
+    descricao: 'Informar liberação após aprovação CDC',
+    tipo: 'notificacao'
+  },
+  {
+    id: 11,
+    nome: 'Miolo do convite aprovado',
+    departamento: 'criacao',
+    prazo_dias: 1,
+    descricao: 'Informar que miolo está totalmente aprovado',
+    tipo: 'marco'
+  },
+  {
+    id: 12,
+    nome: 'Capa aprovada',
+    departamento: 'criacao',
+    prazo_dias: 1,
+    descricao: 'Informar aprovação da capa',
+    tipo: 'marco'
+  },
+  {
+    id: 13,
+    nome: 'Demais Peças',
+    departamento: 'criacao',
+    prazo_dias: 3,
+    descricao: 'Caixas, tags, folders, etc.',
+    tipo: 'dependente',
+    depende_de: 'capa_aprovada'
+  },
+  {
+    id: 14,
+    nome: 'Aprovação páginas individuais',
+    departamento: 'criacao',
+    prazo_dias: 0,
+    descricao: 'Após aprovação CDC',
+    tipo: 'dependente',
+    depende_de: 'cdc_aprovada'
+  },
+  {
+    id: 15,
+    nome: 'Revisão - REV',
+    departamento: 'criacao',
+    prazo_dias: 1,
+    descricao: '1 dia após miolo totalmente aprovado',
+    tipo: 'revisao_final'
+  },
+  {
+    id: 16,
+    nome: 'Saída - Finalização',
+    departamento: 'criacao',
+    prazo_dias: 3,
+    descricao: '3 dias após convite totalmente aprovado',
+    tipo: 'finalizacao',
+    campo_pendencias: true,
+    observacao: 'Informar se cortesias ficaram pendentes'
+  }
 ];
 
+// Definição das Etapas de PRÉ-PRODUÇÃO
+export const ETAPAS_PRE_PRODUCAO = [
+  {
+    id: 1,
+    nome: 'Recorte e tratamento das fotos',
+    departamento: 'pre-producao',
+    prazo_dias: 10,
+    descricao: '10 dias para tratamento',
+    tipo: 'producao',
+    requer_justificativa: true,
+    requer_interacao: true,
+    interacao_com: ['criacao'],
+    campo_interacao: 'Informar Criação que fotos estão liberadas',
+    observacao: 'Justificar se houver fotos pendentes ou baixa resolução'
+  },
+  {
+    id: 2,
+    nome: 'Recebimento envelope de saída',
+    departamento: 'pre-producao',
+    prazo_dias: 1,
+    descricao: '1 dia para iniciar saída',
+    tipo: 'recebimento'
+  },
+  {
+    id: 3,
+    nome: 'Conferir textos e revisão ortográfica',
+    departamento: 'pre-producao',
+    prazo_dias: 1,
+    descricao: 'Após receber envelope do atendimento',
+    tipo: 'revisao'
+  },
+  {
+    id: 4,
+    nome: 'Envio dos arquivos para gráfica',
+    departamento: 'pre-producao',
+    prazo_dias: 1,
+    descricao: 'Após conferência',
+    tipo: 'envio'
+  },
+  {
+    id: 5,
+    nome: 'Conferência de xerox',
+    departamento: 'pre-producao',
+    prazo_dias: 1,
+    descricao: 'Caso impressão externa',
+    tipo: 'condicional'
+  },
+  {
+    id: 6,
+    nome: 'Controle de impressões internas',
+    departamento: 'pre-producao',
+    prazo_dias: 0,
+    descricao: 'Monitoramento contínuo',
+    tipo: 'monitoramento'
+  }
+];
+
+// Definição das Etapas de PRODUÇÃO
+export const ETAPAS_PRODUCAO = [
+  {
+    id: 1,
+    nome: 'Triagem de materiais',
+    departamento: 'producao',
+    prazo_dias: 1,
+    descricao: 'Organizar materiais recebidos',
+    tipo: 'preparacao'
+  },
+  {
+    id: 2,
+    nome: 'Envio do arquivo à gráfica',
+    departamento: 'producao',
+    prazo_dias: 1,
+    descricao: 'Enviar para impressão externa',
+    tipo: 'envio'
+  },
+  {
+    id: 3,
+    nome: 'Ordem de produção',
+    departamento: 'producao',
+    prazo_dias: 1,
+    descricao: 'Iniciar produção interna',
+    tipo: 'inicio'
+  },
+  {
+    id: 4,
+    nome: 'Costura e acabamento interno',
+    departamento: 'producao',
+    prazo_dias: 5,
+    descricao: 'Finalização manual dos convites',
+    tipo: 'producao'
+  },
+  {
+    id: 5,
+    nome: 'Conferência final de qualidade',
+    departamento: 'producao',
+    prazo_dias: 1,
+    descricao: 'Verificação antes da entrega',
+    tipo: 'qualidade'
+  },
+  {
+    id: 6,
+    nome: 'Entrega dos convites',
+    departamento: 'producao',
+    prazo_dias: 1,
+    descricao: 'Entrega à comissão',
+    tipo: 'finalizacao',
+    requer_interacao: true,
+    interacao_com: ['atendimento'],
+    campo_interacao: 'Atendimento agenda entrega com cliente'
+  }
+];
+
+// Combinar todas as etapas
+export const TODAS_ETAPAS = [
+  ...ETAPAS_ATENDIMENTO.map(e => ({ ...e, departamento_obj: DEPARTAMENTOS.ATENDIMENTO })),
+  ...ETAPAS_CRIACAO.map(e => ({ ...e, departamento_obj: DEPARTAMENTOS.CRIACAO })),
+  ...ETAPAS_PRE_PRODUCAO.map(e => ({ ...e, departamento_obj: DEPARTAMENTOS.PRE_PRODUCAO })),
+  ...ETAPAS_PRODUCAO.map(e => ({ ...e, departamento_obj: DEPARTAMENTOS.PRODUCAO }))
+];
+
+// Função para criar projeto com datas calculadas
+const criarProjeto = (contratoId, cliente, instituicao, dataInicio, status = 'Ativo') => {
+  const dataInicioDate = new Date(dataInicio);
+  const hoje = new Date();
+  
+  // Calcular etapa atual baseado no tempo decorrido
+  const diasDecorridos = Math.floor((hoje - dataInicioDate) / (1000 * 60 * 60 * 24));
+  
+  let etapaAtual = 1;
+  let departamentoAtual = 'atendimento';
+  let progresso = 10;
+  
+  if (diasDecorridos > 60) {
+    departamentoAtual = 'criacao';
+    etapaAtual = 5;
+    progresso = 45;
+  } else if (diasDecorridos > 30) {
+    departamentoAtual = 'atendimento';
+    etapaAtual = 10;
+    progresso = 35;
+  } else if (diasDecorridos > 15) {
+    departamentoAtual = 'atendimento';
+    etapaAtual = 6;
+    progresso = 25;
+  }
+  
+  const dataEntrega = addMonths(dataInicio, 6); // 6 meses de contrato
+  const diasRestantes = Math.floor((new Date(dataEntrega) - hoje) / (1000 * 60 * 60 * 24));
+  
+  return {
+    id: contratoId.replace('contrato', 'projeto'),
+    contrato_id: contratoId,
+    cliente: cliente,
+    instituicao: instituicao,
+    departamento_atual: departamentoAtual,
+    etapa_atual: etapaAtual,
+    etapa_atual_nome: ETAPAS_ATENDIMENTO[etapaAtual - 1]?.nome || 'Iniciando',
+    progresso: progresso,
+    status: status,
+    data_inicio: dataInicio,
+    data_entrega: dataEntrega,
+    dias_restantes: diasRestantes > 0 ? diasRestantes : 0,
+    dias_atraso: status === 'Atrasado' ? Math.floor(Math.random() * 10) + 1 : 0,
+    observacoes: []
+  };
+};
+
+// CONTRATOS DE EXEMPLO
 export const mockContratos = [
-  // CONTRATOS ATIVOS (10 contratos)
   {
     id: 'contrato-1',
-    cliente: 'Turma Engenharia 2024',
-    instituicao: 'Universidade Federal MG',
-    numero_contrato: 'CT-2024-001',
-    valor: 125000,
-    data_inicio: '2024-01-15',
-    data_fim: '2024-06-30',
+    cliente: 'Turma Engenharia Civil 2025',
+    instituicao: 'UFMG',
+    numero_contrato: 'CT-2025-001',
+    valor: 145000,
+    data_inicio: '2025-01-10',
+    data_fim: '2025-07-10',
     data_fim_real: null,
     status: 'Ativo',
+    prazo_textos: '2025-04-10',
+    prazo_fotos: '2025-04-15',
     projeto_id: 'projeto-1',
-    created_at: '2024-01-10',
+    created_at: '2025-01-05',
+    observacoes: []
+  },
+  {
+    id: 'contrato-2',
+    cliente: 'Turma Medicina 2025',
+    instituicao: 'UNIFENAS',
+    numero_contrato: 'CT-2025-002',
+    valor: 198000,
+    data_inicio: '2024-12-15',
+    data_fim: '2025-06-15',
+    data_fim_real: null,
+    status: 'Atrasado',
+    prazo_textos: '2025-03-15',
+    prazo_fotos: '2025-03-20',
+    projeto_id: 'projeto-2',
+    created_at: '2024-12-10',
     observacoes: []
   },
   {
     id: 'contrato-3',
-    cliente: 'Turma Direito 2024',
-    instituicao: 'FUMEC',
-    numero_contrato: 'CT-2024-003',
-    valor: 95000,
-    data_inicio: '2024-03-01',
-    data_fim: '2024-08-30',
+    cliente: 'Turma Direito 2025',
+    instituicao: 'PUC Minas',
+    numero_contrato: 'CT-2025-003',
+    valor: 175000,
+    data_inicio: '2025-01-20',
+    data_fim: '2025-07-20',
     data_fim_real: null,
     status: 'Ativo',
+    prazo_textos: '2025-04-20',
+    prazo_fotos: '2025-04-25',
     projeto_id: 'projeto-3',
-    created_at: '2024-02-15',
-    observacoes: []
-  },
-  {
-    id: 'contrato-5',
-    cliente: 'Turma Comunicação 2024',
-    instituicao: 'Estácio BH',
-    numero_contrato: 'CT-2024-005',
-    valor: 110000,
-    data_inicio: '2024-04-01',
-    data_fim: '2024-09-30',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-5',
-    created_at: '2024-03-20',
-    observacoes: []
-  },
-  {
-    id: 'contrato-6',
-    cliente: 'Turma Arquitetura 2024',
-    instituicao: 'PUC Minas',
-    numero_contrato: 'CT-2024-006',
-    valor: 135000,
-    data_inicio: '2024-02-10',
-    data_fim: '2024-07-20',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-6',
-    created_at: '2024-02-05',
-    observacoes: []
-  },
-  {
-    id: 'contrato-7',
-    cliente: 'Turma Psicologia 2024',
-    instituicao: 'Newton Paiva',
-    numero_contrato: 'CT-2024-007',
-    valor: 88000,
-    data_inicio: '2024-03-15',
-    data_fim: '2024-08-15',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-7',
-    created_at: '2024-03-10',
-    observacoes: []
-  },
-  {
-    id: 'contrato-8',
-    cliente: 'Turma Odontologia 2024',
-    instituicao: 'UFMG',
-    numero_contrato: 'CT-2024-008',
-    valor: 142000,
-    data_inicio: '2024-01-25',
-    data_fim: '2024-06-25',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-8',
-    created_at: '2024-01-20',
-    observacoes: []
-  },
-  {
-    id: 'contrato-9',
-    cliente: 'Turma Veterinária 2024',
-    instituicao: 'Centro Universitário BH',
-    numero_contrato: 'CT-2024-009',
-    valor: 99000,
-    data_inicio: '2024-04-05',
-    data_fim: '2024-09-05',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-9',
-    created_at: '2024-04-01',
-    observacoes: []
-  },
-  {
-    id: 'contrato-10',
-    cliente: 'Turma Enfermagem 2024',
-    instituicao: 'Faculdade Santa Casa',
-    numero_contrato: 'CT-2024-010',
-    valor: 78000,
-    data_inicio: '2024-03-20',
-    data_fim: '2024-08-20',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-10',
-    created_at: '2024-03-15',
-    observacoes: []
-  },
-  {
-    id: 'contrato-11',
-    cliente: 'Turma Fisioterapia 2024',
-    instituicao: 'Una Bom Despacho',
-    numero_contrato: 'CT-2024-011',
-    valor: 92000,
-    data_inicio: '2024-02-15',
-    data_fim: '2024-07-15',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-11',
-    created_at: '2024-02-10',
-    observacoes: []
-  },
-  {
-    id: 'contrato-12',
-    cliente: 'Turma Ciências Contábeis 2024',
-    instituicao: 'Estácio BH',
-    numero_contrato: 'CT-2024-012',
-    valor: 67000,
-    data_inicio: '2024-04-10',
-    data_fim: '2024-09-10',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-12',
-    created_at: '2024-04-05',
-    observacoes: []
-  },
-
-  // CONTRATOS ATRASADOS (10 contratos)
-  {
-    id: 'contrato-2',
-    cliente: 'Turma Medicina 2024',
-    instituicao: 'PUC Minas',
-    numero_contrato: 'CT-2024-002',
-    valor: 85000,
-    data_inicio: '2024-02-01',
-    data_fim: '2024-07-31',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-2',
-    created_at: '2024-01-20',
-    observacoes: []
-  },
-  {
-    id: 'contrato-13',
-    cliente: 'Turma Biomedicina 2024',
-    instituicao: 'UFMG',
-    numero_contrato: 'CT-2024-013',
-    valor: 118000,
-    data_inicio: '2024-01-10',
-    data_fim: '2024-06-10',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-13',
-    created_at: '2024-01-05',
-    observacoes: []
-  },
-  {
-    id: 'contrato-14',
-    cliente: 'Turma Farmácia 2024',
-    instituicao: 'Newton Paiva',
-    numero_contrato: 'CT-2024-014',
-    valor: 95000,
-    data_inicio: '2024-02-05',
-    data_fim: '2024-07-05',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-14',
-    created_at: '2024-01-30',
-    observacoes: []
-  },
-  {
-    id: 'contrato-15',
-    cliente: 'Turma Nutrição 2024',
-    instituicao: 'Una Contagem',
-    numero_contrato: 'CT-2024-015',
-    valor: 73000,
-    data_inicio: '2024-01-20',
-    data_fim: '2024-06-20',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-15',
-    created_at: '2024-01-15',
-    observacoes: []
-  },
-  {
-    id: 'contrato-16',
-    cliente: 'Turma Ed. Física 2024',
-    instituicao: 'FUMEC',
-    numero_contrato: 'CT-2024-016',
-    valor: 82000,
-    data_inicio: '2024-02-10',
-    data_fim: '2024-07-10',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-16',
-    created_at: '2024-02-05',
-    observacoes: []
-  },
-  {
-    id: 'contrato-17',
-    cliente: 'Turma Jornalismo 2024',
-    instituicao: 'PUC Minas',
-    numero_contrato: 'CT-2024-017',
-    valor: 91000,
-    data_inicio: '2024-01-15',
-    data_fim: '2024-06-15',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-17',
-    created_at: '2024-01-10',
-    observacoes: []
-  },
-  {
-    id: 'contrato-18',
-    cliente: 'Turma Design Gráfico 2024',
-    instituicao: 'Estácio BH',
-    numero_contrato: 'CT-2024-018',
-    valor: 77000,
-    data_inicio: '2024-02-20',
-    data_fim: '2024-07-20',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-18',
-    created_at: '2024-02-15',
-    observacoes: []
-  },
-  {
-    id: 'contrato-19',
-    cliente: 'Turma Marketing 2024',
-    instituicao: 'Centro Universitário BH',
-    numero_contrato: 'CT-2024-019',
-    valor: 84000,
-    data_inicio: '2024-01-25',
-    data_fim: '2024-06-25',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-19',
-    created_at: '2024-01-20',
-    observacoes: []
-  },
-  {
-    id: 'contrato-20',
-    cliente: 'Turma Publicidade 2024',
-    instituicao: 'Newton Paiva',
-    numero_contrato: 'CT-2024-020',
-    valor: 89000,
-    data_inicio: '2024-02-01',
-    data_fim: '2024-07-01',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-20',
-    created_at: '2024-01-25',
-    observacoes: []
-  },
-  {
-    id: 'contrato-21',
-    cliente: 'Turma Sistemas de Informação 2024',
-    instituicao: 'FUMEC',
-    numero_contrato: 'CT-2024-021',
-    valor: 105000,
-    data_inicio: '2024-01-30',
-    data_fim: '2024-06-30',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-21',
-    created_at: '2024-01-25',
-    observacoes: []
-  },
-
-
-  // NOVOS CONTRATOS ADICIONAIS (26-35) - Mistos em diferentes etapas
-  {
-    id: 'contrato-26',
-    cliente: 'Turma Engenharia Civil 2024',
-    instituicao: 'UFOP',
-    numero_contrato: 'CT-2024-026',
-    valor: 98000,
-    data_inicio: '2024-03-25',
-    data_fim: '2024-08-25',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-26',
-    created_at: '2024-03-20',
-    observacoes: []
-  },
-  {
-    id: 'contrato-27',
-    cliente: 'Turma Ciência da Computação 2024',
-    instituicao: 'UFMG',
-    numero_contrato: 'CT-2024-027',
-    valor: 128000,
-    data_inicio: '2024-02-20',
-    data_fim: '2024-07-20',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-27',
-    created_at: '2024-02-15',
-    observacoes: []
-  },
-  {
-    id: 'contrato-28',
-    cliente: 'Turma Agronomia 2024',
-    instituicao: 'UFV',
-    numero_contrato: 'CT-2024-028',
-    valor: 87000,
-    data_inicio: '2024-04-01',
-    data_fim: '2024-09-01',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-28',
-    created_at: '2024-03-28',
-    observacoes: []
-  },
-  {
-    id: 'contrato-29',
-    cliente: 'Turma Pedagogia 2024',
-    instituicao: 'PUC Minas',
-    numero_contrato: 'CT-2024-029',
-    valor: 71000,
-    data_inicio: '2024-03-10',
-    data_fim: '2024-08-10',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-29',
-    created_at: '2024-03-05',
-    observacoes: []
-  },
-  {
-    id: 'contrato-30',
-    cliente: 'Turma Química 2024',
-    instituicao: 'UFMG',
-    numero_contrato: 'CT-2024-030',
-    valor: 103000,
-    data_inicio: '2024-02-15',
-    data_fim: '2024-07-15',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-30',
-    created_at: '2024-02-10',
-    observacoes: []
-  },
-  {
-    id: 'contrato-31',
-    cliente: 'Turma Física 2024',
-    instituicao: 'UFMG',
-    numero_contrato: 'CT-2024-031',
-    valor: 97000,
-    data_inicio: '2024-03-05',
-    data_fim: '2024-08-05',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-31',
-    created_at: '2024-03-01',
-    observacoes: []
-  },
-  {
-    id: 'contrato-32',
-    cliente: 'Turma Matemática 2024',
-    instituicao: 'UFMG',
-    numero_contrato: 'CT-2024-032',
-    valor: 89000,
-    data_inicio: '2024-02-25',
-    data_fim: '2024-07-25',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-32',
-    created_at: '2024-02-20',
-    observacoes: []
-  },
-  {
-    id: 'contrato-33',
-    cliente: 'Turma Sociologia 2024',
-    instituicao: 'PUC Minas',
-    numero_contrato: 'CT-2024-033',
-    valor: 74000,
-    data_inicio: '2024-04-05',
-    data_fim: '2024-09-05',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-33',
-    created_at: '2024-04-01',
-    observacoes: []
-  },
-  {
-    id: 'contrato-34',
-    cliente: 'Turma Filosofia 2024',
-    instituicao: 'FUMEC',
-    numero_contrato: 'CT-2024-034',
-    valor: 68000,
-    data_inicio: '2024-03-15',
-    data_fim: '2024-08-15',
-    data_fim_real: null,
-    status: 'Ativo',
-    projeto_id: 'projeto-34',
-    created_at: '2024-03-10',
-    observacoes: []
-  },
-  {
-    id: 'contrato-35',
-    cliente: 'Turma Relações Internacionais 2024',
-    instituicao: 'PUC Minas',
-    numero_contrato: 'CT-2024-035',
-    valor: 112000,
-    data_inicio: '2024-02-10',
-    data_fim: '2024-07-10',
-    data_fim_real: null,
-    status: 'Atrasado',
-    projeto_id: 'projeto-35',
-    created_at: '2024-02-05',
-    observacoes: []
-  },
-
-  // CONTRATOS CONCLUÍDOS (5 contratos)
-  {
-    id: 'contrato-4',
-    cliente: 'Turma Administração 2024',
-    instituicao: 'Una',
-    numero_contrato: 'CT-2024-004',
-    valor: 72000,
-    data_inicio: '2024-01-20',
-    data_fim: '2024-05-15',
-    data_fim_real: '2024-05-15',
-    status: 'Concluído',
-    projeto_id: 'projeto-4',
-    created_at: '2024-01-05',
-    observacoes: []
-  },
-  {
-    id: 'contrato-22',
-    cliente: 'Turma Ciências Biológicas 2023',
-    instituicao: 'UFMG',
-    numero_contrato: 'CT-2023-022',
-    valor: 115000,
-    data_inicio: '2023-08-01',
-    data_fim: '2024-01-15',
-    data_fim_real: '2024-01-15',
-    status: 'Concluído',
-    projeto_id: 'projeto-22',
-    created_at: '2023-07-20',
-    observacoes: []
-  },
-  {
-    id: 'contrato-23',
-    cliente: 'Turma Geografia 2023',
-    instituicao: 'PUC Minas',
-    numero_contrato: 'CT-2023-023',
-    valor: 68000,
-    data_inicio: '2023-09-01',
-    data_fim: '2024-02-20',
-    data_fim_real: '2024-02-18',
-    status: 'Concluído',
-    projeto_id: 'projeto-23',
-    created_at: '2023-08-25',
-    observacoes: []
-  },
-  {
-    id: 'contrato-24',
-    cliente: 'Turma História 2023',
-    instituicao: 'Newton Paiva',
-    numero_contrato: 'CT-2023-024',
-    valor: 74000,
-    data_inicio: '2023-10-01',
-    data_fim: '2024-03-10',
-    data_fim_real: '2024-03-10',
-    status: 'Concluído',
-    projeto_id: 'projeto-24',
-    created_at: '2023-09-20',
-    observacoes: []
-  },
-  {
-    id: 'contrato-25',
-    cliente: 'Turma Letras 2023',
-    instituicao: 'FUMEC',
-    numero_contrato: 'CT-2023-025',
-    valor: 65000,
-    data_inicio: '2023-11-01',
-    data_fim: '2024-04-05',
-    data_fim_real: '2024-04-03',
-    status: 'Concluído',
-    projeto_id: 'projeto-25',
-    created_at: '2023-10-25',
+    created_at: '2025-01-15',
     observacoes: []
   }
 ];
 
-// Projetos com Etapas Detalhadas
-export const mockProjetos = [
-  {
-    id: 'projeto-1',
-    contrato_id: 'contrato-1',
-    cliente: 'Turma Engenharia 2024',
-    instituicao: 'Universidade Federal MG',
-    etapa_atual: 11,
-    etapa_atual_nome: 'Produção',
-    progresso: 75,
-    status: 'Ativo',
-    data_entrega: '2024-06-30',
-    dias_restantes: 45,
-    dias_atraso: 0,
-    etapas: [
-      { id: 1, nome: 'Lançamento', responsavel: 'Ana Costa', data_prevista_inicio: '2024-01-15', data_prevista_fim: '2024-01-17', data_real_inicio: '2024-01-15', data_real_fim: '2024-01-17', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 2, nome: 'Ativação', responsavel: 'Ana Costa', data_prevista_inicio: '2024-01-18', data_prevista_fim: '2024-01-21', data_real_inicio: '2024-01-18', data_real_fim: '2024-01-21', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 3, nome: 'Revisão de Texto', responsavel: 'Maria Letro', data_prevista_inicio: '2024-01-22', data_prevista_fim: '2024-01-27', data_real_inicio: '2024-01-22', data_real_fim: '2024-01-27', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 4, nome: 'Criação (1ª e 2ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-01-28', data_prevista_fim: '2024-02-04', data_real_inicio: '2024-01-28', data_real_fim: '2024-02-04', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 5, nome: 'Conferência', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-05', data_prevista_fim: '2024-02-07', data_real_inicio: '2024-02-05', data_real_fim: '2024-02-07', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 6, nome: 'Ajuste de Layout', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-08', data_prevista_fim: '2024-02-11', data_real_inicio: '2024-02-08', data_real_fim: '2024-02-11', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 7, nome: 'Criação (3ª e 4ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-12', data_prevista_fim: '2024-02-17', data_real_inicio: '2024-02-12', data_real_fim: '2024-02-17', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 8, nome: 'Aprovação Final', responsavel: 'Ana Costa', data_prevista_inicio: '2024-02-18', data_prevista_fim: '2024-02-20', data_real_inicio: '2024-02-18', data_real_fim: '2024-02-20', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 9, nome: 'Planejamento Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-02-21', data_prevista_fim: '2024-02-24', data_real_inicio: '2024-02-21', data_real_fim: '2024-02-24', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 10, nome: 'Pré-Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-02-25', data_prevista_fim: '2024-03-01', data_real_inicio: '2024-02-25', data_real_fim: '2024-03-01', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 11, nome: 'Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-02', data_prevista_fim: '2024-03-12', data_real_inicio: '2024-03-02', data_real_fim: null, status: 'Em Andamento', dias_atraso: 0, observacoes: [] },
-      { id: 12, nome: 'Controle de Qualidade', responsavel: 'João Silva', data_prevista_inicio: '2024-03-13', data_prevista_fim: '2024-03-16', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 13, nome: 'Entrega', responsavel: 'João Silva', data_prevista_inicio: '2024-03-17', data_prevista_fim: '2024-03-19', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 14, nome: 'Pós-Vendas', responsavel: 'Ana Costa', data_prevista_inicio: '2024-03-20', data_prevista_fim: '2024-03-25', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }
-    ]
-  },
-  {
-    id: 'projeto-2',
-    contrato_id: 'contrato-2',
-    cliente: 'Turma Medicina 2024',
-    instituicao: 'PUC Minas',
-    etapa_atual: 4,
-    etapa_atual_nome: 'Criação (1ª e 2ª AP)',
-    progresso: 28,
-    status: 'Atrasado',
-    data_entrega: '2024-07-31',
-    dias_restantes: 76,
-    dias_atraso: 8,
-    etapa_atraso: 'Criação (1ª e 2ª AP)',
-    etapas: [
-      { id: 1, nome: 'Lançamento', responsavel: 'Ana Costa', data_prevista_inicio: '2024-02-01', data_prevista_fim: '2024-02-03', data_real_inicio: '2024-02-01', data_real_fim: '2024-02-03', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 2, nome: 'Ativação', responsavel: 'Ana Costa', data_prevista_inicio: '2024-02-04', data_prevista_fim: '2024-02-07', data_real_inicio: '2024-02-04', data_real_fim: '2024-02-07', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 3, nome: 'Revisão de Texto', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-08', data_prevista_fim: '2024-02-13', data_real_inicio: '2024-02-08', data_real_fim: '2024-02-15', status: 'Concluída', dias_atraso: 2, observacoes: [{ id: 1, usuario: 'Maria Letro', data: '2024-02-15 10:30', texto: 'Texto do cliente chegou incompleto. Aguardamos complementação.' }] },
-      { id: 4, nome: 'Criação (1ª e 2ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-14', data_prevista_fim: '2024-02-21', data_real_inicio: '2024-02-16', data_real_fim: null, status: 'Atrasada', dias_atraso: 8, observacoes: [{ id: 2, usuario: 'Maria Letro', data: '2024-02-28 14:20', texto: 'Cliente solicitou mudanças no conceito visual. Aguardando nova aprovação.' }, { id: 3, usuario: 'Admin Sistema', data: '2024-03-01 09:00', texto: 'Prioridade elevada. Acompanhar diariamente.' }] },
-      { id: 5, nome: 'Conferência', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-22', data_prevista_fim: '2024-02-24', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 6, nome: 'Ajuste de Layout', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-25', data_prevista_fim: '2024-02-28', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 7, nome: 'Criação (3ª e 4ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-01', data_prevista_fim: '2024-03-06', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 8, nome: 'Aprovação Final', responsavel: 'Ana Costa', data_prevista_inicio: '2024-03-07', data_prevista_fim: '2024-03-09', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 9, nome: 'Planejamento Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-10', data_prevista_fim: '2024-03-13', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 10, nome: 'Pré-Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-14', data_prevista_fim: '2024-03-19', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 11, nome: 'Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-20', data_prevista_fim: '2024-03-30', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 12, nome: 'Controle de Qualidade', responsavel: 'João Silva', data_prevista_inicio: '2024-03-31', data_prevista_fim: '2024-04-03', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 13, nome: 'Entrega', responsavel: 'João Silva', data_prevista_inicio: '2024-04-04', data_prevista_fim: '2024-04-06', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 14, nome: 'Pós-Vendas', responsavel: 'Ana Costa', data_prevista_inicio: '2024-04-07', data_prevista_fim: '2024-04-12', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }
-    ]
-  },
-  {
-    id: 'projeto-3',
-    contrato_id: 'contrato-3',
-    cliente: 'Turma Direito 2024',
-    instituicao: 'FUMEC',
-    etapa_atual: 2,
-    etapa_atual_nome: 'Ativação',
-    progresso: 14,
-    status: 'Ativo',
-    data_entrega: '2024-08-30',
-    dias_restantes: 106,
-    dias_atraso: 0,
-    etapas: [
-      { id: 1, nome: 'Lançamento', responsavel: 'Ana Costa', data_prevista_inicio: '2024-03-01', data_prevista_fim: '2024-03-03', data_real_inicio: '2024-03-01', data_real_fim: '2024-03-03', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 2, nome: 'Ativação', responsavel: 'Ana Costa', data_prevista_inicio: '2024-03-04', data_prevista_fim: '2024-03-07', data_real_inicio: '2024-03-04', data_real_fim: null, status: 'Em Andamento', dias_atraso: 0, observacoes: [] },
-      { id: 3, nome: 'Revisão de Texto', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-08', data_prevista_fim: '2024-03-13', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 4, nome: 'Criação (1ª e 2ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-14', data_prevista_fim: '2024-03-21', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 5, nome: 'Conferência', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-22', data_prevista_fim: '2024-03-24', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 6, nome: 'Ajuste de Layout', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-25', data_prevista_fim: '2024-03-28', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 7, nome: 'Criação (3ª e 4ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-29', data_prevista_fim: '2024-04-03', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 8, nome: 'Aprovação Final', responsavel: 'Ana Costa', data_prevista_inicio: '2024-04-04', data_prevista_fim: '2024-04-06', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 9, nome: 'Planejamento Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-04-07', data_prevista_fim: '2024-04-10', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 10, nome: 'Pré-Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-04-11', data_prevista_fim: '2024-04-16', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 11, nome: 'Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-04-17', data_prevista_fim: '2024-04-27', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 12, nome: 'Controle de Qualidade', responsavel: 'João Silva', data_prevista_inicio: '2024-04-28', data_prevista_fim: '2024-05-01', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 13, nome: 'Entrega', responsavel: 'João Silva', data_prevista_inicio: '2024-05-02', data_prevista_fim: '2024-05-04', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 14, nome: 'Pós-Vendas', responsavel: 'Ana Costa', data_prevista_inicio: '2024-05-05', data_prevista_fim: '2024-05-10', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }
-    ]
-  },
-  {
-    id: 'projeto-4',
-    contrato_id: 'contrato-4',
-    cliente: 'Turma Administração 2024',
-    instituicao: 'Una',
-    etapa_atual: 14,
-    etapa_atual_nome: 'Pós-Vendas',
-    progresso: 100,
-    status: 'Concluído',
-    data_entrega: '2024-05-15',
-    dias_restantes: 0,
-    dias_atraso: 0,
-    etapas: [
-      { id: 1, nome: 'Lançamento', responsavel: 'Ana Costa', data_prevista_inicio: '2024-01-20', data_prevista_fim: '2024-01-22', data_real_inicio: '2024-01-20', data_real_fim: '2024-01-22', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 2, nome: 'Ativação', responsavel: 'Ana Costa', data_prevista_inicio: '2024-01-23', data_prevista_fim: '2024-01-26', data_real_inicio: '2024-01-23', data_real_fim: '2024-01-26', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 3, nome: 'Revisão de Texto', responsavel: 'Maria Letro', data_prevista_inicio: '2024-01-27', data_prevista_fim: '2024-02-01', data_real_inicio: '2024-01-27', data_real_fim: '2024-02-01', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 4, nome: 'Criação (1ª e 2ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-02', data_prevista_fim: '2024-02-09', data_real_inicio: '2024-02-02', data_real_fim: '2024-02-09', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 5, nome: 'Conferência', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-10', data_prevista_fim: '2024-02-12', data_real_inicio: '2024-02-10', data_real_fim: '2024-02-12', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 6, nome: 'Ajuste de Layout', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-13', data_prevista_fim: '2024-02-16', data_real_inicio: '2024-02-13', data_real_fim: '2024-02-16', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 7, nome: 'Criação (3ª e 4ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-17', data_prevista_fim: '2024-02-22', data_real_inicio: '2024-02-17', data_real_fim: '2024-02-22', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 8, nome: 'Aprovação Final', responsavel: 'Ana Costa', data_prevista_inicio: '2024-02-23', data_prevista_fim: '2024-02-25', data_real_inicio: '2024-02-23', data_real_fim: '2024-02-25', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 9, nome: 'Planejamento Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-02-26', data_prevista_fim: '2024-02-29', data_real_inicio: '2024-02-26', data_real_fim: '2024-02-29', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 10, nome: 'Pré-Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-01', data_prevista_fim: '2024-03-06', data_real_inicio: '2024-03-01', data_real_fim: '2024-03-06', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 11, nome: 'Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-07', data_prevista_fim: '2024-03-17', data_real_inicio: '2024-03-07', data_real_fim: '2024-03-17', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 12, nome: 'Controle de Qualidade', responsavel: 'João Silva', data_prevista_inicio: '2024-03-18', data_prevista_fim: '2024-03-21', data_real_inicio: '2024-03-18', data_real_fim: '2024-03-21', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 13, nome: 'Entrega', responsavel: 'João Silva', data_prevista_inicio: '2024-03-22', data_prevista_fim: '2024-03-24', data_real_inicio: '2024-03-22', data_real_fim: '2024-03-24', status: 'Concluída', dias_atraso: 0, observacoes: [] },
-      { id: 14, nome: 'Pós-Vendas', responsavel: 'Ana Costa', data_prevista_inicio: '2024-03-25', data_prevista_fim: '2024-03-30', data_real_inicio: '2024-03-25', data_real_fim: '2024-03-30', status: 'Concluída', dias_atraso: 0, observacoes: [] }
-    ]
-  },
-  {
-    id: 'projeto-5',
-    contrato_id: 'contrato-5',
-    cliente: 'Turma Comunicação 2024',
-    instituicao: 'Estácio BH',
-    etapa_atual: 1,
-    etapa_atual_nome: 'Lançamento',
-    progresso: 7,
-    status: 'Ativo',
-    data_entrega: '2024-09-30',
-    dias_restantes: 137,
-    dias_atraso: 0,
-    etapas: [
-      { id: 1, nome: 'Lançamento', responsavel: 'Ana Costa', data_prevista_inicio: '2024-04-01', data_prevista_fim: '2024-04-03', data_real_inicio: '2024-04-01', data_real_fim: null, status: 'Em Andamento', dias_atraso: 0, observacoes: [] },
-      { id: 2, nome: 'Ativação', responsavel: 'Ana Costa', data_prevista_inicio: '2024-04-04', data_prevista_fim: '2024-04-07', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 3, nome: 'Revisão de Texto', responsavel: 'Maria Letro', data_prevista_inicio: '2024-04-08', data_prevista_fim: '2024-04-13', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 4, nome: 'Criação (1ª e 2ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-04-14', data_prevista_fim: '2024-04-21', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 5, nome: 'Conferência', responsavel: 'Maria Letro', data_prevista_inicio: '2024-04-22', data_prevista_fim: '2024-04-24', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 6, nome: 'Ajuste de Layout', responsavel: 'Maria Letro', data_prevista_inicio: '2024-04-25', data_prevista_fim: '2024-04-28', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 7, nome: 'Criação (3ª e 4ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-04-29', data_prevista_fim: '2024-05-04', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 8, nome: 'Aprovação Final', responsavel: 'Ana Costa', data_prevista_inicio: '2024-05-05', data_prevista_fim: '2024-05-07', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 9, nome: 'Planejamento Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-05-08', data_prevista_fim: '2024-05-11', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 10, nome: 'Pré-Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-05-12', data_prevista_fim: '2024-05-17', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 11, nome: 'Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-05-18', data_prevista_fim: '2024-05-28', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 12, nome: 'Controle de Qualidade', responsavel: 'João Silva', data_prevista_inicio: '2024-05-29', data_prevista_fim: '2024-06-01', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 13, nome: 'Entrega', responsavel: 'João Silva', data_prevista_inicio: '2024-06-02', data_prevista_fim: '2024-06-04', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] },
-      { id: 14, nome: 'Pós-Vendas', responsavel: 'Ana Costa', data_prevista_inicio: '2024-06-05', data_prevista_fim: '2024-06-10', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }
-    ]
-  },
-  // Projeto 6 - Ativo
-  { id: 'projeto-6', contrato_id: 'contrato-6', cliente: 'Turma Arquitetura 2024', instituicao: 'PUC Minas', etapa_atual: 3, etapa_atual_nome: 'Revisão de Texto', progresso: 21, status: 'Ativo', data_entrega: '2024-07-20', dias_restantes: 75, dias_atraso: 0, etapas: [{ id: 1, nome: 'Lançamento', responsavel: 'Ana Costa', data_prevista_inicio: '2024-02-10', data_prevista_fim: '2024-02-12', data_real_inicio: '2024-02-10', data_real_fim: '2024-02-12', status: 'Concluída', dias_atraso: 0, observacoes: [] }, { id: 2, nome: 'Ativação', responsavel: 'Ana Costa', data_prevista_inicio: '2024-02-13', data_prevista_fim: '2024-02-16', data_real_inicio: '2024-02-13', data_real_fim: '2024-02-16', status: 'Concluída', dias_atraso: 0, observacoes: [] }, { id: 3, nome: 'Revisão de Texto', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-17', data_prevista_fim: '2024-02-22', data_real_inicio: '2024-02-17', data_real_fim: null, status: 'Em Andamento', dias_atraso: 0, observacoes: [] }, { id: 4, nome: 'Criação (1ª e 2ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-23', data_prevista_fim: '2024-03-02', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 5, nome: 'Conferência', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-03', data_prevista_fim: '2024-03-05', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 6, nome: 'Ajuste de Layout', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-06', data_prevista_fim: '2024-03-09', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 7, nome: 'Criação (3ª e 4ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-10', data_prevista_fim: '2024-03-15', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 8, nome: 'Aprovação Final', responsavel: 'Ana Costa', data_prevista_inicio: '2024-03-16', data_prevista_fim: '2024-03-18', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 9, nome: 'Planejamento Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-19', data_prevista_fim: '2024-03-22', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 10, nome: 'Pré-Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-23', data_prevista_fim: '2024-03-28', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 11, nome: 'Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-29', data_prevista_fim: '2024-04-08', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 12, nome: 'Controle de Qualidade', responsavel: 'João Silva', data_prevista_inicio: '2024-04-09', data_prevista_fim: '2024-04-12', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 13, nome: 'Entrega', responsavel: 'João Silva', data_prevista_inicio: '2024-04-13', data_prevista_fim: '2024-04-15', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 14, nome: 'Pós-Vendas', responsavel: 'Ana Costa', data_prevista_inicio: '2024-04-16', data_prevista_fim: '2024-04-21', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }] },
-  // Projeto 7 - Ativo
-  { id: 'projeto-7', contrato_id: 'contrato-7', cliente: 'Turma Psicologia 2024', instituicao: 'Newton Paiva', etapa_atual: 2, etapa_atual_nome: 'Ativação', progresso: 14, status: 'Ativo', data_entrega: '2024-08-15', dias_restantes: 100, dias_atraso: 0, etapas: [{ id: 1, nome: 'Lançamento', responsavel: 'Ana Costa', data_prevista_inicio: '2024-03-15', data_prevista_fim: '2024-03-17', data_real_inicio: '2024-03-15', data_real_fim: '2024-03-17', status: 'Concluída', dias_atraso: 0, observacoes: [] }, { id: 2, nome: 'Ativação', responsavel: 'Ana Costa', data_prevista_inicio: '2024-03-18', data_prevista_fim: '2024-03-21', data_real_inicio: '2024-03-18', data_real_fim: null, status: 'Em Andamento', dias_atraso: 0, observacoes: [] }, { id: 3, nome: 'Revisão de Texto', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-22', data_prevista_fim: '2024-03-27', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 4, nome: 'Criação (1ª e 2ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-03-28', data_prevista_fim: '2024-04-04', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 5, nome: 'Conferência', responsavel: 'Maria Letro', data_prevista_inicio: '2024-04-05', data_prevista_fim: '2024-04-07', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 6, nome: 'Ajuste de Layout', responsavel: 'Maria Letro', data_prevista_inicio: '2024-04-08', data_prevista_fim: '2024-04-11', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 7, nome: 'Criação (3ª e 4ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-04-12', data_prevista_fim: '2024-04-17', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 8, nome: 'Aprovação Final', responsavel: 'Ana Costa', data_prevista_inicio: '2024-04-18', data_prevista_fim: '2024-04-20', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 9, nome: 'Planejamento Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-04-21', data_prevista_fim: '2024-04-24', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 10, nome: 'Pré-Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-04-25', data_prevista_fim: '2024-04-30', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 11, nome: 'Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-05-01', data_prevista_fim: '2024-05-11', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 12, nome: 'Controle de Qualidade', responsavel: 'João Silva', data_prevista_inicio: '2024-05-12', data_prevista_fim: '2024-05-15', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 13, nome: 'Entrega', responsavel: 'João Silva', data_prevista_inicio: '2024-05-16', data_prevista_fim: '2024-05-18', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 14, nome: 'Pós-Vendas', responsavel: 'Ana Costa', data_prevista_inicio: '2024-05-19', data_prevista_fim: '2024-05-24', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }] },
-  // Projeto 8 - Ativo
-  { id: 'projeto-8', contrato_id: 'contrato-8', cliente: 'Turma Odontologia 2024', instituicao: 'UFMG', etapa_atual: 4, etapa_atual_nome: 'Criação (1ª e 2ª AP)', progresso: 28, status: 'Ativo', data_entrega: '2024-06-25', dias_restantes: 50, dias_atraso: 0, etapas: [{ id: 1, nome: 'Lançamento', responsavel: 'Ana Costa', data_prevista_inicio: '2024-01-25', data_prevista_fim: '2024-01-27', data_real_inicio: '2024-01-25', data_real_fim: '2024-01-27', status: 'Concluída', dias_atraso: 0, observacoes: [] }, { id: 2, nome: 'Ativação', responsavel: 'Ana Costa', data_prevista_inicio: '2024-01-28', data_prevista_fim: '2024-01-31', data_real_inicio: '2024-01-28', data_real_fim: '2024-01-31', status: 'Concluída', dias_atraso: 0, observacoes: [] }, { id: 3, nome: 'Revisão de Texto', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-01', data_prevista_fim: '2024-02-06', data_real_inicio: '2024-02-01', data_real_fim: '2024-02-06', status: 'Concluída', dias_atraso: 0, observacoes: [] }, { id: 4, nome: 'Criação (1ª e 2ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-07', data_prevista_fim: '2024-02-14', data_real_inicio: '2024-02-07', data_real_fim: null, status: 'Em Andamento', dias_atraso: 0, observacoes: [] }, { id: 5, nome: 'Conferência', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-15', data_prevista_fim: '2024-02-17', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 6, nome: 'Ajuste de Layout', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-18', data_prevista_fim: '2024-02-21', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 7, nome: 'Criação (3ª e 4ª AP)', responsavel: 'Maria Letro', data_prevista_inicio: '2024-02-22', data_prevista_fim: '2024-02-27', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 8, nome: 'Aprovação Final', responsavel: 'Ana Costa', data_prevista_inicio: '2024-02-28', data_prevista_fim: '2024-03-02', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 9, nome: 'Planejamento Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-03', data_prevista_fim: '2024-03-06', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 10, nome: 'Pré-Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-07', data_prevista_fim: '2024-03-12', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 11, nome: 'Produção', responsavel: 'João Silva', data_prevista_inicio: '2024-03-13', data_prevista_fim: '2024-03-23', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 12, nome: 'Controle de Qualidade', responsavel: 'João Silva', data_prevista_inicio: '2024-03-24', data_prevista_fim: '2024-03-27', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 13, nome: 'Entrega', responsavel: 'João Silva', data_prevista_inicio: '2024-03-28', data_prevista_fim: '2024-03-30', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }, { id: 14, nome: 'Pós-Vendas', responsavel: 'Ana Costa', data_prevista_inicio: '2024-03-31', data_prevista_fim: '2024-04-05', data_real_inicio: null, data_real_fim: null, status: 'Não Iniciada', dias_atraso: 0, observacoes: [] }] }
-,
-  // Restantes projetos Ativos (9-12)
-  { id: 'projeto-9', contrato_id: 'contrato-9', cliente: 'Turma Veterinária 2024', instituicao: 'Centro Universitário BH', etapa_atual: 2, etapa_atual_nome: 'Ativação', progresso: 14, status: 'Ativo', data_entrega: '2024-09-05', dias_restantes: 120, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-10', contrato_id: 'contrato-10', cliente: 'Turma Enfermagem 2024', instituicao: 'Faculdade Santa Casa', etapa_atual: 3, etapa_atual_nome: 'Revisão de Texto', progresso: 21, status: 'Ativo', data_entrega: '2024-08-20', dias_restantes: 95, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-11', contrato_id: 'contrato-11', cliente: 'Turma Fisioterapia 2024', instituicao: 'Una Bom Despacho', etapa_atual: 1, etapa_atual_nome: 'Lançamento', progresso: 7, status: 'Ativo', data_entrega: '2024-07-15', dias_restantes: 68, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-12', contrato_id: 'contrato-12', cliente: 'Turma Ciências Contábeis 2024', instituicao: 'Estácio BH', etapa_atual: 1, etapa_atual_nome: 'Lançamento', progresso: 7, status: 'Ativo', data_entrega: '2024-09-10', dias_restantes: 125, dias_atraso: 0, etapas: [] },
-  // Projetos Atrasados (13-21)
-  { id: 'projeto-13', contrato_id: 'contrato-13', cliente: 'Turma Biomedicina 2024', instituicao: 'UFMG', etapa_atual: 4, etapa_atual_nome: 'Criação (1ª e 2ª AP)', progresso: 28, status: 'Atrasado', data_entrega: '2024-06-10', dias_restantes: 30, dias_atraso: 6, etapas: [] },
-  { id: 'projeto-14', contrato_id: 'contrato-14', cliente: 'Turma Farmácia 2024', instituicao: 'Newton Paiva', etapa_atual: 5, etapa_atual_nome: 'Conferência', progresso: 35, status: 'Atrasado', data_entrega: '2024-07-05', dias_restantes: 58, dias_atraso: 4, etapas: [] },
-  { id: 'projeto-15', contrato_id: 'contrato-15', cliente: 'Turma Nutrição 2024', instituicao: 'Una Contagem', etapa_atual: 3, etapa_atual_nome: 'Revisão de Texto', progresso: 21, status: 'Atrasado', data_entrega: '2024-06-20', dias_restantes: 40, dias_atraso: 7, etapas: [] },
-  { id: 'projeto-16', contrato_id: 'contrato-16', cliente: 'Turma Ed. Física 2024', instituicao: 'FUMEC', etapa_atual: 4, etapa_atual_nome: 'Criação (1ª e 2ª AP)', progresso: 28, status: 'Atrasado', data_entrega: '2024-07-10', dias_restantes: 63, dias_atraso: 5, etapas: [] },
-  { id: 'projeto-17', contrato_id: 'contrato-17', cliente: 'Turma Jornalismo 2024', instituicao: 'PUC Minas', etapa_atual: 6, etapa_atual_nome: 'Ajuste de Layout', progresso: 42, status: 'Atrasado', data_entrega: '2024-06-15', dias_restantes: 35, dias_atraso: 8, etapas: [] },
-  { id: 'projeto-18', contrato_id: 'contrato-18', cliente: 'Turma Design Gráfico 2024', instituicao: 'Estácio BH', etapa_atual: 3, etapa_atual_nome: 'Revisão de Texto', progresso: 21, status: 'Atrasado', data_entrega: '2024-07-20', dias_restantes: 73, dias_atraso: 3, etapas: [] },
-  { id: 'projeto-19', contrato_id: 'contrato-19', cliente: 'Turma Marketing 2024', instituicao: 'Centro Universitário BH', etapa_atual: 7, etapa_atual_nome: 'Criação (3ª e 4ª AP)', progresso: 50, status: 'Atrasado', data_entrega: '2024-06-25', dias_restantes: 45, dias_atraso: 9, etapas: [] },
-  { id: 'projeto-20', contrato_id: 'contrato-20', cliente: 'Turma Publicidade 2024', instituicao: 'Newton Paiva', etapa_atual: 4, etapa_atual_nome: 'Criação (1ª e 2ª AP)', progresso: 28, status: 'Atrasado', data_entrega: '2024-07-01', dias_restantes: 54, dias_atraso: 6, etapas: [] },
-  { id: 'projeto-21', contrato_id: 'contrato-21', cliente: 'Turma Sistemas de Informação 2024', instituicao: 'FUMEC', etapa_atual: 5, etapa_atual_nome: 'Conferência', progresso: 35, status: 'Atrasado', data_entrega: '2024-06-30', dias_restantes: 53, dias_atraso: 10, etapas: [] },
-  // Novos Projetos Adicionais (26-35) - Mistos em diferentes etapas
-  { id: 'projeto-26', contrato_id: 'contrato-26', cliente: 'Turma Engenharia Civil 2024', instituicao: 'UFOP', etapa_atual: 4, etapa_atual_nome: 'Criação (1ª e 2ª AP)', progresso: 28, status: 'Ativo', data_entrega: '2024-08-25', dias_restantes: 90, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-27', contrato_id: 'contrato-27', cliente: 'Turma Ciência da Computação 2024', instituicao: 'UFMG', etapa_atual: 6, etapa_atual_nome: 'Ajuste de Layout', progresso: 42, status: 'Atrasado', data_entrega: '2024-07-20', dias_restantes: 68, dias_atraso: 6, etapas: [] },
-  { id: 'projeto-28', contrato_id: 'contrato-28', cliente: 'Turma Agronomia 2024', instituicao: 'UFV', etapa_atual: 1, etapa_atual_nome: 'Lançamento', progresso: 7, status: 'Ativo', data_entrega: '2024-09-01', dias_restantes: 106, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-29', contrato_id: 'contrato-29', cliente: 'Turma Pedagogia 2024', instituicao: 'PUC Minas', etapa_atual: 5, etapa_atual_nome: 'Conferência', progresso: 35, status: 'Ativo', data_entrega: '2024-08-10', dias_restantes: 75, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-30', contrato_id: 'contrato-30', cliente: 'Turma Química 2024', instituicao: 'UFMG', etapa_atual: 7, etapa_atual_nome: 'Criação (3ª e 4ª AP)', progresso: 50, status: 'Atrasado', data_entrega: '2024-07-15', dias_restantes: 63, dias_atraso: 7, etapas: [] },
-  { id: 'projeto-31', contrato_id: 'contrato-31', cliente: 'Turma Física 2024', instituicao: 'UFMG', etapa_atual: 9, etapa_atual_nome: 'Planejamento Produção', progresso: 64, status: 'Ativo', data_entrega: '2024-08-05', dias_restantes: 70, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-32', contrato_id: 'contrato-32', cliente: 'Turma Matemática 2024', instituicao: 'UFMG', etapa_atual: 8, etapa_atual_nome: 'Aprovação Final', progresso: 57, status: 'Atrasado', data_entrega: '2024-07-25', dias_restantes: 73, dias_atraso: 4, etapas: [] },
-  { id: 'projeto-33', contrato_id: 'contrato-33', cliente: 'Turma Sociologia 2024', instituicao: 'PUC Minas', etapa_atual: 2, etapa_atual_nome: 'Ativação', progresso: 14, status: 'Ativo', data_entrega: '2024-09-05', dias_restantes: 110, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-34', contrato_id: 'contrato-34', cliente: 'Turma Filosofia 2024', instituicao: 'FUMEC', etapa_atual: 10, etapa_atual_nome: 'Pré-Produção', progresso: 71, status: 'Ativo', data_entrega: '2024-08-15', dias_restantes: 80, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-35', contrato_id: 'contrato-35', cliente: 'Turma Relações Internacionais 2024', instituicao: 'PUC Minas', etapa_atual: 11, etapa_atual_nome: 'Produção', progresso: 78, status: 'Atrasado', data_entrega: '2024-07-10', dias_restantes: 58, dias_atraso: 9, etapas: [] },
-  // Projetos Concluídos (22-25)
-  { id: 'projeto-22', contrato_id: 'contrato-22', cliente: 'Turma Ciências Biológicas 2023', instituicao: 'UFMG', etapa_atual: 14, etapa_atual_nome: 'Pós-Vendas', progresso: 100, status: 'Concluído', data_entrega: '2024-01-15', dias_restantes: 0, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-23', contrato_id: 'contrato-23', cliente: 'Turma Geografia 2023', instituicao: 'PUC Minas', etapa_atual: 14, etapa_atual_nome: 'Pós-Vendas', progresso: 100, status: 'Concluído', data_entrega: '2024-02-20', dias_restantes: 0, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-24', contrato_id: 'contrato-24', cliente: 'Turma História 2023', instituicao: 'Newton Paiva', etapa_atual: 14, etapa_atual_nome: 'Pós-Vendas', progresso: 100, status: 'Concluído', data_entrega: '2024-03-10', dias_restantes: 0, dias_atraso: 0, etapas: [] },
-  { id: 'projeto-25', contrato_id: 'contrato-25', cliente: 'Turma Letras 2023', instituicao: 'FUMEC', etapa_atual: 14, etapa_atual_nome: 'Pós-Vendas', progresso: 100, status: 'Concluído', data_entrega: '2024-04-05', dias_restantes: 0, dias_atraso: 0, etapas: [] }
-
-];
-
-export const mockTarefas = mockProjetos.flatMap(projeto => 
-  projeto.etapas.filter(e => e.status === 'Em Andamento' || e.status === 'Atrasada').map(etapa => ({
-    id: `tarefa-${projeto.id}-${etapa.id}`,
-    projeto_id: projeto.id,
-    cliente: projeto.cliente,
-    titulo: etapa.nome,
-    etapa: etapa.nome,
-    responsavel: etapa.responsavel,
-    prazo: etapa.data_prevista_fim,
-    status: etapa.status === 'Atrasada' ? 'Atrasada' : 'Em Andamento',
-    dias_atraso: etapa.dias_atraso
-  }))
+// PROJETOS DE EXEMPLO
+export const mockProjetos = mockContratos.map(contrato => 
+  criarProjeto(
+    contrato.id,
+    contrato.cliente,
+    contrato.instituicao,
+    contrato.data_inicio,
+    contrato.status
+  )
 );
 
+// STATUS DAS ETAPAS
+export const STATUS_ETAPA = {
+  NAO_INICIADA: 'Não Iniciada',
+  EM_ANDAMENTO: 'Em Andamento',
+  AGUARDANDO: 'Aguardando',
+  CONCLUIDA: 'Concluída',
+  ATRASADA: 'Atrasada'
+};
+
+// TAREFAS (baseadas nas etapas dos projetos)
+export const mockTarefas = [];
+
+// DASHBOARD
 export const mockDashboard = {
   timestamp: new Date().toISOString(),
   kpis: {
@@ -811,21 +635,19 @@ export const mockDashboard = {
     em_dia: mockProjetos.filter(p => p.status === 'Ativo' && p.dias_atraso === 0).length,
     atrasados: mockProjetos.filter(p => p.status === 'Atrasado').length,
     concluidos: mockProjetos.filter(p => p.status === 'Concluído').length,
-    percentual_no_prazo: Math.round((mockProjetos.filter(p => p.dias_atraso === 0).length / mockProjetos.length) * 100)
+    percentual_no_prazo: mockProjetos.length > 0 
+      ? Math.round((mockProjetos.filter(p => p.dias_atraso === 0).length / mockProjetos.length) * 100)
+      : 0
   },
-  tarefas_atrasadas: mockTarefas.filter(t => t.status === 'Atrasada'),
-  gargalos_responsaveis: [
-    ['Maria Letro', 2],
-    ['João Silva', 1],
-    ['Ana Costa', 1]
-  ]
+  tarefas_atrasadas: [],
+  gargalos_responsaveis: []
 };
 
+// NOTIFICAÇÕES DINÂMICAS
 export const mockNotificacoes = [
-  // Notificações dinâmicas de projetos atrasados
   ...mockProjetos
     .filter(p => p.status === 'Atrasado' && p.dias_atraso > 0)
-    .slice(0, 5) // Limita a 5 notificações
+    .slice(0, 5)
     .map((projeto, index) => ({
       id: `notif-atraso-${projeto.id}`,
       titulo: 'Projeto atrasado',
@@ -836,48 +658,32 @@ export const mockNotificacoes = [
       created_at: new Date(Date.now() - index * 3600000).toISOString()
     })),
   {
-    id: 'notif-2',
-    titulo: 'Nova observação',
-    mensagem: 'Maria Letro adicionou uma observação no projeto PUC Minas',
-    tipo: 'info',
-    lida: false,
-    created_at: '2024-05-13T14:00:00'
-  },
-  {
-    id: 'notif-3',
-    titulo: 'Projeto concluído',
-    mensagem: 'Turma Administração 2024 foi finalizado com sucesso',
+    id: 'notif-sistema-1',
+    titulo: 'Sistema atualizado',
+    mensagem: 'Novo sistema de gestão de formaturas implementado com sucesso',
     tipo: 'sucesso',
-    lida: true,
-    projeto_id: 'projeto-4',
-    created_at: '2024-05-10T09:00:00'
-  },
-  {
-    id: 'notif-4',
-    titulo: 'Novo contrato',
-    mensagem: 'Novo contrato adicionado: Turma Relações Internacionais 2024',
-    tipo: 'info',
-    lida: true,
-    created_at: '2024-05-09T11:30:00'
+    lida: false,
+    created_at: new Date().toISOString()
   }
 ];
 
-export const STATUS_PROJETO = {
-  EM_ANDAMENTO: 'Em Andamento',
-  ATRASADO: 'Atrasado',
-  CONCLUIDO: 'Concluído'
-};
-
-export const STATUS_ETAPA = {
-  NAO_INICIADA: 'Não Iniciada',
-  EM_ANDAMENTO: 'Em Andamento',
-  CONCLUIDA: 'Concluída',
-  ATRASADA: 'Atrasada'
-};
-
-export const DEPARTAMENTOS = [
+// ÍCONES DOS DEPARTAMENTOS
+export const ICONES_DEPARTAMENTOS = [
   { id: 'atendimento', nome: 'Atendimento', cor: '#3b82f6', icone: 'Users' },
   { id: 'criacao', nome: 'Criação', cor: '#8b5cf6', icone: 'Palette' },
   { id: 'pre-producao', nome: 'Pré-Produção', cor: '#f59e0b', icone: 'ClipboardList' },
-  { id: 'producao', nome: 'Produção', cor: '#10b981', icone: 'Package' }
+  { id: 'producao', nome: 'Produção/Entrega', cor: '#10b981', icone: 'Package' }
 ];
+
+// Export default para compatibilidade
+export default {
+  mockContratos,
+  mockProjetos,
+  mockTarefas,
+  mockDashboard,
+  mockNotificacoes,
+  DEPARTAMENTOS,
+  TODAS_ETAPAS,
+  STATUS_ETAPA,
+  ICONES_DEPARTAMENTOS
+};
