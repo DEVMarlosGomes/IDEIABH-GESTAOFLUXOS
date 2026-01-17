@@ -4,6 +4,328 @@
   gap: 24px;
 }
 
+.departamento-header {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.departamento-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.stat-item {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.stat-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.equipe-info {
+  background: white;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.equipe-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.equipe-members {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.membro-badge {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.etapas-card {
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.etapas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.etapa-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.etapa-item:hover {
+  background: #f1f5f9;
+}
+
+.etapa-numero {
+  width: 32px;
+  height: 32px;
+  background: #3b82f6;
+  color: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.etapa-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.etapa-nome {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.etapa-prazo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.etapa-tipo {
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.projetos-departamento {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.empty-state {
+  border: 2px dashed #e2e8f0;
+  box-shadow: none;
+}
+
+.projetos-grid-dept {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.projeto-card-dept {
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.projeto-card-dept:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.projeto-header-dept {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.projeto-title-dept {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.projeto-title-dept h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 4px 0;
+}
+
+.projeto-instituicao {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.etapa-atual-dept {
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.etapa-info-dept {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.etapa-label-dept {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.etapa-nome-dept {
+  font-size: 13px;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.atraso-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.progresso-dept {
+  margin-bottom: 16px;
+}
+
+.progresso-header-dept {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.progresso-value {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.progress-bar-dept {
+  height: 6px;
+}
+
+.info-grid-dept {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.info-item-dept {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.info-item-dept svg {
+  color: #64748b;
+}
+
+.info-label-dept {
+  font-size: 11px;
+  color: #64748b;
+  display: block;
+}
+
+.info-value-dept {
+  font-size: 13px;
+  color: #1e293b;
+  font-weight: 600;
+  display: block;
+}
+
+.acoes-dept {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-visualizar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-visualizar:hover {
+  transform: translateX(4px);
+}
+
+.status-icon {
+  margin-right: 4px;
+}
+
+.status-icon.atrasado {
+  color: #dc2626;
+}
+
+.status-icon.ativo {
+  color: #1d4ed8;
+}
+
+.status-icon.concluido {
+  color: #15803d;
+}
+
 /* Layout de 2 Colunas */
 .departamento-grid {
   display: grid;
