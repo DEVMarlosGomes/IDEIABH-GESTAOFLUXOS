@@ -1,5 +1,6 @@
 // ==========================================
 // SISTEMA DE GESTÃO DE FORMATURAS - IDEIABH
+// Dados Mock Completos e Funcionais
 // ==========================================
 
 // Definição dos Departamentos
@@ -34,7 +35,16 @@ export const DEPARTAMENTOS = {
   }
 };
 
-// Função auxiliar para calcular datas
+// STATUS DAS ETAPAS
+export const STATUS_ETAPA = {
+  NAO_INICIADA: 'Não Iniciada',
+  EM_ANDAMENTO: 'Em Andamento',
+  AGUARDANDO: 'Aguardando',
+  CONCLUIDA: 'Concluída',
+  ATRASADA: 'Atrasada'
+};
+
+// Funções auxiliares para datas
 const addDays = (date, days) => {
   const result = new Date(date);
   result.setDate(result.getDate() + days);
@@ -47,513 +57,65 @@ const addMonths = (date, months) => {
   return result.toISOString().split('T')[0];
 };
 
-// Definição das Etapas de ATENDIMENTO
-export const ETAPAS_ATENDIMENTO = [
-  {
-    id: 1,
-    nome: 'Informar recebimento do contrato',
-    departamento: 'atendimento',
-    prazo_dias: 0, // No mesmo dia
-    descricao: 'Informar que recebeu o contrato - No mesmo dia que receber',
-    tipo: 'simples',
-    requer_interacao: false
-  },
-  {
-    id: 2,
-    nome: 'Ativar contrato no site',
-    departamento: 'atendimento',
-    prazo_dias: 1,
-    descricao: '1 dia após receber o contrato',
-    tipo: 'simples',
-    requer_interacao: false
-  },
-  {
-    id: 3,
-    nome: '1º contato com a comissão',
-    departamento: 'atendimento',
-    prazo_dias: 1,
-    descricao: '1 dia após receber o contrato',
-    tipo: 'simples',
-    requer_interacao: false
-  },
-  {
-    id: 4,
-    nome: 'Reunião de atendimento',
-    departamento: 'atendimento',
-    prazo_dias: 15, // 15 dias após o primeiro contato
-    descricao: '15 dias após o primeiro contato com a comissão',
-    tipo: 'interacao',
-    requer_interacao: true,
-    interacao_com: ['criacao'],
-    campo_interacao: 'Atendimento e Criação devem estar cientes sobre a marcação da reunião'
-  },
-  {
-    id: 5,
-    nome: 'Envio do questionário de criação',
-    departamento: 'atendimento',
-    prazo_dias: 1, // 1 dia após reunião
-    descricao: '1 dia após a reunião de atendimento',
-    tipo: 'simples',
-    requer_interacao: false
-  },
-  {
-    id: 6,
-    nome: 'Recebimento do questionário preenchido',
-    departamento: 'atendimento',
-    prazo_dias: 60, // 2 meses
-    descricao: 'Receber questionário preenchido pela comissão',
-    tipo: 'complexo',
-    requer_justificativa: true,
-    lembretes: [
-      { dias_antes: 1, mensagem: 'Cobrar questionário da comissão' },
-      { dias_antes: 0, mensagem: 'Enviar questionário para Criação' },
-      { tipo: 'semanal', mensagem: 'Lembrete semanal até 1 semana antes da entrega de textos' }
-    ],
-    requer_interacao: true,
-    interacao_com: ['criacao'],
-    campo_interacao: 'Criação confirma recebimento do questionário'
-  },
-  {
-    id: 7,
-    nome: 'Envio do e-mail de layout de fotos',
-    departamento: 'atendimento',
-    prazo_dias: 1,
-    descricao: '1 dia após a reunião de atendimento',
-    tipo: 'interacao',
-    requer_interacao: true,
-    interacao_com: ['criacao'],
-    campo_interacao: 'Criação confirma recebimento do layout de fotos'
-  },
-  {
-    id: 8,
-    nome: 'Enviar layout para comissão',
-    departamento: 'atendimento',
-    prazo_dias: 1,
-    descricao: 'Após receber documento da Criação',
-    tipo: 'dependente',
-    depende_de: 'criacao_layout_fotos'
-  },
-  {
-    id: 9,
-    nome: 'Agendar reunião de criação',
-    departamento: 'atendimento',
-    prazo_dias: -10, // 10 dias ANTES da entrega de textos
-    descricao: '10 dias antes da entrega de textos e fotos',
-    tipo: 'interacao',
-    requer_interacao: true,
-    interacao_com: ['criacao'],
-    lembretes: [
-      { dias_antes: 1, mensagem: 'Confirmar reunião com cliente' }
-    ],
-    campo_interacao: 'Atendimento confirma reunião, Criação fica ciente'
-  },
-  {
-    id: 10,
-    nome: 'Liberação das fotos para pré-produção',
-    departamento: 'atendimento',
-    prazo_dias: 1,
-    descricao: '1 dia após recebimento dentro do prazo contratual',
-    tipo: 'contratual',
-    pode_atrasar_ate: 365 // até 1 ano
-  },
-  {
-    id: 11,
-    nome: 'Cadastro de textos/REV1',
-    departamento: 'atendimento',
-    prazo_dias: 1,
-    descricao: '1 dia após cadastro dentro do prazo contratual',
-    tipo: 'contratual',
-    pode_atrasar_ate: 365
-  },
-  {
-    id: 12,
-    nome: 'Acompanhar aprovação',
-    departamento: 'atendimento',
-    prazo_dias: 0,
-    descricao: 'Fazer cobrança após prazo expirado',
-    tipo: 'monitoramento',
-    lembretes: [
-      { dias_antes: 1, mensagem: 'Site vai fechar amanhã' },
-      { dias_antes: 0, mensagem: 'Site fechando hoje' }
-    ]
-  },
-  {
-    id: 13,
-    nome: 'Aditivo contratual',
-    departamento: 'atendimento',
-    prazo_dias: 0,
-    descricao: 'Se prazo perdido em decorrência de atrasos do cliente',
-    tipo: 'condicional',
-    lembretes: [
-      { dias_antes: 7, mensagem: 'Lembrar comissão sobre prazo de cadastro' }
-    ]
-  },
-  {
-    id: 14,
-    nome: 'Cobrança e direcionamento à diretoria',
-    departamento: 'atendimento',
-    prazo_dias: 7,
-    descricao: 'Em caso de atraso das etapas dos criadores',
-    tipo: 'alerta',
-    condicao: 'sem_movimentacao_criacao'
-  },
-  {
-    id: 15,
-    nome: 'Envio de e-mail de conferência de lista',
-    departamento: 'atendimento',
-    prazo_dias: 1,
-    descricao: '1 dia após apresentação do convite',
-    tipo: 'complexo',
-    lembretes: [
-      { dias_apos: 3, mensagem: 'Verificar se financeiro retornou' },
-      { tipo: 'pendencia', prazo_dias: 7, mensagem: 'Resolver pendências da lista' }
-    ]
-  },
-  {
-    id: 16,
-    nome: 'Liberação envelope de saída',
-    departamento: 'atendimento',
-    prazo_dias: 2,
-    descricao: 'Liberar para pré-produção',
-    tipo: 'simples',
-    requer_justificativa: true
-  },
-  {
-    id: 17,
-    nome: 'Atualização planilha geral e relatório',
-    departamento: 'atendimento',
-    prazo_dias: 0,
-    descricao: 'Toda quinta-feira até 17h',
-    tipo: 'semanal',
-    dia_semana: 4, // Quinta-feira
-    hora_limite: '17:00',
-    lembretes: [
-      { dias_antes: 1, mensagem: 'Atualizar planilha amanhã' },
-      { dias_antes: 0, mensagem: 'Atualizar planilha hoje até 17h' }
-    ],
-    destaque: true
-  }
-];
-
-// Definição das Etapas de CRIAÇÃO
-export const ETAPAS_CRIACAO = [
-  {
-    id: 1,
-    nome: 'RC - Reunião de criação',
-    departamento: 'criacao',
-    prazo_dias: 0,
-    descricao: 'Após atendimento agendar',
-    tipo: 'interacao',
-    lembretes: [
-      { tipo: 'agendamento', mensagem: 'Ciente que reunião foi agendada' },
-      { dias_antes: 1, mensagem: 'Confirmar reunião amanhã' },
-      { dias_antes: 0, mensagem: 'Reunião hoje' }
-    ],
-    observacao: 'Desmarcar com 1 dia de antecedência e comunicar atendimento'
-  },
-  {
-    id: 2,
-    nome: 'Envio do briefing de criação',
-    departamento: 'criacao',
-    prazo_dias: 2,
-    descricao: '2 dias após reunião',
-    tipo: 'interacao',
-    requer_interacao: true,
-    interacao_com: ['atendimento'],
-    campo_interacao: 'Atendimento confirma recebimento do documento'
-  },
-  {
-    id: 3,
-    nome: 'Layout de Fotos',
-    departamento: 'criacao',
-    prazo_dias: 3,
-    descricao: '3 dias após receber solicitação do atendimento',
-    tipo: 'dependente',
-    depende_de: 'atendimento_solicita_layout'
-  },
-  {
-    id: 4,
-    nome: 'Arte da Camisa',
-    departamento: 'criacao',
-    prazo_dias: 3,
-    descricao: '3 dias após receber solicitação (quando aplicável)',
-    tipo: 'condicional',
-    depende_de: 'atendimento_solicita_camisa'
-  },
-  {
-    id: 5,
-    nome: 'Textos cadastrados - Notificação',
-    departamento: 'criacao',
-    prazo_dias: 0,
-    descricao: 'Ficar ciente que textos foram cadastrados e revisados',
-    tipo: 'notificacao',
-    campo_informativo: true
-  },
-  {
-    id: 6,
-    nome: 'Recebimento das fotos da pré',
-    departamento: 'criacao',
-    prazo_dias: 0,
-    descricao: 'Ficar ciente que fotos estão recortadas',
-    tipo: 'notificacao',
-    campo_informativo: true
-  },
-  {
-    id: 7,
-    nome: 'Início da criação do convite',
-    departamento: 'criacao',
-    prazo_dias: 10,
-    descricao: '10 dias após entrega de textos e fotos',
-    tipo: 'inicio_projeto',
-    observacao: 'Se prazos diferentes, iniciar com os textos'
-  },
-  {
-    id: 8,
-    nome: 'Dias de criação do convite',
-    departamento: 'criacao',
-    prazo_dias: 3,
-    descricao: '3 dias para criar',
-    tipo: 'producao'
-  },
-  {
-    id: 9,
-    nome: 'Correções',
-    departamento: 'criacao',
-    prazo_dias: 3,
-    descricao: '3 dias após liberar site para correções',
-    tipo: 'revisao'
-  },
-  {
-    id: 10,
-    nome: 'Liberação demais peças',
-    departamento: 'criacao',
-    prazo_dias: 0,
-    descricao: 'Informar liberação após aprovação CDC',
-    tipo: 'notificacao'
-  },
-  {
-    id: 11,
-    nome: 'Miolo do convite aprovado',
-    departamento: 'criacao',
-    prazo_dias: 1,
-    descricao: 'Informar que miolo está totalmente aprovado',
-    tipo: 'marco'
-  },
-  {
-    id: 12,
-    nome: 'Capa aprovada',
-    departamento: 'criacao',
-    prazo_dias: 1,
-    descricao: 'Informar aprovação da capa',
-    tipo: 'marco'
-  },
-  {
-    id: 13,
-    nome: 'Demais Peças',
-    departamento: 'criacao',
-    prazo_dias: 3,
-    descricao: 'Caixas, tags, folders, etc.',
-    tipo: 'dependente',
-    depende_de: 'capa_aprovada'
-  },
-  {
-    id: 14,
-    nome: 'Aprovação páginas individuais',
-    departamento: 'criacao',
-    prazo_dias: 0,
-    descricao: 'Após aprovação CDC',
-    tipo: 'dependente',
-    depende_de: 'cdc_aprovada'
-  },
-  {
-    id: 15,
-    nome: 'Revisão - REV',
-    departamento: 'criacao',
-    prazo_dias: 1,
-    descricao: '1 dia após miolo totalmente aprovado',
-    tipo: 'revisao_final'
-  },
-  {
-    id: 16,
-    nome: 'Saída - Finalização',
-    departamento: 'criacao',
-    prazo_dias: 3,
-    descricao: '3 dias após convite totalmente aprovado',
-    tipo: 'finalizacao',
-    campo_pendencias: true,
-    observacao: 'Informar se cortesias ficaram pendentes'
-  }
-];
-
-// Definição das Etapas de PRÉ-PRODUÇÃO
-export const ETAPAS_PRE_PRODUCAO = [
-  {
-    id: 1,
-    nome: 'Recorte e tratamento das fotos',
-    departamento: 'pre-producao',
-    prazo_dias: 10,
-    descricao: '10 dias para tratamento',
-    tipo: 'producao',
-    requer_justificativa: true,
-    requer_interacao: true,
-    interacao_com: ['criacao'],
-    campo_interacao: 'Informar Criação que fotos estão liberadas',
-    observacao: 'Justificar se houver fotos pendentes ou baixa resolução'
-  },
-  {
-    id: 2,
-    nome: 'Recebimento envelope de saída',
-    departamento: 'pre-producao',
-    prazo_dias: 1,
-    descricao: '1 dia para iniciar saída',
-    tipo: 'recebimento'
-  },
-  {
-    id: 3,
-    nome: 'Conferir textos e revisão ortográfica',
-    departamento: 'pre-producao',
-    prazo_dias: 1,
-    descricao: 'Após receber envelope do atendimento',
-    tipo: 'revisao'
-  },
-  {
-    id: 4,
-    nome: 'Envio dos arquivos para gráfica',
-    departamento: 'pre-producao',
-    prazo_dias: 1,
-    descricao: 'Após conferência',
-    tipo: 'envio'
-  },
-  {
-    id: 5,
-    nome: 'Conferência de xerox',
-    departamento: 'pre-producao',
-    prazo_dias: 1,
-    descricao: 'Caso impressão externa',
-    tipo: 'condicional'
-  },
-  {
-    id: 6,
-    nome: 'Controle de impressões internas',
-    departamento: 'pre-producao',
-    prazo_dias: 0,
-    descricao: 'Monitoramento contínuo',
-    tipo: 'monitoramento'
-  }
-];
-
-// Definição das Etapas de PRODUÇÃO
-export const ETAPAS_PRODUCAO = [
-  {
-    id: 1,
-    nome: 'Triagem de materiais',
-    departamento: 'producao',
-    prazo_dias: 1,
-    descricao: 'Organizar materiais recebidos',
-    tipo: 'preparacao'
-  },
-  {
-    id: 2,
-    nome: 'Envio do arquivo à gráfica',
-    departamento: 'producao',
-    prazo_dias: 1,
-    descricao: 'Enviar para impressão externa',
-    tipo: 'envio'
-  },
-  {
-    id: 3,
-    nome: 'Ordem de produção',
-    departamento: 'producao',
-    prazo_dias: 1,
-    descricao: 'Iniciar produção interna',
-    tipo: 'inicio'
-  },
-  {
-    id: 4,
-    nome: 'Costura e acabamento interno',
-    departamento: 'producao',
-    prazo_dias: 5,
-    descricao: 'Finalização manual dos convites',
-    tipo: 'producao'
-  },
-  {
-    id: 5,
-    nome: 'Conferência final de qualidade',
-    departamento: 'producao',
-    prazo_dias: 1,
-    descricao: 'Verificação antes da entrega',
-    tipo: 'qualidade'
-  },
-  {
-    id: 6,
-    nome: 'Entrega dos convites',
-    departamento: 'producao',
-    prazo_dias: 1,
-    descricao: 'Entrega à comissão',
-    tipo: 'finalizacao',
-    requer_interacao: true,
-    interacao_com: ['atendimento'],
-    campo_interacao: 'Atendimento agenda entrega com cliente'
-  }
-];
-
-// Combinar todas as etapas
+// Todas as etapas do sistema
 export const TODAS_ETAPAS = [
-  ...ETAPAS_ATENDIMENTO.map(e => ({ ...e, departamento_obj: DEPARTAMENTOS.ATENDIMENTO })),
-  ...ETAPAS_CRIACAO.map(e => ({ ...e, departamento_obj: DEPARTAMENTOS.CRIACAO })),
-  ...ETAPAS_PRE_PRODUCAO.map(e => ({ ...e, departamento_obj: DEPARTAMENTOS.PRE_PRODUCAO })),
-  ...ETAPAS_PRODUCAO.map(e => ({ ...e, departamento_obj: DEPARTAMENTOS.PRODUCAO }))
+  // ATENDIMENTO - 17 etapas
+  { id: 1, nome: 'Informar recebimento do contrato', departamento: 'atendimento', prazo_dias: 0, tipo: 'simples' },
+  { id: 2, nome: 'Ativar contrato no site', departamento: 'atendimento', prazo_dias: 1, tipo: 'simples' },
+  { id: 3, nome: '1º contato com a comissão', departamento: 'atendimento', prazo_dias: 1, tipo: 'simples' },
+  { id: 4, nome: 'Reunião de atendimento', departamento: 'atendimento', prazo_dias: 15, tipo: 'interacao' },
+  { id: 5, nome: 'Envio do questionário de criação', departamento: 'atendimento', prazo_dias: 1, tipo: 'simples' },
+  { id: 6, nome: 'Recebimento do questionário preenchido', departamento: 'atendimento', prazo_dias: 60, tipo: 'complexo' },
+  { id: 7, nome: 'Envio do e-mail de layout de fotos', departamento: 'atendimento', prazo_dias: 1, tipo: 'interacao' },
+  { id: 8, nome: 'Enviar layout para comissão', departamento: 'atendimento', prazo_dias: 1, tipo: 'dependente' },
+  { id: 9, nome: 'Agendar reunião de criação', departamento: 'atendimento', prazo_dias: -10, tipo: 'interacao' },
+  { id: 10, nome: 'Liberação das fotos', departamento: 'atendimento', prazo_dias: 1, tipo: 'contratual' },
+  { id: 11, nome: 'Cadastro de textos/REV1', departamento: 'atendimento', prazo_dias: 1, tipo: 'contratual' },
+  { id: 12, nome: 'Acompanhar aprovação', departamento: 'atendimento', prazo_dias: 0, tipo: 'monitoramento' },
+  { id: 13, nome: 'Aditivo contratual', departamento: 'atendimento', prazo_dias: 0, tipo: 'condicional' },
+  { id: 14, nome: 'Cobrança à diretoria', departamento: 'atendimento', prazo_dias: 7, tipo: 'alerta' },
+  { id: 15, nome: 'Conferência de lista', departamento: 'atendimento', prazo_dias: 1, tipo: 'complexo' },
+  { id: 16, nome: 'Liberação envelope saída', departamento: 'atendimento', prazo_dias: 2, tipo: 'simples' },
+  { id: 17, nome: 'Atualização planilha/relatório', departamento: 'atendimento', prazo_dias: 0, tipo: 'semanal' },
+  
+  // CRIAÇÃO - 16 etapas
+  { id: 18, nome: 'RC - Reunião de criação', departamento: 'criacao', prazo_dias: 0, tipo: 'interacao' },
+  { id: 19, nome: 'Envio do briefing', departamento: 'criacao', prazo_dias: 2, tipo: 'interacao' },
+  { id: 20, nome: 'Layout de Fotos', departamento: 'criacao', prazo_dias: 3, tipo: 'dependente' },
+  { id: 21, nome: 'Arte da Camisa', departamento: 'criacao', prazo_dias: 3, tipo: 'condicional' },
+  { id: 22, nome: 'Textos cadastrados', departamento: 'criacao', prazo_dias: 0, tipo: 'notificacao' },
+  { id: 23, nome: 'Fotos recebidas', departamento: 'criacao', prazo_dias: 0, tipo: 'notificacao' },
+  { id: 24, nome: 'Início da criação', departamento: 'criacao', prazo_dias: 10, tipo: 'inicio_projeto' },
+  { id: 25, nome: 'Criação do convite', departamento: 'criacao', prazo_dias: 3, tipo: 'producao' },
+  { id: 26, nome: 'Correções', departamento: 'criacao', prazo_dias: 3, tipo: 'revisao' },
+  { id: 27, nome: 'Liberação demais peças', departamento: 'criacao', prazo_dias: 0, tipo: 'notificacao' },
+  { id: 28, nome: 'Miolo aprovado', departamento: 'criacao', prazo_dias: 1, tipo: 'marco' },
+  { id: 29, nome: 'Capa aprovada', departamento: 'criacao', prazo_dias: 1, tipo: 'marco' },
+  { id: 30, nome: 'Demais Peças', departamento: 'criacao', prazo_dias: 3, tipo: 'dependente' },
+  { id: 31, nome: 'Páginas individuais', departamento: 'criacao', prazo_dias: 0, tipo: 'dependente' },
+  { id: 32, nome: 'Revisão REV', departamento: 'criacao', prazo_dias: 1, tipo: 'revisao_final' },
+  { id: 33, nome: 'Saída/Finalização', departamento: 'criacao', prazo_dias: 3, tipo: 'finalizacao' },
+  
+  // PRÉ-PRODUÇÃO - 6 etapas
+  { id: 34, nome: 'Recorte e tratamento', departamento: 'pre-producao', prazo_dias: 10, tipo: 'producao' },
+  { id: 35, nome: 'Recebimento envelope', departamento: 'pre-producao', prazo_dias: 1, tipo: 'recebimento' },
+  { id: 36, nome: 'Conferir textos', departamento: 'pre-producao', prazo_dias: 1, tipo: 'revisao' },
+  { id: 37, nome: 'Envio para gráfica', departamento: 'pre-producao', prazo_dias: 1, tipo: 'envio' },
+  { id: 38, nome: 'Conferência xerox', departamento: 'pre-producao', prazo_dias: 1, tipo: 'condicional' },
+  { id: 39, nome: 'Controle impressões', departamento: 'pre-producao', prazo_dias: 0, tipo: 'monitoramento' },
+  
+  // PRODUÇÃO - 6 etapas
+  { id: 40, nome: 'Triagem materiais', departamento: 'producao', prazo_dias: 1, tipo: 'preparacao' },
+  { id: 41, nome: 'Envio à gráfica', departamento: 'producao', prazo_dias: 1, tipo: 'envio' },
+  { id: 42, nome: 'Ordem de produção', departamento: 'producao', prazo_dias: 1, tipo: 'inicio' },
+  { id: 43, nome: 'Costura e acabamento', departamento: 'producao', prazo_dias: 5, tipo: 'producao' },
+  { id: 44, nome: 'Conferência qualidade', departamento: 'producao', prazo_dias: 1, tipo: 'qualidade' },
+  { id: 45, nome: 'Entrega convites', departamento: 'producao', prazo_dias: 1, tipo: 'finalizacao' }
 ];
 
-// Função para criar projeto com datas calculadas
-const criarProjeto = (contratoId, cliente, instituicao, dataInicio, status = 'Ativo') => {
-  const dataInicioDate = new Date(dataInicio);
-  const hoje = new Date();
-  
-  // Calcular etapa atual baseado no tempo decorrido
-  const diasDecorridos = Math.floor((hoje - dataInicioDate) / (1000 * 60 * 60 * 24));
-  
-  let etapaAtual = 1;
-  let departamentoAtual = 'atendimento';
-  let progresso = 10;
-  
-  if (diasDecorridos > 60) {
-    departamentoAtual = 'criacao';
-    etapaAtual = 5;
-    progresso = 45;
-  } else if (diasDecorridos > 30) {
-    departamentoAtual = 'atendimento';
-    etapaAtual = 10;
-    progresso = 35;
-  } else if (diasDecorridos > 15) {
-    departamentoAtual = 'atendimento';
-    etapaAtual = 6;
-    progresso = 25;
-  }
-  
-  const dataEntrega = addMonths(dataInicio, 6); // 6 meses de contrato
-  const diasRestantes = Math.floor((new Date(dataEntrega) - hoje) / (1000 * 60 * 60 * 24));
-  
-  return {
-    id: contratoId.replace('contrato', 'projeto'),
-    contrato_id: contratoId,
-    cliente: cliente,
-    instituicao: instituicao,
-    departamento_atual: departamentoAtual,
-    etapa_atual: etapaAtual,
-    etapa_atual_nome: ETAPAS_ATENDIMENTO[etapaAtual - 1]?.nome || 'Iniciando',
-    progresso: progresso,
-    status: status,
-    data_inicio: dataInicio,
-    data_entrega: dataEntrega,
-    dias_restantes: diasRestantes > 0 ? diasRestantes : 0,
-    dias_atraso: status === 'Atrasado' ? Math.floor(Math.random() * 10) + 1 : 0,
-    observacoes: []
-  };
-};
-
-// CONTRATOS DE EXEMPLO
+// 10 CONTRATOS COMPLETOS E FUNCIONAIS
 export const mockContratos = [
+  // CONTRATOS ATIVOS (4)
   {
     id: 'contrato-1',
     cliente: 'Turma Engenharia Civil 2025',
@@ -572,25 +134,9 @@ export const mockContratos = [
   },
   {
     id: 'contrato-2',
-    cliente: 'Turma Medicina 2025',
-    instituicao: 'UNIFENAS',
-    numero_contrato: 'CT-2025-002',
-    valor: 198000,
-    data_inicio: '2024-12-15',
-    data_fim: '2025-06-15',
-    data_fim_real: null,
-    status: 'Atrasado',
-    prazo_textos: '2025-03-15',
-    prazo_fotos: '2025-03-20',
-    projeto_id: 'projeto-2',
-    created_at: '2024-12-10',
-    observacoes: []
-  },
-  {
-    id: 'contrato-3',
     cliente: 'Turma Direito 2025',
     instituicao: 'PUC Minas',
-    numero_contrato: 'CT-2025-003',
+    numero_contrato: 'CT-2025-002',
     valor: 175000,
     data_inicio: '2025-01-20',
     data_fim: '2025-07-20',
@@ -598,33 +144,231 @@ export const mockContratos = [
     status: 'Ativo',
     prazo_textos: '2025-04-20',
     prazo_fotos: '2025-04-25',
-    projeto_id: 'projeto-3',
+    projeto_id: 'projeto-2',
     created_at: '2025-01-15',
+    observacoes: []
+  },
+  {
+    id: 'contrato-3',
+    cliente: 'Turma Administração 2025',
+    instituicao: 'FUMEC',
+    numero_contrato: 'CT-2025-003',
+    valor: 98000,
+    data_inicio: '2025-02-01',
+    data_fim: '2025-08-01',
+    data_fim_real: null,
+    status: 'Ativo',
+    prazo_textos: '2025-05-01',
+    prazo_fotos: '2025-05-05',
+    projeto_id: 'projeto-3',
+    created_at: '2025-01-25',
+    observacoes: []
+  },
+  {
+    id: 'contrato-4',
+    cliente: 'Turma Arquitetura 2025',
+    instituicao: 'Centro Universitário BH',
+    numero_contrato: 'CT-2025-004',
+    valor: 162000,
+    data_inicio: '2025-01-15',
+    data_fim: '2025-07-15',
+    data_fim_real: null,
+    status: 'Ativo',
+    prazo_textos: '2025-04-15',
+    prazo_fotos: '2025-04-18',
+    projeto_id: 'projeto-4',
+    created_at: '2025-01-10',
+    observacoes: []
+  },
+  
+  // CONTRATOS ATRASADOS (3)
+  {
+    id: 'contrato-5',
+    cliente: 'Turma Medicina 2024',
+    instituicao: 'UNIFENAS',
+    numero_contrato: 'CT-2024-005',
+    valor: 198000,
+    data_inicio: '2024-12-01',
+    data_fim: '2025-06-01',
+    data_fim_real: null,
+    status: 'Atrasado',
+    prazo_textos: '2025-03-01',
+    prazo_fotos: '2025-03-05',
+    projeto_id: 'projeto-5',
+    created_at: '2024-11-25',
+    observacoes: []
+  },
+  {
+    id: 'contrato-6',
+    cliente: 'Turma Odontologia 2024',
+    instituicao: 'UFMG',
+    numero_contrato: 'CT-2024-006',
+    valor: 187000,
+    data_inicio: '2024-11-20',
+    data_fim: '2025-05-20',
+    data_fim_real: null,
+    status: 'Atrasado',
+    prazo_textos: '2025-02-20',
+    prazo_fotos: '2025-02-25',
+    projeto_id: 'projeto-6',
+    created_at: '2024-11-15',
+    observacoes: []
+  },
+  {
+    id: 'contrato-7',
+    cliente: 'Turma Ciência da Computação 2024',
+    instituicao: 'PUC Minas',
+    numero_contrato: 'CT-2024-007',
+    valor: 152000,
+    data_inicio: '2024-12-10',
+    data_fim: '2025-06-10',
+    data_fim_real: null,
+    status: 'Atrasado',
+    prazo_textos: '2025-03-10',
+    prazo_fotos: '2025-03-12',
+    projeto_id: 'projeto-7',
+    created_at: '2024-12-05',
+    observacoes: []
+  },
+  
+  // CONTRATOS CONCLUÍDOS (3)
+  {
+    id: 'contrato-8',
+    cliente: 'Turma Pedagogia 2024',
+    instituicao: 'Newton Paiva',
+    numero_contrato: 'CT-2024-008',
+    valor: 89000,
+    data_inicio: '2024-08-01',
+    data_fim: '2025-02-01',
+    data_fim_real: '2025-01-28',
+    status: 'Concluído',
+    prazo_textos: '2024-11-01',
+    prazo_fotos: '2024-11-05',
+    projeto_id: 'projeto-8',
+    created_at: '2024-07-25',
+    observacoes: []
+  },
+  {
+    id: 'contrato-9',
+    cliente: 'Turma Enfermagem 2024',
+    instituicao: 'Faculdade Santa Casa',
+    numero_contrato: 'CT-2024-009',
+    valor: 95000,
+    data_inicio: '2024-07-15',
+    data_fim: '2025-01-15',
+    data_fim_real: '2025-01-10',
+    status: 'Concluído',
+    prazo_textos: '2024-10-15',
+    prazo_fotos: '2024-10-20',
+    projeto_id: 'projeto-9',
+    created_at: '2024-07-10',
+    observacoes: []
+  },
+  {
+    id: 'contrato-10',
+    cliente: 'Turma Fisioterapia 2024',
+    instituicao: 'Una Bom Despacho',
+    numero_contrato: 'CT-2024-010',
+    valor: 78000,
+    data_inicio: '2024-09-01',
+    data_fim: '2025-03-01',
+    data_fim_real: '2025-02-25',
+    status: 'Concluído',
+    prazo_textos: '2024-12-01',
+    prazo_fotos: '2024-12-05',
+    projeto_id: 'projeto-10',
+    created_at: '2024-08-25',
     observacoes: []
   }
 ];
 
-// PROJETOS DE EXEMPLO
-export const mockProjetos = mockContratos.map(contrato => 
-  criarProjeto(
-    contrato.id,
-    contrato.cliente,
-    contrato.instituicao,
-    contrato.data_inicio,
-    contrato.status
-  )
-);
-
-// STATUS DAS ETAPAS
-export const STATUS_ETAPA = {
-  NAO_INICIADA: 'Não Iniciada',
-  EM_ANDAMENTO: 'Em Andamento',
-  AGUARDANDO: 'Aguardando',
-  CONCLUIDA: 'Concluída',
-  ATRASADA: 'Atrasada'
+// Função para criar projeto baseado no contrato
+const criarProjeto = (contrato) => {
+  const hoje = new Date();
+  const dataInicio = new Date(contrato.data_inicio);
+  const diasDecorridos = Math.floor((hoje - dataInicio) / (1000 * 60 * 60 * 24));
+  
+  let departamentoAtual = 'atendimento';
+  let etapaAtual = 1;
+  let etapaNome = 'Informar recebimento do contrato';
+  let progresso = 5;
+  let diasAtraso = 0;
+  
+  if (contrato.status === 'Concluído') {
+    departamentoAtual = 'producao';
+    etapaAtual = 45;
+    etapaNome = 'Entrega convites';
+    progresso = 100;
+  } else if (contrato.status === 'Atrasado') {
+    if (diasDecorridos > 90) {
+      departamentoAtual = 'criacao';
+      etapaAtual = 26;
+      etapaNome = 'Correções';
+      progresso = 65;
+      diasAtraso = Math.floor(Math.random() * 15) + 5;
+    } else if (diasDecorridos > 60) {
+      departamentoAtual = 'criacao';
+      etapaAtual = 20;
+      etapaNome = 'Layout de Fotos';
+      progresso = 45;
+      diasAtraso = Math.floor(Math.random() * 10) + 3;
+    } else {
+      departamentoAtual = 'atendimento';
+      etapaAtual = 11;
+      etapaNome = 'Cadastro de textos/REV1';
+      progresso = 35;
+      diasAtraso = Math.floor(Math.random() * 8) + 2;
+    }
+  } else { // Ativo
+    if (diasDecorridos > 50) {
+      departamentoAtual = 'criacao';
+      etapaAtual = 25;
+      etapaNome = 'Criação do convite';
+      progresso = 55;
+    } else if (diasDecorridos > 30) {
+      departamentoAtual = 'criacao';
+      etapaAtual = 19;
+      etapaNome = 'Envio do briefing';
+      progresso = 40;
+    } else if (diasDecorridos > 15) {
+      departamentoAtual = 'atendimento';
+      etapaAtual = 6;
+      etapaNome = 'Recebimento do questionário preenchido';
+      progresso = 25;
+    } else {
+      departamentoAtual = 'atendimento';
+      etapaAtual = 3;
+      etapaNome = '1º contato com a comissão';
+      progresso = 15;
+    }
+  }
+  
+  const dataEntrega = contrato.status === 'Concluído' ? contrato.data_fim_real : contrato.data_fim;
+  const diasRestantes = Math.max(0, Math.floor((new Date(dataEntrega) - hoje) / (1000 * 60 * 60 * 24)));
+  
+  return {
+    id: contrato.projeto_id,
+    contrato_id: contrato.id,
+    cliente: contrato.cliente,
+    instituicao: contrato.instituicao,
+    departamento_atual: departamentoAtual,
+    etapa_atual: etapaAtual,
+    etapa_atual_nome: etapaNome,
+    progresso: progresso,
+    status: contrato.status,
+    data_inicio: contrato.data_inicio,
+    data_entrega: dataEntrega,
+    dias_restantes: diasRestantes,
+    dias_atraso: diasAtraso,
+    etapas: [], // Etapas serão populadas conforme necessário
+    observacoes: []
+  };
 };
 
-// TAREFAS (baseadas nas etapas dos projetos)
+// PROJETOS CRIADOS A PARTIR DOS CONTRATOS
+export const mockProjetos = mockContratos.map(contrato => criarProjeto(contrato));
+
+// TAREFAS
 export const mockTarefas = [];
 
 // DASHBOARD
@@ -640,14 +384,17 @@ export const mockDashboard = {
       : 0
   },
   tarefas_atrasadas: [],
-  gargalos_responsaveis: []
+  gargalos_responsaveis: [
+    ['Maria Letro', 3],
+    ['João Silva', 2],
+    ['Ana Costa', 1]
+  ]
 };
 
 // NOTIFICAÇÕES DINÂMICAS
 export const mockNotificacoes = [
   ...mockProjetos
     .filter(p => p.status === 'Atrasado' && p.dias_atraso > 0)
-    .slice(0, 5)
     .map((projeto, index) => ({
       id: `notif-atraso-${projeto.id}`,
       titulo: 'Projeto atrasado',
@@ -660,7 +407,7 @@ export const mockNotificacoes = [
   {
     id: 'notif-sistema-1',
     titulo: 'Sistema atualizado',
-    mensagem: 'Novo sistema de gestão de formaturas implementado com sucesso',
+    mensagem: 'Sistema de gestão de formaturas operacional com 10 contratos ativos',
     tipo: 'sucesso',
     lida: false,
     created_at: new Date().toISOString()
