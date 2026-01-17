@@ -15,7 +15,7 @@ import {
   Circle,
   User
 } from 'lucide-react';
-import { mockProjetos, ETAPAS_SISTEMA, DEPARTAMENTOS } from '../data/mockNovo';
+import { mockProjetos, TODAS_ETAPAS, DEPARTAMENTOS } from '../data/mockNovo';
 import './DepartamentoView.css';
 
 const DepartamentoView = ({ departamento }) => {
