@@ -29,7 +29,7 @@ const DepartamentoView = ({ departamento }) => {
   };
 
   // Etapas deste departamento
-  const etapasDepartamento = ETAPAS_SISTEMA.filter(e => 
+  const etapasDepartamento = TODAS_ETAPAS.filter(e => 
     e.departamento.toLowerCase().replace(/ã/g, 'a').replace(/-/g, '-') === 
     deptInfo.nome.toLowerCase().replace(/ã/g, 'a')
   );
