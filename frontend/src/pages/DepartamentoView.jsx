@@ -4,7 +4,6 @@ import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Progress } from '../components/ui/progress';
 import { Button } from '../components/ui/button';
-import { Checkbox } from '../components/ui/checkbox';
 import {
   Building2,
   Calendar,
@@ -13,210 +12,242 @@ import {
   Clock,
   AlertTriangle,
   Circle,
-  User
+  User,
+  Users
 } from 'lucide-react';
 import { mockProjetos, TODAS_ETAPAS, DEPARTAMENTOS } from '../data/mockNovo';
 import './DepartamentoView.css';
 
 const DepartamentoView = ({ departamento }) => {
   const [projetos] = useState(mockProjetos);
-  const [tarefasConcluidas, setTarefasConcluidas] = useState([]);
-
-  // Encontrar info do departamento
-  const deptInfo = DEPARTAMENTOS.find(d => d.id === departamento) || {
+  
+  // Encontrar info do departamento - DEPARTAMENTOS é um objeto
+  const deptInfo = Object.values(DEPARTAMENTOS).find(d => d.id === departamento) || {
+    id: departamento,
     nome: 'Departamento',
-    cor: '#3b82f6'
+    cor: '#3b82f6',
+    equipe: [],
+    descricao: ''
   };
 
   // Etapas deste departamento
-  const etapasDepartamento = TODAS_ETAPAS.filter(e => 
-    e.departamento.toLowerCase().replace(/ã/g, 'a').replace(/-/g, '-') === 
-    deptInfo.nome.toLowerCase().replace(/ã/g, 'a')
+  const etapasDepartamento = TODAS_ETAPAS.filter(e => e.departamento === departamento);
+
+  // Projetos ativos neste departamento
+  const projetosDepartamento = projetos.filter(p => 
+    p.departamento_atual === departamento && 
+    p.status !== 'Concluído'
   );
 
-  // Projetos com tarefas neste departamento
-  const projetosComTarefas = projetos.filter(p => {
-    const etapaAtual = p.etapas.find(e => e.id === p.etapa_atual);
-    if (!etapaAtual) return false;
-    const etapaSistema = TODAS_ETAPAS.find(es => es.id === etapaAtual.id);
-    return etapaSistema?.departamento.toLowerCase().includes(deptInfo.nome.toLowerCase().split(' ')[0].toLowerCase());
-  });
-
-  // Clientes nesta etapa (todos os projetos que passam por etapas deste departamento)
-  const clientesNaEtapa = projetos.filter(p => {
-    return p.etapas.some(e => {
-      const etapaSistema = TODAS_ETAPAS.find(es => es.id === e.id);
-      return etapaSistema?.departamento.toLowerCase().includes(deptInfo.nome.toLowerCase().split(' ')[0].toLowerCase()) &&
-             (e.status === 'Em Andamento' || e.status === 'Atrasada');
-    });
-  });
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('pt-BR');
+  // Estatísticas
+  const stats = {
+    total: projetosDepartamento.length,
+    emDia: projetosDepartamento.filter(p => p.dias_atraso === 0).length,
+    atrasados: projetosDepartamento.filter(p => p.dias_atraso > 0).length,
+    progresso: projetosDepartamento.length > 0 
+      ? Math.round(projetosDepartamento.reduce((acc, p) => acc + p.progresso, 0) / projetosDepartamento.length)
+      : 0
   };
 
-  const toggleTarefa = (tarefaId) => {
-    setTarefasConcluidas(prev => 
-      prev.includes(tarefaId) 
-        ? prev.filter(id => id !== tarefaId)
-        : [...prev, tarefaId]
-    );
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'Atrasado': return <AlertTriangle size={16} className="status-icon atrasado" />;
+      case 'Ativo': return <Clock size={16} className="status-icon ativo" />;
+      case 'Concluído': return <CheckCircle2 size={16} className="status-icon concluido" />;
+      default: return <Circle size={16} className="status-icon" />;
+    }
   };
 
   const getStatusColor = (status) => {
     switch(status) {
-      case 'Atrasado': case 'Atrasada': return { bg: '#fee2e2', color: '#dc2626' };
-      case 'Em Andamento': return { bg: '#dbeafe', color: '#1d4ed8' };
-      case 'Concluído': case 'Concluída': return { bg: '#dcfce7', color: '#15803d' };
-      default: return { bg: '#f1f5f9', color: '#475569' };
+      case 'Atrasado': return { bg: '#fee2e2', color: '#dc2626', border: '#fecaca' };
+      case 'Ativo': return { bg: '#dbeafe', color: '#1d4ed8', border: '#bfdbfe' };
+      case 'Concluído': return { bg: '#dcfce7', color: '#15803d', border: '#bbf7d0' };
+      default: return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' };
     }
   };
 
   return (
     <LayoutNovo 
-      title={deptInfo.nome} 
-      subtitle={`Gerencie as tarefas e acompanhe os clientes nesta etapa`}
+      title={deptInfo.nome}
+      subtitle={deptInfo.descricao}
     >
       <div className="departamento-container">
-        {/* Layout de 2 Colunas */}
-        <div className="departamento-grid">
-          {/* Coluna Esquerda - Tarefas do Departamento */}
-          <div className="coluna-tarefas">
-            <Card className="tarefas-card">
-              <div className="tarefas-header" style={{ borderColor: deptInfo.cor }}>
-                <h3>Tarefas do Departamento</h3>
-                <Badge variant="secondary">
-                  {etapasDepartamento.length} etapas
-                </Badge>
-              </div>
-              <CardContent className="tarefas-content">
-                {etapasDepartamento.map((etapa) => {
-                  const tarefaId = `etapa-${etapa.id}`;
-                  const isConcluida = tarefasConcluidas.includes(tarefaId);
-                  
-                  // Contar projetos nesta etapa específica
-                  const projetosNaEtapa = projetos.filter(p => {
-                    const etapaAtual = p.etapas.find(e => e.id === etapa.id);
-                    return etapaAtual && (etapaAtual.status === 'Em Andamento' || etapaAtual.status === 'Atrasada');
-                  });
+        {/* Header com estatísticas */}
+        <div className="departamento-header">
+          <div className="departamento-stats">
+            <div className="stat-item" style={{ borderLeftColor: deptInfo.cor }}>
+              <span className="stat-value">{stats.total}</span>
+              <span className="stat-label">Projetos Ativos</span>
+            </div>
+            <div className="stat-item" style={{ borderLeftColor: '#10b981' }}>
+              <span className="stat-value">{stats.emDia}</span>
+              <span className="stat-label">Em Dia</span>
+            </div>
+            <div className="stat-item" style={{ borderLeftColor: '#ef4444' }}>
+              <span className="stat-value">{stats.atrasados}</span>
+              <span className="stat-label">Atrasados</span>
+            </div>
+            <div className="stat-item" style={{ borderLeftColor: deptInfo.cor }}>
+              <span className="stat-value">{stats.progresso}%</span>
+              <span className="stat-label">Progresso Médio</span>
+            </div>
+          </div>
 
-                  return (
-                    <div 
-                      key={etapa.id} 
-                      className={`tarefa-item ${isConcluida ? 'concluida' : ''}`}
-                    >
-                      <div className="tarefa-check">
-                        <Checkbox 
-                          checked={isConcluida}
-                          onCheckedChange={() => toggleTarefa(tarefaId)}
-                        />
-                      </div>
-                      <div className="tarefa-info">
-                        <span className="tarefa-nome">
-                          {etapa.id} - {etapa.nome}
-                        </span>
-                        <span className="tarefa-duracao">
+          {/* Equipe */}
+          {deptInfo.equipe && deptInfo.equipe.length > 0 && (
+            <div className="equipe-info">
+              <Users size={18} style={{ color: deptInfo.cor }} />
+              <span className="equipe-label">Equipe:</span>
+              <div className="equipe-members">
+                {deptInfo.equipe.map((membro, index) => (
+                  <Badge key={index} variant="outline" className="membro-badge">
+                    {membro}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Etapas do departamento */}
+        {etapasDepartamento.length > 0 && (
+          <Card className="etapas-card">
+            <CardContent style={{ padding: '20px' }}>
+              <h3 style={{ marginBottom: '16px', fontSize: '16px', fontWeight: 600, color: '#1e293b' }}>
+                Etapas do Departamento ({etapasDepartamento.length})
+              </h3>
+              <div className="etapas-list">
+                {etapasDepartamento.map((etapa, index) => (
+                  <div key={etapa.id} className="etapa-item">
+                    <div className="etapa-numero">{index + 1}</div>
+                    <div className="etapa-content">
+                      <span className="etapa-nome">{etapa.nome}</span>
+                      {etapa.prazo_dias > 0 && (
+                        <span className="etapa-prazo">
                           <Clock size={12} />
-                          {etapa.duracao_padrao} dias padrão
+                          {etapa.prazo_dias} {etapa.prazo_dias === 1 ? 'dia' : 'dias'}
                         </span>
-                      </div>
-                      {projetosNaEtapa.length > 0 && (
-                        <Badge 
-                          className="projetos-badge"
-                          style={{ backgroundColor: deptInfo.cor + '20', color: deptInfo.cor }}
-                        >
-                          {projetosNaEtapa.length} projeto{projetosNaEtapa.length > 1 ? 's' : ''}
+                      )}
+                      {etapa.tipo && (
+                        <Badge variant="outline" className="etapa-tipo">
+                          {etapa.tipo}
                         </Badge>
                       )}
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Coluna Direita - Clientes nesta Etapa */}
-          <div className="coluna-clientes">
-            <Card className="clientes-card">
-              <div className="clientes-header" style={{ borderColor: deptInfo.cor }}>
-                <h3>Clientes nesta Etapa</h3>
-                <Badge variant="secondary">
-                  {clientesNaEtapa.length} cliente{clientesNaEtapa.length !== 1 ? 's' : ''}
-                </Badge>
-              </div>
-              <CardContent className="clientes-content">
-                {clientesNaEtapa.length === 0 ? (
-                  <div className="empty-clientes">
-                    <p>Nenhum cliente nesta etapa no momento.</p>
                   </div>
-                ) : (
-                  clientesNaEtapa.map((projeto) => {
-                    const etapaAtual = projeto.etapas.find(e => e.id === projeto.etapa_atual);
-                    const statusColor = getStatusColor(projeto.status);
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-                    return (
-                      <div key={projeto.id} className="cliente-card">
-                        <div className="cliente-header">
-                          <div className="cliente-info">
-                            <h4 className="cliente-nome">{projeto.cliente}</h4>
-                            <span className="cliente-instituicao">
-                              <Building2 size={12} />
-                              {projeto.instituicao}
-                            </span>
-                          </div>
-                          <Badge 
-                            style={{ backgroundColor: statusColor.bg, color: statusColor.color }}
-                          >
-                            {projeto.status === 'Atrasado' && <AlertTriangle size={12} />}
-                            {projeto.status}
-                          </Badge>
-                        </div>
-
-                        <div className="cliente-etapa">
-                          <span className="etapa-label">Etapa atual:</span>
-                          <span className="etapa-nome">{projeto.etapa_atual_nome}</span>
-                        </div>
-
-                        {etapaAtual && (
-                          <div className="cliente-meta">
-                            <span className="meta-item">
-                              <User size={12} />
-                              {etapaAtual.responsavel}
-                            </span>
-                            <span className="meta-item">
-                              <Calendar size={12} />
-                              Até {formatDate(etapaAtual.data_prevista_fim)}
-                            </span>
-                          </div>
-                        )}
-
-                        {projeto.dias_atraso > 0 && (
-                          <div className="atraso-alert">
-                            <AlertTriangle size={14} />
-                            <span><strong>{projeto.dias_atraso} dias</strong> de atraso</span>
-                          </div>
-                        )}
-
-                        <div className="cliente-progresso">
-                          <div className="progresso-header">
-                            <span>Progresso geral</span>
-                            <span className="progresso-percent">{projeto.progresso}%</span>
-                          </div>
-                          <Progress value={projeto.progresso} className="progresso-bar" />
-                        </div>
-
-                        <button className="ver-projeto-btn">
-                          Ver projeto completo
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
+        {/* Lista de projetos */}
+        <div className="projetos-departamento">
+          <h3 className="section-title">Projetos no {deptInfo.nome}</h3>
+          
+          {projetosDepartamento.length === 0 ? (
+            <Card className="empty-state">
+              <CardContent style={{ padding: '60px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>📋</div>
+                <h3 style={{ marginBottom: '8px', color: '#64748b' }}>
+                  Nenhum projeto neste departamento no momento
+                </h3>
+                <p style={{ color: '#94a3b8', fontSize: '14px' }}>
+                  Os projetos aparecerão aqui quando estiverem na etapa deste departamento
+                </p>
               </CardContent>
             </Card>
-          </div>
+          ) : (
+            <div className="projetos-grid-dept">
+              {projetosDepartamento.map((projeto) => {
+                const statusColor = getStatusColor(projeto.status);
+                
+                return (
+                  <Card key={projeto.id} className="projeto-card-dept">
+                    <CardContent style={{ padding: '20px' }}>
+                      {/* Header */}
+                      <div className="projeto-header-dept">
+                        <div className="projeto-title-dept">
+                          <Building2 size={18} style={{ color: deptInfo.cor }} />
+                          <div>
+                            <h4>{projeto.cliente}</h4>
+                            <span className="projeto-instituicao">{projeto.instituicao}</span>
+                          </div>
+                        </div>
+                        <Badge 
+                          style={{ 
+                            backgroundColor: statusColor.bg,
+                            color: statusColor.color,
+                            border: `1px solid ${statusColor.border}`
+                          }}
+                        >
+                          {getStatusIcon(projeto.status)}
+                          {projeto.status}
+                        </Badge>
+                      </div>
+
+                      {/* Etapa Atual */}
+                      <div className="etapa-atual-dept">
+                        <div className="etapa-info-dept">
+                          <span className="etapa-label-dept">Etapa Atual:</span>
+                          <span className="etapa-nome-dept">{projeto.etapa_atual_nome}</span>
+                        </div>
+                        {projeto.dias_atraso > 0 && (
+                          <Badge variant="destructive" className="atraso-badge">
+                            <AlertTriangle size={12} />
+                            {projeto.dias_atraso} dias de atraso
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Progresso */}
+                      <div className="progresso-dept">
+                        <div className="progresso-header-dept">
+                          <span>Progresso</span>
+                          <span className="progresso-value">{projeto.progresso}%</span>
+                        </div>
+                        <Progress value={projeto.progresso} className="progress-bar-dept" />
+                      </div>
+
+                      {/* Informações adicionais */}
+                      <div className="info-grid-dept">
+                        <div className="info-item-dept">
+                          <Calendar size={14} />
+                          <div>
+                            <span className="info-label-dept">Entrega</span>
+                            <span className="info-value-dept">
+                              {new Date(projeto.data_entrega).toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="info-item-dept">
+                          <Clock size={14} />
+                          <div>
+                            <span className="info-label-dept">Restam</span>
+                            <span className="info-value-dept">{projeto.dias_restantes} dias</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Ações */}
+                      <div className="acoes-dept">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="btn-visualizar"
+                          style={{ borderColor: deptInfo.cor, color: deptInfo.cor }}
+                        >
+                          Ver Detalhes
+                          <ChevronRight size={16} />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </LayoutNovo>
