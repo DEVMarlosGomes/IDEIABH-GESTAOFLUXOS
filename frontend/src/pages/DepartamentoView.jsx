@@ -45,7 +45,7 @@ const DepartamentoView = ({ departamento }) => {
   // Clientes nesta etapa (todos os projetos que passam por etapas deste departamento)
   const clientesNaEtapa = projetos.filter(p => {
     return p.etapas.some(e => {
-      const etapaSistema = ETAPAS_SISTEMA.find(es => es.id === e.id);
+      const etapaSistema = TODAS_ETAPAS.find(es => es.id === e.id);
       return etapaSistema?.departamento.toLowerCase().includes(deptInfo.nome.toLowerCase().split(' ')[0].toLowerCase()) &&
              (e.status === 'Em Andamento' || e.status === 'Atrasada');
     });
