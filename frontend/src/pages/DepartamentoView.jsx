@@ -38,7 +38,7 @@ const DepartamentoView = ({ departamento }) => {
   const projetosComTarefas = projetos.filter(p => {
     const etapaAtual = p.etapas.find(e => e.id === p.etapa_atual);
     if (!etapaAtual) return false;
-    const etapaSistema = ETAPAS_SISTEMA.find(es => es.id === etapaAtual.id);
+    const etapaSistema = TODAS_ETAPAS.find(es => es.id === etapaAtual.id);
     return etapaSistema?.departamento.toLowerCase().includes(deptInfo.nome.toLowerCase().split(' ')[0].toLowerCase());
   });
 
