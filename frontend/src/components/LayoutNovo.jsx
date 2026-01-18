@@ -137,13 +137,23 @@ const LayoutNovo = ({ children, title, subtitle }) => {
   };
 
   const handleMarkAsRead = (notifId) => {
-    setNotificacoes(prev => 
-      prev.map(n => n.id === notifId ? { ...n, lida: true } : n)
-    );
+    setNotificacoes(prev => {
+      const updated = prev.map(n => n.id === notifId ? { ...n, lida: true } : n);
+      // Salvar no localStorage
+      const readIds = updated.filter(n => n.lida).map(n => n.id);
+      saveReadNotificationIds(readIds);
+      return updated;
+    });
   };
 
   const handleMarkAllAsRead = () => {
-    setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
+    setNotificacoes(prev => {
+      const updated = prev.map(n => ({ ...n, lida: true }));
+      // Salvar no localStorage
+      const readIds = updated.map(n => n.id);
+      saveReadNotificationIds(readIds);
+      return updated;
+    });
   };
 
   const handleNotificationClick = (notif) => {
