@@ -18,9 +18,36 @@ const LayoutNovo = ({ children, title, subtitle }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [notificacoes, setNotificacoes] = useState(mockNotificacoes);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+
+  // Carregar notificações lidas do localStorage
+  const getReadNotificationIds = () => {
+    try {
+      const stored = localStorage.getItem('readNotificationIds');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Salvar notificações lidas no localStorage
+  const saveReadNotificationIds = (ids) => {
+    try {
+      localStorage.setItem('readNotificationIds', JSON.stringify(ids));
+    } catch (e) {
+      console.error('Erro ao salvar notificações:', e);
+    }
+  };
+
+  // Inicializar notificações com estado de lido do localStorage
+  const [notificacoes, setNotificacoes] = useState(() => {
+    const readIds = getReadNotificationIds();
+    return mockNotificacoes.map(n => ({
+      ...n,
+      lida: readIds.includes(n.id)
+    }));
+  });
 
   const unreadCount = notificacoes.filter(n => !n.lida).length;
 
