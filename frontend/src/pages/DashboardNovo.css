@@ -472,3 +472,463 @@
     font-size: 24px;
   }
 }
+
+/* Projeto Header Info */
+.projeto-header-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.projeto-header-info h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.projeto-instituicao {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+}
+
+.projeto-meta-novo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.etapa-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.progresso-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.projeto-arrow {
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+/* Clickable Project */
+.clickable-project {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickable-project:hover {
+  background: #f1f5f9;
+  transform: translateX(4px);
+}
+
+.atraso-badge-mini {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+/* Empty State */
+.empty-state-novo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-state-novo p {
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.empty-state-novo.success p {
+  color: #10b981;
+}
+
+/* Alerta Item Novo */
+.alerta-item-novo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.alerta-item-novo:hover {
+  background: #fee2e2;
+  transform: translateX(4px);
+}
+
+.clickable-alert {
+  cursor: pointer;
+}
+
+.alerta-icon-novo {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.alerta-content-novo {
+  flex: 1;
+  min-width: 0;
+}
+
+.alerta-content-novo h4 {
+  margin: 0 0 2px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #991b1b;
+}
+
+.alerta-content-novo p {
+  margin: 0;
+  font-size: 12px;
+  color: #b91c1c;
+}
+
+.alerta-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.dept-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.etapa-text {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.dias-atraso-badge {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Responsáveis Grid */
+.responsaveis-grid-novo {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.responsavel-card-novo {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.responsavel-card-novo:hover {
+  background: #f1f5f9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.responsavel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.responsavel-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.responsavel-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.responsavel-info h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.responsavel-dept {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.responsavel-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.stat-item-resp {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label-resp {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.stat-value-resp {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.responsavel-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-bar-resp {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill-resp {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.carga-label {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* Modal Styles */
+.projeto-modal-novo {
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-title-novo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding-right: 40px;
+}
+
+.modal-title-novo h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.modal-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.close-modal-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.2s;
+}
+
+.close-modal-btn:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.modal-content-novo {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 8px;
+}
+
+.modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-section h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progresso-badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.modal-progress {
+  height: 8px;
+}
+
+.info-grid-modal {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.info-item-modal {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.info-item-modal.alert {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.info-item-modal svg {
+  flex-shrink: 0;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.info-item-modal.alert svg {
+  color: #dc2626;
+}
+
+.info-item-modal > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.info-label {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.info-item-modal.alert .info-label {
+  color: #b91c1c;
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.info-item-modal.alert .info-value {
+  color: #dc2626;
+}
+
+.departamento-card-modal {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border-left: 4px solid;
+}
+
+.dept-header-modal {
+  margin-bottom: 8px;
+}
+
+.dept-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.etapa-atual-modal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.etapa-label-modal {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.etapa-nome-modal {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.equipe-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.equipe-label-modal {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.equipe-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.membro-badge-modal {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-ver-detalhes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
