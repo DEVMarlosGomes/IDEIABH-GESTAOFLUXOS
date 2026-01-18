@@ -282,6 +282,13 @@ export const mockContratos = [
   }
 ];
 
+// Dias de atraso fixos para cada contrato atrasado (valores consistentes)
+const DIAS_ATRASO_FIXOS = {
+  'contrato-5': 5,   // Turma Medicina 2024 - menor atraso
+  'contrato-6': 12,  // Turma Odontologia 2024 - atraso médio
+  'contrato-7': 18   // Turma Ciência da Computação 2024 - maior atraso
+};
+
 // Função para criar projeto baseado no contrato
 const criarProjeto = (contrato) => {
   const hoje = new Date();
@@ -300,24 +307,24 @@ const criarProjeto = (contrato) => {
     etapaNome = 'Entrega convites';
     progresso = 100;
   } else if (contrato.status === 'Atrasado') {
+    // Usar valores fixos de dias de atraso para consistência
+    diasAtraso = DIAS_ATRASO_FIXOS[contrato.id] || 10;
+    
     if (diasDecorridos > 90) {
       departamentoAtual = 'criacao';
       etapaAtual = 26;
       etapaNome = 'Correções';
       progresso = 65;
-      diasAtraso = Math.floor(Math.random() * 15) + 5;
     } else if (diasDecorridos > 60) {
       departamentoAtual = 'criacao';
       etapaAtual = 20;
       etapaNome = 'Layout de Fotos';
       progresso = 45;
-      diasAtraso = Math.floor(Math.random() * 10) + 3;
     } else {
       departamentoAtual = 'atendimento';
       etapaAtual = 11;
       etapaNome = 'Cadastro de textos/REV1';
       progresso = 35;
-      diasAtraso = Math.floor(Math.random() * 8) + 2;
     }
   } else { // Ativo
     if (diasDecorridos > 50) {
