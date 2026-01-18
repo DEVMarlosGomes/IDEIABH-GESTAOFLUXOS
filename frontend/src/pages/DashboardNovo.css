@@ -69,6 +69,17 @@
   gap: 20px;
 }
 
+.dashboard-card-novo {
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: white;
+}
+
+.dashboard-card-novo.full-width {
+  grid-column: 1 / -1;
+}
+
 /* Common Card Styles */
 .projetos-card-novo,
 .alertas-card-novo,
@@ -83,7 +94,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 20px 0;
+  margin-bottom: 16px;
 }
 
 .card-header-novo h3 {
