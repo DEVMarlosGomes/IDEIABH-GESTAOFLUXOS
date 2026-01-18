@@ -34,6 +34,19 @@ const ProjetosVisaoGeral = () => {
   const [highlightedProjetoId, setHighlightedProjetoId] = useState(null);
   const projetoRefs = useRef({});
 
+  // Handle filter from Dashboard KPI clicks
+  useEffect(() => {
+    if (location.state?.filtro) {
+      const filtroMap = {
+        'todos': 'todos',
+        'ativo': 'Ativo',
+        'atrasado': 'Atrasado',
+        'concluido': 'Concluído'
+      };
+      setFiltroStatus(filtroMap[location.state.filtro] || 'todos');
+    }
+  }, [location.state]);
+
   // Handle navigation from notifications with projeto_id
   useEffect(() => {
     const params = new URLSearchParams(location.search);
