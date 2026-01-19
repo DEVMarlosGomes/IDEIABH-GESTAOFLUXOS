@@ -18,9 +18,12 @@ import {
   User,
   MessageSquare,
   Plus,
-  Filter
+  Filter,
+  LayoutGrid,
+  List,
+  Eye
 } from 'lucide-react';
-import { mockProjetos, mockContratos, STATUS_ETAPA } from '../data/mockNovo';
+import { mockProjetos, mockContratos, STATUS_ETAPA, DEPARTAMENTOS } from '../data/mockNovo';
 import './ProjetosVisaoGeral.css';
 
 const ProjetosVisaoGeral = () => {
@@ -32,6 +35,7 @@ const ProjetosVisaoGeral = () => {
   const [novaObservacao, setNovaObservacao] = useState('');
   const [etapaSelecionada, setEtapaSelecionada] = useState(null);
   const [highlightedProjetoId, setHighlightedProjetoId] = useState(null);
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' ou 'list'
   const projetoRefs = useRef({});
 
   // Handle filter from Dashboard KPI clicks
