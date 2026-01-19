@@ -283,3 +283,5 @@ agent_communication:
     message: "Implementado backend completo com endpoints para tarefas, status e relatórios de atrasos. Frontend com modais e visualização por setor. Por favor testar os endpoints de backend primeiro."
   - agent: "testing"
     message: "✅ BACKEND TESTING COMPLETE - Todos os 21 testes passaram com 100% de sucesso! APIs funcionando perfeitamente: CRUD de status e tarefas, finalização com observação, permissões de admin, relatórios de atrasos. Sistema backend está totalmente operacional e pronto para uso."
+  - agent: "main"
+    message: "Implementadas novas funcionalidades: Templates de Prazos para contratos, Relatórios de Gargalos para cobrança, Relatórios Semanais e Mensais. Páginas adicionadas ao menu lateral."
