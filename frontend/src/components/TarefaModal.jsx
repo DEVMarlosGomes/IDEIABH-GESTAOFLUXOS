@@ -49,8 +49,21 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
   });
 
   useEffect(() => {
+    const fetchStatusList = async () => {
+      try {
+        const data = await getStatusTarefas();
+        setStatusList(data);
+        // Set default status (first one - Pendente)
+        if (data.length > 0) {
+          setFormData(prev => ({ ...prev, status_id: prev.status_id || data[0].id }));
+        }
+      } catch (err) {
+        console.error('Error loading status list:', err);
+      }
+    };
+
     if (isOpen) {
-      loadStatusList();
+      fetchStatusList();
       setFormData(prev => ({
         ...prev,
         projeto_id: projetoId || '',
