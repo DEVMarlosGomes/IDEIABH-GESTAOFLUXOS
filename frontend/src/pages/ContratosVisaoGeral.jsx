@@ -180,10 +180,116 @@ const ContratosVisaoGeral = () => {
               <Plus size={18} />
               Novo Contrato
             </Button>
+            
+            {/* Toggle de Visualização */}
+            <div className="view-toggle">
+              <button 
+                className={`view-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                onClick={() => setViewMode('cards')}
+                title="Visualização em Cards"
+              >
+                <LayoutGrid size={18} />
+              </button>
+              <button 
+                className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => setViewMode('list')}
+                title="Visualização em Lista"
+              >
+                <List size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Grid de Contratos */}
+        {/* Visualização em Lista/Tabela */}
+        {viewMode === 'list' && (
+          <div className="contratos-table-container">
+            <table className="contratos-table">
+              <thead>
+                <tr>
+                  <th>Nº Contrato</th>
+                  <th>Cliente</th>
+                  <th>Instituição</th>
+                  <th>Valor</th>
+                  <th>Data Início</th>
+                  <th>Data Fim</th>
+                  <th>Progresso</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredContratos.map((contrato) => {
+                  const statusColor = getStatusColor(contrato.status);
+                  const projeto = getProjeto(contrato.projeto_id);
+                  return (
+                    <tr 
+                      key={contrato.id} 
+                      className={`table-row ${contrato.status === 'Atrasado' ? 'atrasado' : ''}`}
+                    >
+                      <td className="td-contrato-num">{contrato.numero_contrato}</td>
+                      <td className="td-cliente">{contrato.cliente}</td>
+                      <td className="td-instituicao">
+                        <Building2 size={14} />
+                        {contrato.instituicao}
+                      </td>
+                      <td className="td-valor">{formatCurrency(contrato.valor)}</td>
+                      <td className="td-data">{formatDate(contrato.data_inicio)}</td>
+                      <td className="td-data">{formatDate(contrato.data_fim)}</td>
+                      <td className="td-progresso">
+                        {projeto && (
+                          <div className="progresso-cell">
+                            <Progress value={projeto.progresso} className="progress-mini" />
+                            <span className="progresso-text">{projeto.progresso}%</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="td-status">
+                        <Badge 
+                          style={{ 
+                            backgroundColor: statusColor.bg,
+                            color: statusColor.color,
+                            border: `1px solid ${statusColor.border}`
+                          }}
+                        >
+                          {contrato.status === 'Atrasado' && <AlertTriangle size={12} />}
+                          {contrato.status}
+                        </Badge>
+                      </td>
+                      <td className="td-acoes">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedContrato(contrato)}
+                        >
+                          <Eye size={16} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleOpenModal(contrato)}
+                        >
+                          <Edit2 size={16} />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="delete-btn"
+                          onClick={() => handleDelete(contrato.id)}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Grid de Contratos (Cards) */}
+        {viewMode === 'cards' && (
         <div className="contratos-grid-novo">
           {filteredContratos.map((contrato) => {
             const statusColor = getStatusColor(contrato.status);
