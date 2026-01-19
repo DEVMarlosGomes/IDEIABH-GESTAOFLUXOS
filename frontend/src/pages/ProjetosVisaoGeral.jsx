@@ -387,6 +387,7 @@ const ProjetosVisaoGeral = () => {
             );
           })}
         </div>
+        )}
 
         {/* Modal de Detalhes do Projeto */}
         <Dialog open={!!selectedProjeto} onOpenChange={() => setSelectedProjeto(null)}>
