@@ -116,4 +116,69 @@ export const getDashboardStats = async () => {
   return response.data;
 };
 
+// ==========================================
+// Templates de Prazos
+// ==========================================
+
+export const getTemplatesPrazos = async () => {
+  const response = await api.get('/api/templates-prazos');
+  return response.data;
+};
+
+export const getTemplatePrazo = async (templateId) => {
+  const response = await api.get(`/api/templates-prazos/${templateId}`);
+  return response.data;
+};
+
+export const criarTemplatePrazo = async (data, userId, userRole) => {
+  const response = await api.post(`/api/templates-prazos?user_id=${userId}&user_role=${userRole}`, data);
+  return response.data;
+};
+
+export const atualizarTemplatePrazo = async (templateId, data, userRole) => {
+  const response = await api.put(`/api/templates-prazos/${templateId}?user_role=${userRole}`, data);
+  return response.data;
+};
+
+export const deletarTemplatePrazo = async (templateId, userRole) => {
+  const response = await api.delete(`/api/templates-prazos/${templateId}?user_role=${userRole}`);
+  return response.data;
+};
+
+export const criarTemplatePadrao = async (userId, userRole) => {
+  const response = await api.post(`/api/templates-prazos/criar-padrao?user_id=${userId}&user_role=${userRole}`);
+  return response.data;
+};
+
+export const aplicarTemplateContrato = async (contratoId, templateId, dataInicio) => {
+  const response = await api.post(
+    `/api/contratos/${contratoId}/aplicar-template/${templateId}?data_inicio=${dataInicio}`
+  );
+  return response.data;
+};
+
+export const getPrazosContrato = async (contratoId) => {
+  const response = await api.get(`/api/contratos/${contratoId}/prazos`);
+  return response.data;
+};
+
+// ==========================================
+// Relatórios
+// ==========================================
+
+export const getRelatorioGargalos = async () => {
+  const response = await api.get('/api/relatorio-gargalos');
+  return response.data;
+};
+
+export const getRelatorioSemanal = async () => {
+  const response = await api.get('/api/relatorio-semanal');
+  return response.data;
+};
+
+export const getRelatorioMensal = async () => {
+  const response = await api.get('/api/relatorio-mensal');
+  return response.data;
+};
+
 export default api;

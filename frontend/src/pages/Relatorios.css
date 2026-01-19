@@ -1,0 +1,586 @@
+.relatorios-container {
+  padding: 0;
+}
+
+.relatorios-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.relatorios-tabs {
+  margin-bottom: 24px;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+}
+
+.tab-content {
+  margin-top: 16px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  gap: 16px;
+  color: #64748b;
+}
+
+/* Resumo Cards */
+.resumo-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.resumo-card {
+  border-left: 4px solid #e2e8f0;
+}
+
+.resumo-card.alerta {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+}
+
+.resumo-card.warning {
+  border-left-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.resumo-card.info {
+  border-left-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.resumo-card.success {
+  border-left-color: #10b981;
+  background: #f0fdf4;
+}
+
+.resumo-card.danger {
+  border-left-color: #7f1d1d;
+  background: #fef2f2;
+}
+
+.resumo-card .p-4 {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.resumo-icon {
+  padding: 12px;
+  background: white;
+  border-radius: 12px;
+  color: #64748b;
+}
+
+.resumo-card.alerta .resumo-icon {
+  color: #ef4444;
+}
+
+.resumo-card.warning .resumo-icon {
+  color: #f59e0b;
+}
+
+.resumo-card.info .resumo-icon {
+  color: #3b82f6;
+}
+
+.resumo-card.success .resumo-icon {
+  color: #10b981;
+}
+
+.resumo-card.danger .resumo-icon {
+  color: #7f1d1d;
+}
+
+.resumo-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.resumo-valor {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.resumo-label {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.resumo-sub {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* Cobrança Card */
+.cobranca-card {
+  margin-bottom: 24px;
+  border: 2px solid #fecaca;
+  background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);
+}
+
+.cobranca-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.cobranca-item h4 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.cobranca-destaque {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.setor-nome,
+.responsavel-nome {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.cobranca-detalhe {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Setores List */
+.setores-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setor-item {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.setor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.setor-info h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.setor-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stat-text {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.setor-total {
+  text-align: right;
+}
+
+.total-dias {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #ef4444;
+}
+
+.total-label {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.setor-tarefas {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tarefa-mini {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+}
+
+.tarefa-titulo {
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.tarefa-info-mini {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Tarefas Críticas */
+.tarefas-criticas-card {
+  border: 2px solid #fecaca;
+}
+
+.tarefas-criticas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tarefa-critica-item {
+  padding: 16px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border-left: 4px solid #ef4444;
+}
+
+.tarefa-critica-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.tarefa-critica-header h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.tarefa-critica-info {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.tarefa-critica-info span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Empty Message */
+.empty-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #64748b;
+  gap: 8px;
+}
+
+.empty-message.success {
+  color: #10b981;
+}
+
+/* Periodo Info */
+.periodo-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: #475569;
+}
+
+/* Setor Performance */
+.setor-performance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.setor-performance-item {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.setor-performance-item h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 12px;
+}
+
+.performance-stats {
+  display: flex;
+  gap: 16px;
+}
+
+.performance-stats .stat {
+  text-align: center;
+}
+
+.performance-stats .stat-valor {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.performance-stats .stat-label {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.performance-stats .stat.warning .stat-valor {
+  color: #ef4444;
+}
+
+/* Atrasadas List */
+.atrasadas-card {
+  border-left: 4px solid #ef4444;
+}
+
+.atrasadas-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.atrasada-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #fef2f2;
+  border-radius: 6px;
+}
+
+.atrasada-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.atrasada-titulo {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.atrasada-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Evolução Semanal */
+.evolucao-semanal {
+  display: flex;
+  justify-content: space-around;
+  padding: 20px 0;
+}
+
+.semana-item {
+  text-align: center;
+}
+
+.semana-header {
+  margin-bottom: 16px;
+}
+
+.semana-numero {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.semana-periodo {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.semana-bars {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  height: 120px;
+  align-items: flex-end;
+}
+
+.bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 40px;
+}
+
+.bar {
+  width: 24px;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.3s ease;
+}
+
+.bar-criadas {
+  background: #3b82f6;
+}
+
+.bar-finalizadas {
+  background: #10b981;
+}
+
+.bar-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-top: 4px;
+}
+
+.bar-label {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+/* Análise por Setor */
+.analise-setor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.analise-setor-item {
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.analise-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.analise-header h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.analise-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Cobrança Mensal */
+.cobranca-mensal-card {
+  border: 2px solid #fecaca;
+}
+
+.cobranca-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cobranca-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #fef2f2;
+  border-radius: 8px;
+  border-left: 4px solid #ef4444;
+}
+
+.cobranca-list-info h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+}
+
+.cobranca-list-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cobranca-list-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.acao-sugerida {
+  font-size: 11px;
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.acao-sugerida.urgente {
+  color: #ef4444;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .resumo-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cobranca-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .evolucao-semanal {
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+}
+
+@media print {
+  .relatorios-header {
+    display: none;
+  }
+
+  .relatorios-tabs [role="tablist"] {
+    display: none;
+  }
+}
