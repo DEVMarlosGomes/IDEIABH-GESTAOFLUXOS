@@ -12,6 +12,8 @@ import ContratosVisaoGeral from "./pages/ContratosVisaoGeral";
 import DepartamentoView from "./pages/DepartamentoView";
 import AdminUsers from "./pages/AdminUsers";
 import Configuracoes from "./pages/Configuracoes";
+import Relatorios from "./pages/Relatorios";
+import TemplatesPrazos from "./pages/TemplatesPrazos";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
