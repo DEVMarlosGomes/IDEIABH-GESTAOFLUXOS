@@ -1,97 +1,197 @@
 .departamento-container {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  padding: 0;
 }
 
 .departamento-header {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  margin-bottom: 24px;
 }
 
 .departamento-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+  margin-bottom: 20px;
 }
 
 .stat-item {
   background: white;
   padding: 20px;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border-left: 4px solid;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: all 0.2s;
-}
-
-.stat-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .stat-value {
+  display: block;
   font-size: 28px;
   font-weight: 700;
   color: #1e293b;
+  margin-bottom: 4px;
 }
 
 .stat-label {
+  display: block;
   font-size: 13px;
   color: #64748b;
-  font-weight: 500;
 }
 
 .equipe-info {
-  background: white;
-  padding: 16px 20px;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .equipe-label {
   font-size: 14px;
-  font-weight: 600;
-  color: #1e293b;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .equipe-members {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 8px;
 }
 
 .membro-badge {
   font-size: 12px;
-  padding: 4px 10px;
 }
 
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+/* Atrasos Alert Card */
+.atrasos-alert-card {
+  margin-bottom: 24px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+}
+
+/* Tarefas Section */
+.tarefas-section {
+  margin-bottom: 24px;
+}
+
+.tabs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.tabs-list {
+  background: #f1f5f9;
+}
+
+.tab-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.status-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.tarefas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 16px;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #64748b;
+  gap: 12px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state h3 {
+  font-size: 18px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.empty-state.success {
+  background: #f0fdf4;
+  border-radius: 12px;
+}
+
+.empty-state.success h3 {
+  color: #15803d;
+}
+
+.empty-state.success p {
+  color: #22c55e;
+}
+
+/* Etapas Card */
 .etapas-card {
-  border: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
 }
 
 .etapas-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .etapa-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 12px;
   background: #f8fafc;
   border-radius: 8px;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .etapa-item:hover {
@@ -99,35 +199,35 @@
 }
 
 .etapa-numero {
-  width: 32px;
-  height: 32px;
-  background: #3b82f6;
-  color: white;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #e2e8f0;
+  border-radius: 50%;
+  font-size: 12px;
   font-weight: 600;
-  font-size: 14px;
+  color: #475569;
   flex-shrink: 0;
 }
 
 .etapa-content {
   flex: 1;
   display: flex;
-  align-items: center;
-  gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .etapa-nome {
   font-size: 14px;
+  color: #334155;
   font-weight: 500;
-  color: #1e293b;
 }
 
 .etapa-prazo {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 12px;
@@ -139,38 +239,32 @@
   text-transform: uppercase;
 }
 
+/* Projetos Grid */
 .projetos-departamento {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  margin-top: 24px;
 }
 
 .section-title {
   font-size: 18px;
   font-weight: 600;
   color: #1e293b;
-}
-
-.empty-state {
-  border: 2px dashed #e2e8f0;
-  box-shadow: none;
+  margin-bottom: 16px;
 }
 
 .projetos-grid-dept {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
 }
 
 .projeto-card-dept {
-  border: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s;
+  background: white;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
 }
 
 .projeto-card-dept:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .projeto-header-dept {
@@ -178,37 +272,34 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 16px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f1f5f9;
 }
 
 .projeto-title-dept {
   display: flex;
+  gap: 12px;
   align-items: flex-start;
-  gap: 10px;
 }
 
 .projeto-title-dept h4 {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: #1e293b;
-  margin: 0 0 4px 0;
+  margin-bottom: 2px;
 }
 
 .projeto-instituicao {
-  font-size: 12px;
+  font-size: 13px;
   color: #64748b;
 }
 
 .etapa-atual-dept {
-  background: #f8fafc;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 16px;
 }
 
 .etapa-info-dept {
@@ -219,22 +310,21 @@
 
 .etapa-label-dept {
   font-size: 11px;
-  color: #64748b;
-  font-weight: 500;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
 }
 
 .etapa-nome-dept {
-  font-size: 13px;
-  color: #1e293b;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
 }
 
 .atraso-badge {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
 }
 
 .progresso-dept {
@@ -245,9 +335,8 @@
   display: flex;
   justify-content: space-between;
   margin-bottom: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: #64748b;
-  font-weight: 500;
 }
 
 .progresso-value {
@@ -256,7 +345,7 @@
 }
 
 .progress-bar-dept {
-  height: 6px;
+  height: 8px;
 }
 
 .info-grid-dept {
@@ -268,28 +357,29 @@
 
 .info-item-dept {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  padding: 10px;
-  background: #f8fafc;
-  border-radius: 6px;
+  color: #64748b;
 }
 
 .info-item-dept svg {
-  color: #64748b;
+  margin-top: 2px;
+  flex-shrink: 0;
 }
 
 .info-label-dept {
-  font-size: 11px;
-  color: #64748b;
   display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
 }
 
 .info-value-dept {
-  font-size: 13px;
-  color: #1e293b;
-  font-weight: 600;
   display: block;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
 }
 
 .acoes-dept {
@@ -300,14 +390,7 @@
 .btn-visualizar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn-visualizar:hover {
-  transform: translateX(4px);
+  gap: 4px;
 }
 
 .status-icon {
@@ -326,327 +409,31 @@
   color: #15803d;
 }
 
-/* Layout de 2 Colunas */
-.departamento-grid {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 24px;
-  min-height: calc(100vh - 200px);
-}
-
-/* Coluna de Tarefas */
-.tarefas-card,
-.clientes-card {
-  border: none;
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  height: fit-content;
-}
-
-.tarefas-header,
-.clientes-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px;
-  border-bottom: 3px solid;
-}
-
-.tarefas-header h3,
-.clientes-header h3 {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-}
-
-.tarefas-content,
-.clientes-content {
-  padding: 16px !important;
-}
-
-/* Tarefa Item */
-.tarefa-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+.empty-state-card {
   background: #f8fafc;
-  border-radius: 10px;
-  margin-bottom: 8px;
-  transition: all 0.2s;
-}
-
-.tarefa-item:last-child {
-  margin-bottom: 0;
-}
-
-.tarefa-item:hover {
-  background: #f1f5f9;
-}
-
-.tarefa-item.concluida {
-  opacity: 0.6;
-}
-
-.tarefa-item.concluida .tarefa-nome {
-  text-decoration: line-through;
-  color: #94a3b8;
-}
-
-.tarefa-check {
-  flex-shrink: 0;
-}
-
-.tarefa-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.tarefa-nome {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.tarefa-duracao {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.projetos-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 20px;
-}
-
-/* Cliente Card */
-.cliente-card {
-  padding: 16px;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  margin-bottom: 12px;
-  transition: all 0.2s;
-}
-
-.cliente-card:last-child {
-  margin-bottom: 0;
-}
-
-.cliente-card:hover {
-  border-color: #cbd5e1;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.cliente-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.cliente-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.cliente-info .cliente-nome {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1e293b;
-  margin: 0;
-}
-
-.cliente-instituicao {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.cliente-etapa {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-radius: 8px;
-  margin-bottom: 12px;
-}
-
-.cliente-etapa .etapa-label {
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.cliente-etapa .etapa-nome {
-  font-size: 13px;
-  font-weight: 600;
-  color: #1e293b;
-}
-
-.cliente-meta {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.cliente-meta .meta-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.atraso-alert {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  margin-bottom: 12px;
-  font-size: 12px;
-  color: #dc2626;
-}
-
-.cliente-progresso {
-  margin-bottom: 12px;
-}
-
-.cliente-progresso .progresso-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  font-size: 12px;
-  color: #64748b;
-}
-
-.cliente-progresso .progresso-percent {
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.cliente-progresso .progresso-bar {
-  height: 6px;
-}
-
-.ver-projeto-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: 10px;
-  background: #f8fafc;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #3b82f6;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.ver-projeto-btn:hover {
-  background: #eff6ff;
-}
-
-/* Empty State */
-.empty-clientes {
-  padding: 40px 20px;
-  text-align: center;
-  color: #94a3b8;
 }
 
 /* Responsive */
-@media (max-width: 1024px) {
-  .departamento-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .departamento-kanban {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 16px;
-  }
-}
-
 @media (max-width: 768px) {
-  .departamento-container {
-    gap: 16px;
-  }
-  
-  .departamento-header {
-    flex-direction: column;
-    gap: 16px;
-  }
-  
   .departamento-stats {
-    width: 100%;
-    flex-wrap: wrap;
+    grid-template-columns: repeat(2, 1fr);
   }
-  
-  .stat-item {
-    flex: 1 1 calc(50% - 8px);
-    min-width: 120px;
-  }
-  
-  .departamento-kanban {
+
+  .tarefas-grid,
+  .projetos-grid-dept {
     grid-template-columns: 1fr;
-    gap: 12px;
   }
-  
-  .etapa-column {
-    min-width: 100%;
+
+  .tabs-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  
-  .projeto-card {
-    padding: 14px;
+
+  .action-buttons {
+    flex-direction: column;
   }
-  
-  .projeto-card h4 {
-    font-size: 14px;
-  }
-  
-  .projeto-card p {
-    font-size: 12px;
+
+  .action-buttons button {
+    width: 100%;
   }
 }
-
-@media (max-width: 480px) {
-  .stat-item {
-    flex: 1 1 100%;
-  }
-  
-  .etapa-header {
-    padding: 12px;
-  }
-  
-  .etapa-title {
-    font-size: 13px;
-  }
-  
-  .etapa-count {
-    font-size: 11px;
-  }
-  
-  .projeto-card {
-    padding: 12px;
-  }
-}
-
