@@ -23,7 +23,9 @@ import {
   Clock,
   ChevronRight,
   User,
-  MessageSquare
+  MessageSquare,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { mockContratos, mockProjetos } from '../data/mockNovo';
 import './ContratosVisaoGeral.css';
@@ -35,6 +37,7 @@ const ContratosVisaoGeral = () => {
   const [selectedContrato, setSelectedContrato] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContrato, setEditingContrato] = useState(null);
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' ou 'list'
   const [formData, setFormData] = useState({
     cliente: '',
     instituicao: '',
