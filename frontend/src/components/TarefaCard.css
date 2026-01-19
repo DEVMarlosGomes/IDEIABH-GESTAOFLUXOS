@@ -1,0 +1,168 @@
+.tarefa-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.tarefa-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.tarefa-card.tarefa-finalizada {
+  background: #f8fafc;
+  border-color: #dcfce7;
+}
+
+.tarefa-card.tarefa-atrasada {
+  border-left: 4px solid #ef4444;
+}
+
+.tarefa-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.tarefa-title-section {
+  flex: 1;
+}
+
+.tarefa-titulo {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.tarefa-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tarefa-descricao {
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.tarefa-atraso-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.tarefa-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 12px;
+}
+
+.tarefa-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #64748b;
+}
+
+.tarefa-info-item svg {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.tarefa-info-item .info-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #94a3b8;
+}
+
+.tarefa-info-item .info-value {
+  display: block;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+}
+
+.tarefa-criador {
+  margin-bottom: 12px;
+}
+
+.tarefa-finalizacao {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: #f0fdf4;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.tarefa-finalizacao svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.tarefa-actions {
+  padding-top: 12px;
+}
+
+/* Compact Card */
+.tarefa-card-compact {
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.tarefa-card-compact:hover {
+  background: #f8fafc;
+}
+
+.tarefa-compact-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tarefa-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tarefa-titulo-compact {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tarefa-atraso-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.tarefa-compact-info {
+  margin-top: 4px;
+  padding-left: 16px;
+}
