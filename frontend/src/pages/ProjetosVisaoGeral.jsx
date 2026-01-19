@@ -389,7 +389,7 @@ const ProjetosVisaoGeral = () => {
         </div>
         )}
 
-        {/* Modal de Detalhes do Projeto */}
+        {/* Modal de Detalhes do Projeto - Visão Completa */}
         <Dialog open={!!selectedProjeto} onOpenChange={() => setSelectedProjeto(null)}>
           <DialogContent className="projeto-modal-detalhado">
             <DialogHeader>
@@ -413,122 +413,161 @@ const ProjetosVisaoGeral = () => {
 
             {selectedProjeto && (
               <div className="modal-content">
-                {/* Resumo */}
+                {/* Resumo Geral */}
                 <div className="modal-resumo">
                   <div className="resumo-item">
                     <span className="resumo-label">Progresso</span>
                     <span className="resumo-value">{selectedProjeto.progresso}%</span>
                   </div>
                   <div className="resumo-item">
-                    <span className="resumo-label">Dias de atraso</span>
-                    <span className={`resumo-value ${selectedProjeto.dias_atraso > 0 ? 'atrasado' : ''}`}>
-                      {selectedProjeto.dias_atraso} dias
-                    </span>
+                    <span className="resumo-label">Etapa Atual</span>
+                    <span className="resumo-value small">{selectedProjeto.etapa_atual_nome}</span>
                   </div>
                   <div className="resumo-item">
                     <span className="resumo-label">Data de entrega</span>
                     <span className="resumo-value">{formatDate(selectedProjeto.data_entrega)}</span>
                   </div>
                   <div className="resumo-item">
-                    <span className="resumo-label">Dias restantes</span>
-                    <span className="resumo-value">{selectedProjeto.dias_restantes}</span>
+                    <span className="resumo-label">{selectedProjeto.dias_atraso > 0 ? 'Dias de Atraso' : 'Dias Restantes'}</span>
+                    <span className={`resumo-value ${selectedProjeto.dias_atraso > 0 ? 'atrasado' : 'em-dia'}`}>
+                      {selectedProjeto.dias_atraso > 0 ? `${selectedProjeto.dias_atraso} dias` : `${selectedProjeto.dias_restantes} dias`}
+                    </span>
                   </div>
                 </div>
 
-                {/* Timeline de Etapas */}
-                <div className="etapas-section">
-                  <h4 className="section-title">Timeline de Etapas</h4>
-                  <div className="etapas-timeline">
-                    {selectedProjeto.etapas.map((etapa, index) => (
-                      <div 
-                        key={etapa.id} 
-                        className={`etapa-item ${getEtapaStatusClass(etapa.status)}`}
-                      >
-                        <div className="etapa-connector">
-                          {getEtapaStatusIcon(etapa.status)}
-                          {index < selectedProjeto.etapas.length - 1 && (
-                            <div className={`etapa-line ${getEtapaStatusClass(etapa.status)}`} />
-                          )}
+                {/* Barra de Progresso Visual */}
+                <div className="progresso-visual-section">
+                  <Progress value={selectedProjeto.progresso} className="progresso-bar-modal" />
+                  <div className="progresso-legend">
+                    <span className="legend-item concluido">
+                      <CheckCircle2 size={14} />
+                      Concluídas: {selectedProjeto.etapas.filter(e => e.status === 'Concluída').length}
+                    </span>
+                    <span className="legend-item em-andamento">
+                      <Clock size={14} />
+                      Em Andamento: {selectedProjeto.etapas.filter(e => e.status === 'Em Andamento').length}
+                    </span>
+                    <span className="legend-item atrasado">
+                      <AlertTriangle size={14} />
+                      Atrasadas: {selectedProjeto.etapas.filter(e => e.status === 'Atrasada').length}
+                    </span>
+                    <span className="legend-item pendente">
+                      <Circle size={14} />
+                      Pendentes: {selectedProjeto.etapas.filter(e => e.status === 'Não Iniciada').length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Timeline de Etapas Agrupadas por Departamento */}
+                <div className="etapas-section-full">
+                  <h4 className="section-title">
+                    <Filter size={16} />
+                    Todas as Etapas do Projeto ({selectedProjeto.etapas.length} etapas)
+                  </h4>
+                  
+                  {/* Agrupar por departamento */}
+                  {['atendimento', 'criacao', 'pre-producao', 'producao'].map(deptId => {
+                    const deptEtapas = selectedProjeto.etapas.filter(e => e.departamento === deptId);
+                    if (deptEtapas.length === 0) return null;
+                    
+                    const deptInfo = DEPARTAMENTOS[deptId.toUpperCase().replace('-', '_')];
+                    const concluidas = deptEtapas.filter(e => e.status === 'Concluída').length;
+                    const total = deptEtapas.length;
+                    const progressoDept = Math.round((concluidas / total) * 100);
+                    
+                    return (
+                      <div key={deptId} className="departamento-section">
+                        <div className="dept-header-full" style={{ borderLeftColor: deptInfo?.cor || '#64748b' }}>
+                          <div className="dept-info">
+                            <h5 className="dept-nome" style={{ color: deptInfo?.cor || '#64748b' }}>
+                              {deptInfo?.nome || deptId}
+                            </h5>
+                            <span className="dept-progress">{concluidas}/{total} etapas ({progressoDept}%)</span>
+                          </div>
+                          <Progress value={progressoDept} className="dept-progress-bar" />
                         </div>
-                        <div className="etapa-content">
-                          <div className="etapa-header">
-                            <span className="etapa-numero">{etapa.id}</span>
-                            <span className="etapa-nome-timeline">{etapa.nome}</span>
-                            {etapa.dias_atraso > 0 && (
-                              <Badge variant="destructive" className="atraso-badge">
-                                +{etapa.dias_atraso} dias
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="etapa-meta">
-                            <span className="meta-item">
-                              <User size={12} />
-                              {etapa.responsavel}
-                            </span>
-                            <span className="meta-item">
-                              <Calendar size={12} />
-                              Previsto: {formatDate(etapa.data_prevista_inicio)} - {formatDate(etapa.data_prevista_fim)}
-                            </span>
-                            {etapa.data_real_inicio && (
-                              <span className="meta-item real">
-                                Real: {formatDate(etapa.data_real_inicio)} - {etapa.data_real_fim ? formatDate(etapa.data_real_fim) : 'Em andamento'}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Observações da Etapa */}
-                          {etapa.observacoes.length > 0 && (
-                            <div className="etapa-observacoes">
-                              {etapa.observacoes.map(obs => (
-                                <div key={obs.id} className="observacao-item">
-                                  <div className="obs-header">
-                                    <span className="obs-usuario">{obs.usuario}</span>
-                                    <span className="obs-data">{obs.data}</span>
-                                  </div>
-                                  <p className="obs-texto">{obs.texto}</p>
+                        
+                        <div className="etapas-list-full">
+                          {deptEtapas.map((etapa) => (
+                            <div 
+                              key={etapa.id} 
+                              className={`etapa-row ${getEtapaStatusClass(etapa.status)}`}
+                            >
+                              <div className="etapa-status-indicator">
+                                {getEtapaStatusIcon(etapa.status)}
+                              </div>
+                              <div className="etapa-main-info">
+                                <div className="etapa-row-header">
+                                  <span className="etapa-numero-badge">{etapa.id}</span>
+                                  <span className="etapa-nome-full">{etapa.nome}</span>
+                                  {etapa.dias_atraso > 0 && (
+                                    <Badge variant="destructive" className="atraso-badge-small">
+                                      +{etapa.dias_atraso}d
+                                    </Badge>
+                                  )}
                                 </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Botão para adicionar observação */}
-                          {etapaSelecionada === etapa.id ? (
-                            <div className="nova-observacao-form">
-                              <Textarea
-                                placeholder="Digite sua observação..."
-                                value={novaObservacao}
-                                onChange={(e) => setNovaObservacao(e.target.value)}
-                                rows={2}
-                              />
-                              <div className="obs-actions">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  onClick={() => setEtapaSelecionada(null)}
-                                >
-                                  Cancelar
-                                </Button>
-                                <Button 
-                                  size="sm"
-                                  onClick={() => handleAdicionarObservacao(selectedProjeto.id, etapa.id)}
-                                >
-                                  Salvar
-                                </Button>
+                                <div className="etapa-details">
+                                  <span className="detail-item">
+                                    <User size={12} />
+                                    {etapa.responsavel}
+                                  </span>
+                                  <span className="detail-item">
+                                    <Calendar size={12} />
+                                    {formatDate(etapa.data_prevista_inicio)} - {formatDate(etapa.data_prevista_fim)}
+                                  </span>
+                                  <Badge 
+                                    className={`status-badge-mini ${getEtapaStatusClass(etapa.status)}`}
+                                  >
+                                    {etapa.status}
+                                  </Badge>
+                                </div>
+                                
+                                {/* Observações da Etapa */}
+                                {etapa.observacoes.length > 0 && (
+                                  <div className="etapa-obs-mini">
+                                    {etapa.observacoes.slice(-1).map(obs => (
+                                      <div key={obs.id} className="obs-mini">
+                                        <MessageSquare size={10} />
+                                        <span className="obs-text-mini">{obs.texto}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Ações */}
+                              <div className="etapa-actions">
+                                {etapaSelecionada === etapa.id ? (
+                                  <div className="obs-form-mini">
+                                    <Textarea
+                                      placeholder="Observação..."
+                                      value={novaObservacao}
+                                      onChange={(e) => setNovaObservacao(e.target.value)}
+                                      rows={1}
+                                      className="obs-textarea-mini"
+                                    />
+                                    <div className="obs-btns">
+                                      <Button size="sm" variant="ghost" onClick={() => setEtapaSelecionada(null)}>✕</Button>
+                                      <Button size="sm" onClick={() => handleAdicionarObservacao(selectedProjeto.id, etapa.id)}>✓</Button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm"
+                                    className="add-obs-btn-mini"
+                                    onClick={() => setEtapaSelecionada(etapa.id)}
+                                  >
+                                    <Plus size={14} />
+                                  </Button>
+                                )}
                               </div>
                             </div>
-                          ) : (
-                            <button 
-                              className="add-obs-btn"
-                              onClick={() => setEtapaSelecionada(etapa.id)}
-                            >
-                              <MessageSquare size={12} />
-                              Adicionar observação
-                            </button>
-                          )}
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
