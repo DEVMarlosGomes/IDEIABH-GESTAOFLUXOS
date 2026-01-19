@@ -289,6 +289,75 @@ const DIAS_ATRASO_FIXOS = {
   'contrato-7': 18   // Turma Ciência da Computação 2024 - maior atraso
 };
 
+// Função para gerar todas as etapas de um projeto com status realistas
+const gerarEtapasProjeto = (etapaAtualId, diasAtraso, dataInicio, status) => {
+  const hoje = new Date();
+  const inicio = new Date(dataInicio);
+  
+  return TODAS_ETAPAS.map((etapaBase, index) => {
+    const etapaId = etapaBase.id;
+    let etapaStatus = STATUS_ETAPA.NAO_INICIADA;
+    let dataPrevistaInicio = addDays(inicio, index * 3);
+    let dataPrevistaFim = addDays(inicio, (index * 3) + etapaBase.prazo_dias + 2);
+    let dataRealInicio = null;
+    let dataRealFim = null;
+    let diasAtrasoEtapa = 0;
+    
+    // Determinar responsável baseado no departamento
+    const dept = DEPARTAMENTOS[etapaBase.departamento.toUpperCase().replace('-', '_')];
+    const equipe = dept?.equipe || ['Equipe'];
+    const responsavel = equipe[index % equipe.length];
+    
+    if (status === 'Concluído') {
+      // Projeto concluído - todas as etapas concluídas
+      etapaStatus = STATUS_ETAPA.CONCLUIDA;
+      dataRealInicio = dataPrevistaInicio;
+      dataRealFim = dataPrevistaFim;
+    } else if (etapaId < etapaAtualId) {
+      // Etapas anteriores à atual - concluídas
+      etapaStatus = STATUS_ETAPA.CONCLUIDA;
+      dataRealInicio = dataPrevistaInicio;
+      dataRealFim = dataPrevistaFim;
+    } else if (etapaId === etapaAtualId) {
+      // Etapa atual
+      if (diasAtraso > 0) {
+        etapaStatus = STATUS_ETAPA.ATRASADA;
+        diasAtrasoEtapa = diasAtraso;
+      } else {
+        etapaStatus = STATUS_ETAPA.EM_ANDAMENTO;
+      }
+      dataRealInicio = addDays(hoje, -5);
+    } else {
+      // Etapas futuras - não iniciadas
+      etapaStatus = STATUS_ETAPA.NAO_INICIADA;
+    }
+    
+    return {
+      id: etapaId,
+      nome: etapaBase.nome,
+      departamento: etapaBase.departamento,
+      departamento_nome: dept?.nome || etapaBase.departamento,
+      departamento_cor: dept?.cor || '#64748b',
+      tipo: etapaBase.tipo,
+      status: etapaStatus,
+      responsavel: responsavel,
+      data_prevista_inicio: dataPrevistaInicio,
+      data_prevista_fim: dataPrevistaFim,
+      data_real_inicio: dataRealInicio,
+      data_real_fim: dataRealFim,
+      dias_atraso: diasAtrasoEtapa,
+      observacoes: etapaStatus === STATUS_ETAPA.CONCLUIDA ? [
+        {
+          id: Date.now() + index,
+          usuario: responsavel,
+          data: new Date(dataRealFim || dataPrevistaFim).toLocaleDateString('pt-BR'),
+          texto: `Etapa "${etapaBase.nome}" concluída com sucesso.`
+        }
+      ] : []
+    };
+  });
+};
+
 // Função para criar projeto baseado no contrato
 const criarProjeto = (contrato) => {
   const hoje = new Date();
@@ -353,6 +422,9 @@ const criarProjeto = (contrato) => {
   const dataEntrega = contrato.status === 'Concluído' ? contrato.data_fim_real : contrato.data_fim;
   const diasRestantes = Math.max(0, Math.floor((new Date(dataEntrega) - hoje) / (1000 * 60 * 60 * 24)));
   
+  // Gerar todas as etapas do projeto
+  const etapas = gerarEtapasProjeto(etapaAtual, diasAtraso, contrato.data_inicio, contrato.status);
+  
   return {
     id: contrato.projeto_id,
     contrato_id: contrato.id,
@@ -367,7 +439,7 @@ const criarProjeto = (contrato) => {
     data_entrega: dataEntrega,
     dias_restantes: diasRestantes,
     dias_atraso: diasAtraso,
-    etapas: [], // Etapas serão populadas conforme necessário
+    etapas: etapas,
     observacoes: []
   };
 };
