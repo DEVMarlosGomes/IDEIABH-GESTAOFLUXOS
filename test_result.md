@@ -101,3 +101,168 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Sistema de gestão de formaturas IDEIABH. Implementar:
+  1. Criar tarefas vinculadas a projetos e contratos
+  2. Somente admin pode apagar tarefas
+  3. Mostrar atrasos no progresso do projeto
+  4. Mostrar quem foi usuário e setor em cada ação
+  5. Nos setores: botão de finalizar tarefas com campo observação
+  6. Após criar tarefa, usuário não pode voltar atrás
+  7. Setores com status "em andamento" e "concluído"
+  8. Adicionar botão para criar novos status (admin only)
+
+backend:
+  - task: "API Status de Tarefas - CRUD"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implementado CRUD de status com permissões de admin"
+
+  - task: "API Tarefas - CRUD completo"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implementado criar, listar, atualizar, finalizar, deletar tarefas"
+
+  - task: "API Finalizar Tarefa com Observação"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoint POST /api/tarefas/{id}/finalizar com observação obrigatória"
+
+  - task: "API Relatórios de Atrasos"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoints para atrasos por setor e por projeto"
+
+  - task: "Permissões - Só admin pode deletar"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Verificação de role admin em delete endpoints"
+
+frontend:
+  - task: "Modal Criar Tarefa"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/TarefaModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modal para criar tarefas vinculadas a projeto/contrato"
+
+  - task: "Modal Finalizar Tarefa"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/FinalizarTarefaModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modal com campo observação obrigatória"
+
+  - task: "Modal Criar Status (Admin)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/StatusModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modal para admin criar novos status"
+
+  - task: "Visualização de Tarefas por Setor"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/DepartamentoView.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Tabs Em Andamento/Concluído/Atrasadas com cards de tarefa"
+
+  - task: "Exibição de Atrasos"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/DepartamentoView.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Alert de atrasos e indicadores visuais"
+
+  - task: "Histórico de Ações"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/HistoricoModal.jsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modal com timeline de ações (usuário e setor)"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "API Status de Tarefas - CRUD"
+    - "API Tarefas - CRUD completo"
+    - "API Finalizar Tarefa com Observação"
+    - "Permissões - Só admin pode deletar"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Implementado backend completo com endpoints para tarefas, status e relatórios de atrasos. Frontend com modais e visualização por setor. Por favor testar os endpoints de backend primeiro."
