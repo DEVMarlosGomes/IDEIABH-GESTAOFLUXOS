@@ -1420,6 +1420,9 @@ async def criar_template_padrao(user_id: str = Query(...), user_role: str = Quer
     
     await db.templates_prazos.insert_one(template)
     
+    # Remove _id before returning
+    template.pop("_id", None)
+    
     return {"message": f"Template padrão criado com sucesso ({prazo_total} dias)", "template": template}
 
 class StatusCheck(BaseModel):
