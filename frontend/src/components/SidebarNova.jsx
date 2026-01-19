@@ -15,7 +15,9 @@ import {
   LogOut,
   ChevronRight,
   FolderKanban,
-  X
+  X,
+  BarChart3,
+  Calendar
 } from 'lucide-react';
 import './SidebarNova.css';
 
