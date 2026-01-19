@@ -116,63 +116,78 @@ user_problem_statement: |
 backend:
   - task: "API Status de Tarefas - CRUD"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implementado CRUD de status com permissões de admin"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Todos os endpoints funcionando: GET /api/status-tarefas retorna status padrão, POST cria status (admin only), DELETE remove status custom (admin only), proteção contra deleção de status sistema. Permissões funcionando corretamente."
 
   - task: "API Tarefas - CRUD completo"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Implementado criar, listar, atualizar, finalizar, deletar tarefas"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - CRUD completo funcionando: POST /api/tarefas cria tarefa com histórico, GET /api/tarefas lista com filtros, GET /api/tarefas/{id} retorna tarefa específica. Histórico de ações sendo registrado corretamente."
 
   - task: "API Finalizar Tarefa com Observação"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Endpoint POST /api/tarefas/{id}/finalizar com observação obrigatória"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - POST /api/tarefas/{id}/finalizar funcionando perfeitamente: observação obrigatória salva, status alterado para 'Concluído', histórico atualizado, proteção contra dupla finalização. Todos os requisitos atendidos."
 
   - task: "API Relatórios de Atrasos"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Endpoints para atrasos por setor e por projeto"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Relatórios funcionando: GET /api/tarefas-atrasadas lista tarefas vencidas, GET /api/atrasos-por-setor agrupa por setor, GET /api/dashboard-stats retorna estatísticas gerais. Cálculo de atrasos automático."
 
   - task: "Permissões - Só admin pode deletar"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Verificação de role admin em delete endpoints"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Permissões implementadas corretamente: operador recebe 403 ao tentar deletar tarefa, admin consegue deletar. Controle de acesso funcionando conforme especificado."
 
 frontend:
   - task: "Modal Criar Tarefa"
