@@ -22,6 +22,16 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import {
   Calendar,
   Clock,
   Plus,
@@ -33,15 +43,20 @@ import {
   Building2,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  Save,
+  X,
+  GripVertical,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   getTemplatesPrazos,
-  criarTemplatePadrao,
+  criarTemplatePrazo,
+  atualizarTemplatePrazo,
   deletarTemplatePrazo,
   aplicarTemplateContrato,
-  getPrazosContrato
 } from '../services/api';
 import { mockContratos, DEPARTAMENTOS } from '../data/mockNovo';
 import './TemplatesPrazos.css';
@@ -53,16 +68,71 @@ const DEPT_CORES = {
   'producao': '#10b981'
 };
 
+// Etapas padrão do sistema IDEIABH
+const ETAPAS_PADRAO = [
+  // ATENDIMENTO
+  { etapa_id: 1, etapa_nome: "Informar recebimento do contrato", departamento: "atendimento", prazo_dias: 1 },
+  { etapa_id: 2, etapa_nome: "Ativar contrato no site", departamento: "atendimento", prazo_dias: 1 },
+  { etapa_id: 3, etapa_nome: "1º contato com a comissão", departamento: "atendimento", prazo_dias: 2 },
+  { etapa_id: 4, etapa_nome: "Reunião de atendimento", departamento: "atendimento", prazo_dias: 15 },
+  { etapa_id: 5, etapa_nome: "Envio do questionário de criação", departamento: "atendimento", prazo_dias: 1 },
+  { etapa_id: 6, etapa_nome: "Recebimento do questionário preenchido", departamento: "atendimento", prazo_dias: 30 },
+  { etapa_id: 7, etapa_nome: "Envio do e-mail de layout de fotos", departamento: "atendimento", prazo_dias: 1 },
+  { etapa_id: 8, etapa_nome: "Enviar layout para comissão", departamento: "atendimento", prazo_dias: 1 },
+  { etapa_id: 9, etapa_nome: "Agendar reunião de criação", departamento: "atendimento", prazo_dias: 5 },
+  { etapa_id: 10, etapa_nome: "Liberação das fotos", departamento: "atendimento", prazo_dias: 3 },
+  { etapa_id: 11, etapa_nome: "Cadastro de textos/REV1", departamento: "atendimento", prazo_dias: 2 },
+  { etapa_id: 12, etapa_nome: "Acompanhar aprovação", departamento: "atendimento", prazo_dias: 7 },
+  
+  // CRIAÇÃO
+  { etapa_id: 18, etapa_nome: "RC - Reunião de criação", departamento: "criacao", prazo_dias: 2 },
+  { etapa_id: 19, etapa_nome: "Envio do briefing", departamento: "criacao", prazo_dias: 2 },
+  { etapa_id: 20, etapa_nome: "Layout de Fotos", departamento: "criacao", prazo_dias: 5 },
+  { etapa_id: 24, etapa_nome: "Início da criação", departamento: "criacao", prazo_dias: 10 },
+  { etapa_id: 25, etapa_nome: "Criação do convite", departamento: "criacao", prazo_dias: 5 },
+  { etapa_id: 26, etapa_nome: "Correções", departamento: "criacao", prazo_dias: 3 },
+  { etapa_id: 28, etapa_nome: "Miolo aprovado", departamento: "criacao", prazo_dias: 2 },
+  { etapa_id: 29, etapa_nome: "Capa aprovada", departamento: "criacao", prazo_dias: 2 },
+  { etapa_id: 30, etapa_nome: "Demais Peças", departamento: "criacao", prazo_dias: 5 },
+  { etapa_id: 33, etapa_nome: "Saída/Finalização", departamento: "criacao", prazo_dias: 3 },
+  
+  // PRÉ-PRODUÇÃO
+  { etapa_id: 34, etapa_nome: "Recorte e tratamento", departamento: "pre-producao", prazo_dias: 10 },
+  { etapa_id: 35, etapa_nome: "Recebimento envelope", departamento: "pre-producao", prazo_dias: 1 },
+  { etapa_id: 36, etapa_nome: "Conferir textos", departamento: "pre-producao", prazo_dias: 2 },
+  { etapa_id: 37, etapa_nome: "Envio para gráfica", departamento: "pre-producao", prazo_dias: 1 },
+  
+  // PRODUÇÃO
+  { etapa_id: 40, etapa_nome: "Triagem materiais", departamento: "producao", prazo_dias: 1 },
+  { etapa_id: 41, etapa_nome: "Envio à gráfica", departamento: "producao", prazo_dias: 1 },
+  { etapa_id: 42, etapa_nome: "Ordem de produção", departamento: "producao", prazo_dias: 1 },
+  { etapa_id: 43, etapa_nome: "Costura e acabamento", departamento: "producao", prazo_dias: 7 },
+  { etapa_id: 44, etapa_nome: "Conferência qualidade", departamento: "producao", prazo_dias: 1 },
+  { etapa_id: 45, etapa_nome: "Entrega convites", departamento: "producao", prazo_dias: 1 },
+];
+
 const TemplatesPrazos = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
   
-  // Modals
+  // Modal states
+  const [showEditorModal, setShowEditorModal] = useState(false);
   const [showAplicarModal, setShowAplicarModal] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  
+  // Editor state
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [templateForm, setTemplateForm] = useState({
+    nome: '',
+    descricao: '',
+    etapas: []
+  });
+  
+  // Aplicar state
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [aplicarData, setAplicarData] = useState({
     contrato_id: '',
@@ -70,6 +140,9 @@ const TemplatesPrazos = () => {
   });
   const [aplicarLoading, setAplicarLoading] = useState(false);
   const [aplicarResult, setAplicarResult] = useState(null);
+  
+  // Delete state
+  const [templateToDelete, setTemplateToDelete] = useState(null);
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
@@ -87,31 +160,154 @@ const TemplatesPrazos = () => {
     loadTemplates();
   }, [loadTemplates]);
 
-  const handleCriarPadrao = async () => {
-    setCreating(true);
+  // Calcular prazo total
+  const calcularPrazoTotal = (etapas) => {
+    return etapas.reduce((acc, e) => acc + (parseInt(e.prazo_dias) || 0), 0);
+  };
+
+  // Criar novo template (do zero ou baseado no padrão)
+  const handleNovoTemplate = (usarPadrao = false) => {
+    setEditingTemplate(null);
+    setTemplateForm({
+      nome: usarPadrao ? 'Novo Template (Padrão)' : 'Novo Template',
+      descricao: '',
+      etapas: usarPadrao ? JSON.parse(JSON.stringify(ETAPAS_PADRAO)) : []
+    });
+    setShowEditorModal(true);
+  };
+
+  // Editar template existente
+  const handleEditarTemplate = (template) => {
+    setEditingTemplate(template);
+    setTemplateForm({
+      nome: template.nome,
+      descricao: template.descricao || '',
+      etapas: JSON.parse(JSON.stringify(template.etapas || []))
+    });
+    setShowEditorModal(true);
+  };
+
+  // Duplicar template
+  const handleDuplicarTemplate = (template) => {
+    setEditingTemplate(null);
+    setTemplateForm({
+      nome: `${template.nome} (Cópia)`,
+      descricao: template.descricao || '',
+      etapas: JSON.parse(JSON.stringify(template.etapas || []))
+    });
+    setShowEditorModal(true);
+  };
+
+  // Adicionar nova etapa
+  const handleAddEtapa = () => {
+    const novaEtapa = {
+      etapa_id: Date.now(),
+      etapa_nome: '',
+      departamento: 'atendimento',
+      prazo_dias: 1
+    };
+    setTemplateForm(prev => ({
+      ...prev,
+      etapas: [...prev.etapas, novaEtapa]
+    }));
+  };
+
+  // Remover etapa
+  const handleRemoveEtapa = (index) => {
+    setTemplateForm(prev => ({
+      ...prev,
+      etapas: prev.etapas.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Atualizar etapa
+  const handleUpdateEtapa = (index, field, value) => {
+    setTemplateForm(prev => ({
+      ...prev,
+      etapas: prev.etapas.map((etapa, i) => 
+        i === index ? { ...etapa, [field]: field === 'prazo_dias' ? parseInt(value) || 0 : value } : etapa
+      )
+    }));
+  };
+
+  // Mover etapa para cima/baixo
+  const handleMoveEtapa = (index, direction) => {
+    const newEtapas = [...templateForm.etapas];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    
+    if (newIndex < 0 || newIndex >= newEtapas.length) return;
+    
+    [newEtapas[index], newEtapas[newIndex]] = [newEtapas[newIndex], newEtapas[index]];
+    
+    setTemplateForm(prev => ({
+      ...prev,
+      etapas: newEtapas
+    }));
+  };
+
+  // Salvar template
+  const handleSalvarTemplate = async () => {
+    if (!templateForm.nome.trim()) {
+      alert('Digite um nome para o template');
+      return;
+    }
+    
+    if (templateForm.etapas.length === 0) {
+      alert('Adicione pelo menos uma etapa');
+      return;
+    }
+
+    // Validar etapas
+    for (let i = 0; i < templateForm.etapas.length; i++) {
+      if (!templateForm.etapas[i].etapa_nome.trim()) {
+        alert(`A etapa ${i + 1} precisa de um nome`);
+        return;
+      }
+    }
+
+    setSaving(true);
     try {
-      await criarTemplatePadrao(user?.id || 'admin', user?.role || 'admin');
+      const data = {
+        nome: templateForm.nome,
+        descricao: templateForm.descricao,
+        etapas: templateForm.etapas.map((e, idx) => ({
+          ...e,
+          etapa_id: e.etapa_id || idx + 1
+        }))
+      };
+
+      if (editingTemplate) {
+        await atualizarTemplatePrazo(editingTemplate.id, data, user?.role || 'admin');
+      } else {
+        await criarTemplatePrazo(data, user?.id || 'admin', user?.role || 'admin');
+      }
+      
       await loadTemplates();
+      setShowEditorModal(false);
     } catch (err) {
-      console.error('Error creating default template:', err);
-      alert(err.response?.data?.detail || 'Erro ao criar template');
+      console.error('Error saving template:', err);
+      alert(err.response?.data?.detail || 'Erro ao salvar template');
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   };
 
-  const handleDelete = async (templateId) => {
-    if (!window.confirm('Tem certeza que deseja excluir este template?')) return;
+  // Deletar template
+  const handleDelete = async () => {
+    if (!templateToDelete) return;
     
     try {
-      await deletarTemplatePrazo(templateId, user?.role || 'admin');
+      await deletarTemplatePrazo(templateToDelete.id, user?.role || 'admin');
       await loadTemplates();
+      setShowDeleteDialog(false);
+      setTemplateToDelete(null);
     } catch (err) {
       console.error('Error deleting template:', err);
       alert(err.response?.data?.detail || 'Erro ao excluir template');
     }
   };
 
+  // Aplicar template
   const handleAplicar = (template) => {
     setSelectedTemplate(template);
     setAplicarData({ contrato_id: '', data_inicio: '' });
@@ -141,6 +337,7 @@ const TemplatesPrazos = () => {
     }
   };
 
+  // Agrupar etapas por departamento
   const agruparEtapasPorDepartamento = (etapas) => {
     const grupos = {};
     etapas?.forEach(etapa => {
@@ -153,28 +350,34 @@ const TemplatesPrazos = () => {
     return grupos;
   };
 
+  const departamentos = Object.values(DEPARTAMENTOS);
+
   return (
     <LayoutNovo 
       title="Templates de Prazos" 
-      subtitle="Definição de prazos padrão para contratos"
+      subtitle="Defina e personalize os prazos padrão para contratos"
     >
       <div className="templates-container">
         {/* Header Actions */}
         <div className="templates-header">
-          <Button variant="outline" onClick={loadTemplates} disabled={loading}>
-            <RefreshCw size={18} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Atualizar
-          </Button>
-          
-          {isAdmin && templates.length === 0 && (
-            <Button onClick={handleCriarPadrao} disabled={creating}>
-              {creating ? (
-                <Loader2 size={18} className="mr-2 animate-spin" />
-              ) : (
-                <Plus size={18} className="mr-2" />
-              )}
-              Criar Template Padrão
+          <div className="header-left">
+            <Button variant="outline" onClick={loadTemplates} disabled={loading}>
+              <RefreshCw size={18} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
             </Button>
+          </div>
+          
+          {isAdmin && (
+            <div className="header-right">
+              <Button variant="outline" onClick={() => handleNovoTemplate(false)}>
+                <Plus size={18} className="mr-2" />
+                Template em Branco
+              </Button>
+              <Button onClick={() => handleNovoTemplate(true)}>
+                <FileText size={18} className="mr-2" />
+                Usar Template Padrão
+              </Button>
+            </div>
           )}
         </div>
 
@@ -189,16 +392,18 @@ const TemplatesPrazos = () => {
             <CardContent className="empty-content">
               <FileText size={48} className="empty-icon" />
               <h3>Nenhum template cadastrado</h3>
-              <p>Crie um template padrão para começar a definir prazos nos contratos.</p>
+              <p>Crie um template para definir os prazos padrão de cada etapa do contrato.</p>
               {isAdmin && (
-                <Button onClick={handleCriarPadrao} disabled={creating} className="mt-4">
-                  {creating ? (
-                    <Loader2 size={18} className="mr-2 animate-spin" />
-                  ) : (
+                <div className="empty-actions">
+                  <Button variant="outline" onClick={() => handleNovoTemplate(false)}>
                     <Plus size={18} className="mr-2" />
-                  )}
-                  Criar Template Padrão IDEIABH
-                </Button>
+                    Criar do Zero
+                  </Button>
+                  <Button onClick={() => handleNovoTemplate(true)}>
+                    <FileText size={18} className="mr-2" />
+                    Usar Padrão IDEIABH
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -206,6 +411,7 @@ const TemplatesPrazos = () => {
           <div className="templates-grid">
             {templates.map(template => {
               const etapasPorDept = agruparEtapasPorDepartamento(template.etapas);
+              const prazoTotal = calcularPrazoTotal(template.etapas || []);
               
               return (
                 <Card key={template.id} className="template-card">
@@ -219,7 +425,7 @@ const TemplatesPrazos = () => {
                       </div>
                       <Badge variant="outline" className="prazo-total-badge">
                         <Clock size={14} className="mr-1" />
-                        {template.prazo_total_dias} dias
+                        {prazoTotal} dias
                       </Badge>
                     </div>
                   </CardHeader>
@@ -227,8 +433,8 @@ const TemplatesPrazos = () => {
                     {/* Resumo por Departamento */}
                     <div className="dept-resumo">
                       {Object.entries(etapasPorDept).map(([dept, etapas]) => {
-                        const totalDias = etapas.reduce((acc, e) => acc + (e.prazo_dias || 0), 0);
-                        const deptInfo = Object.values(DEPARTAMENTOS).find(d => d.id === dept);
+                        const totalDias = etapas.reduce((acc, e) => acc + (parseInt(e.prazo_dias) || 0), 0);
+                        const deptInfo = departamentos.find(d => d.id === dept);
                         
                         return (
                           <div key={dept} className="dept-item">
@@ -281,13 +487,30 @@ const TemplatesPrazos = () => {
                       </Button>
                       
                       {isAdmin && (
-                        <Button 
-                          variant="outline" 
-                          className="btn-delete"
-                          onClick={() => handleDelete(template.id)}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
+                        <>
+                          <Button 
+                            variant="outline"
+                            onClick={() => handleEditarTemplate(template)}
+                          >
+                            <Edit size={16} />
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            onClick={() => handleDuplicarTemplate(template)}
+                          >
+                            <Copy size={16} />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            className="btn-delete"
+                            onClick={() => {
+                              setTemplateToDelete(template);
+                              setShowDeleteDialog(true);
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </>
                       )}
                     </div>
                   </CardContent>
@@ -296,6 +519,169 @@ const TemplatesPrazos = () => {
             })}
           </div>
         )}
+
+        {/* Modal Editor de Template */}
+        <Dialog open={showEditorModal} onOpenChange={setShowEditorModal}>
+          <DialogContent className="editor-modal">
+            <DialogHeader>
+              <DialogTitle>
+                {editingTemplate ? 'Editar Template' : 'Novo Template de Prazos'}
+              </DialogTitle>
+              <DialogDescription>
+                Configure as etapas e prazos. Você pode personalizar cada prazo conforme necessário.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="editor-content">
+              {/* Info básica */}
+              <div className="editor-section">
+                <div className="form-row">
+                  <div className="form-group flex-1">
+                    <Label>Nome do Template *</Label>
+                    <Input
+                      value={templateForm.nome}
+                      onChange={(e) => setTemplateForm(prev => ({ ...prev, nome: e.target.value }))}
+                      placeholder="Ex: Template Padrão, Template Rápido..."
+                    />
+                  </div>
+                  <div className="form-group prazo-total-group">
+                    <Label>Prazo Total</Label>
+                    <div className="prazo-total-display">
+                      <Clock size={18} />
+                      <span>{calcularPrazoTotal(templateForm.etapas)} dias</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="form-group">
+                  <Label>Descrição</Label>
+                  <Textarea
+                    value={templateForm.descricao}
+                    onChange={(e) => setTemplateForm(prev => ({ ...prev, descricao: e.target.value }))}
+                    placeholder="Descrição opcional do template..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              {/* Lista de Etapas */}
+              <div className="editor-section etapas-section">
+                <div className="section-header">
+                  <h3>Etapas ({templateForm.etapas.length})</h3>
+                  <Button size="sm" onClick={handleAddEtapa}>
+                    <Plus size={16} className="mr-1" />
+                    Adicionar Etapa
+                  </Button>
+                </div>
+
+                {templateForm.etapas.length === 0 ? (
+                  <div className="etapas-empty">
+                    <p>Nenhuma etapa adicionada</p>
+                    <Button variant="outline" onClick={handleAddEtapa}>
+                      <Plus size={16} className="mr-2" />
+                      Adicionar primeira etapa
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="etapas-editor-list">
+                    {templateForm.etapas.map((etapa, index) => (
+                      <div key={index} className="etapa-editor-item">
+                        <div className="etapa-drag">
+                          <GripVertical size={16} />
+                          <span className="etapa-numero">{index + 1}</span>
+                        </div>
+                        
+                        <div className="etapa-fields">
+                          <div className="etapa-field nome-field">
+                            <Input
+                              value={etapa.etapa_nome}
+                              onChange={(e) => handleUpdateEtapa(index, 'etapa_nome', e.target.value)}
+                              placeholder="Nome da etapa"
+                            />
+                          </div>
+                          
+                          <div className="etapa-field dept-field">
+                            <Select
+                              value={etapa.departamento}
+                              onValueChange={(value) => handleUpdateEtapa(index, 'departamento', value)}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {departamentos.map(dept => (
+                                  <SelectItem key={dept.id} value={dept.id}>
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="w-3 h-3 rounded" 
+                                        style={{ backgroundColor: dept.cor }}
+                                      />
+                                      {dept.nome}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="etapa-field prazo-field">
+                            <div className="prazo-input-group">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={etapa.prazo_dias}
+                                onChange={(e) => handleUpdateEtapa(index, 'prazo_dias', e.target.value)}
+                              />
+                              <span className="prazo-suffix">dias</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="etapa-actions">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleMoveEtapa(index, 'up')}
+                            disabled={index === 0}
+                          >
+                            <ChevronUp size={16} />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleMoveEtapa(index, 'down')}
+                            disabled={index === templateForm.etapas.length - 1}
+                          >
+                            <ChevronDown size={16} />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            className="btn-remove"
+                            onClick={() => handleRemoveEtapa(index)}
+                          >
+                            <X size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEditorModal(false)} disabled={saving}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSalvarTemplate} disabled={saving}>
+                {saving && <Loader2 size={16} className="mr-2 animate-spin" />}
+                <Save size={16} className="mr-2" />
+                Salvar Template
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Modal Aplicar Template */}
         <Dialog open={showAplicarModal} onOpenChange={setShowAplicarModal}>
@@ -316,7 +702,7 @@ const TemplatesPrazos = () => {
                     <div>
                       <span className="template-nome">{selectedTemplate?.nome}</span>
                       <span className="template-prazo">
-                        {selectedTemplate?.prazo_total_dias} dias • {selectedTemplate?.etapas?.length} etapas
+                        {calcularPrazoTotal(selectedTemplate?.etapas || [])} dias • {selectedTemplate?.etapas?.length} etapas
                       </span>
                     </div>
                   </div>
@@ -361,7 +747,7 @@ const TemplatesPrazos = () => {
                       <strong>
                         {new Date(
                           new Date(aplicarData.data_inicio).getTime() + 
-                          selectedTemplate.prazo_total_dias * 24 * 60 * 60 * 1000
+                          calcularPrazoTotal(selectedTemplate.etapas || []) * 24 * 60 * 60 * 1000
                         ).toLocaleDateString('pt-BR')}
                       </strong>
                     </span>
@@ -435,6 +821,25 @@ const TemplatesPrazos = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Confirmation */}
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Template</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir o template "{templateToDelete?.nome}"?
+                Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </LayoutNovo>
   );
