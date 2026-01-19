@@ -391,6 +391,7 @@ const ContratosVisaoGeral = () => {
             );
           })}
         </div>
+        )}
 
         {/* Empty State */}
         {filteredContratos.length === 0 && (
