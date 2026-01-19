@@ -4,8 +4,17 @@
 
 .templates-header {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 12px;
   margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.header-left,
+.header-right {
+  display: flex;
+  gap: 12px;
 }
 
 .loading-container {
@@ -47,6 +56,12 @@
   font-size: 14px;
   color: #94a3b8;
   max-width: 400px;
+}
+
+.empty-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
 }
 
 /* Templates Grid */
@@ -164,6 +179,7 @@
   width: 4px;
   height: 24px;
   border-radius: 2px;
+  flex-shrink: 0;
 }
 
 .etapa-nome-template {
@@ -197,18 +213,193 @@
   background: #fef2f2;
 }
 
-/* Modal Aplicar */
-.aplicar-form {
+/* Editor Modal */
+.editor-modal {
+  max-width: 900px !important;
+  max-height: 90vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+}
+
+.editor-content {
+  flex: 1;
+  overflow-y: auto;
   padding: 16px 0;
+}
+
+.editor-section {
+  margin-bottom: 24px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin-bottom: 12px;
+}
+
+.form-group.flex-1 {
+  flex: 1;
+}
+
+.prazo-total-group {
+  min-width: 140px;
+}
+
+.prazo-total-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  color: #15803d;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Etapas Section */
+.etapas-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.section-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.etapas-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+}
+
+.etapas-empty p {
+  margin-bottom: 16px;
+}
+
+.etapas-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.etapa-editor-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.etapa-editor-item:hover {
+  border-color: #3b82f6;
+}
+
+.etapa-drag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+  cursor: grab;
+}
+
+.etapa-numero {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  min-width: 20px;
+}
+
+.etapa-fields {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
+.etapa-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.etapa-field.nome-field {
+  flex: 2;
+}
+
+.etapa-field.dept-field {
+  flex: 1;
+  min-width: 150px;
+}
+
+.etapa-field.prazo-field {
+  width: 100px;
+}
+
+.prazo-input-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prazo-input-group input {
+  width: 60px;
+  text-align: center;
+}
+
+.prazo-suffix {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.etapa-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.etapa-actions button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+.btn-remove {
+  color: #ef4444;
+}
+
+.btn-remove:hover {
+  background: #fef2f2;
+}
+
+/* Modal Aplicar */
+.aplicar-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 0;
 }
 
 .template-info-box {
@@ -347,11 +538,40 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .templates-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-left,
+  .header-right {
+    justify-content: center;
+  }
+
   .templates-grid {
     grid-template-columns: 1fr;
   }
 
   .result-info {
     grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .etapa-fields {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .etapa-field.dept-field,
+  .etapa-field.prazo-field {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .etapa-editor-item {
+    flex-wrap: wrap;
   }
 }
