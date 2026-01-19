@@ -73,19 +73,6 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
     }
   }, [isOpen, projetoId, contratoId, setor]);
 
-  const loadStatusList = async () => {
-    try {
-      const data = await getStatusTarefas();
-      setStatusList(data);
-      // Set default status (first one - Pendente)
-      if (data.length > 0 && !formData.status_id) {
-        setFormData(prev => ({ ...prev, status_id: data[0].id }));
-      }
-    } catch (err) {
-      console.error('Error loading status list:', err);
-    }
-  };
-
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
