@@ -239,7 +239,7 @@
 
 /* Modal de Detalhes */
 .projeto-modal-detalhado {
-  max-width: 800px;
+  max-width: 900px;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -277,7 +277,7 @@
   padding: 20px;
   background: #f8fafc;
   border-radius: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .resumo-item {
@@ -297,20 +297,298 @@
   color: #1e293b;
 }
 
+.resumo-value.small {
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .resumo-value.atrasado {
   color: #dc2626;
 }
 
-/* Timeline de Etapas */
-.etapas-section {
-  margin-top: 24px;
+.resumo-value.em-dia {
+  color: #10b981;
+}
+
+/* Progresso Visual */
+.progresso-visual-section {
+  margin-bottom: 20px;
+}
+
+.progresso-bar-modal {
+  height: 10px;
+  border-radius: 5px;
+  margin-bottom: 12px;
+}
+
+.progresso-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.legend-item.concluido { color: #10b981; }
+.legend-item.em-andamento { color: #3b82f6; }
+.legend-item.atrasado { color: #dc2626; }
+.legend-item.pendente { color: #94a3b8; }
+
+/* Seção de Etapas Completas */
+.etapas-section-full {
+  margin-top: 20px;
 }
 
 .section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 16px;
   font-weight: 600;
   color: #1e293b;
   margin: 0 0 16px 0;
+}
+
+/* Seção por Departamento */
+.departamento-section {
+  margin-bottom: 20px;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.dept-header-full {
+  padding: 14px 16px;
+  background: #f8fafc;
+  border-left: 4px solid;
+}
+
+.dept-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.dept-nome {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dept-progress {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.dept-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+}
+
+/* Lista de Etapas */
+.etapas-list-full {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.etapa-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.2s;
+}
+
+.etapa-row:last-child {
+  border-bottom: none;
+}
+
+.etapa-row:hover {
+  background: #f8fafc;
+}
+
+.etapa-row.atrasada {
+  background: #fef2f2;
+}
+
+.etapa-row.atrasada:hover {
+  background: #fee2e2;
+}
+
+.etapa-row.concluida {
+  opacity: 0.8;
+}
+
+.etapa-status-indicator {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.etapa-main-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.etapa-row-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.etapa-numero-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.etapa-row.concluida .etapa-numero-badge {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.etapa-row.em-andamento .etapa-numero-badge {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.etapa-row.atrasada .etapa-numero-badge {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.etapa-nome-full {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.atraso-badge-small {
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.etapa-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.status-badge-mini {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.status-badge-mini.concluida {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.status-badge-mini.em-andamento {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-badge-mini.atrasada {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.status-badge-mini.nao-iniciada {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Observações Mini */
+.etapa-obs-mini {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #fffbeb;
+  border-radius: 6px;
+}
+
+.obs-mini {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11px;
+  color: #92400e;
+}
+
+.obs-text-mini {
+  flex: 1;
+  line-height: 1.3;
+}
+
+/* Ações das Etapas */
+.etapa-actions {
+  flex-shrink: 0;
+}
+
+.add-obs-btn-mini {
+  padding: 4px;
+  color: #64748b;
+}
+
+.add-obs-btn-mini:hover {
+  color: #3b82f6;
+  background: #eff6ff;
+}
+
+.obs-form-mini {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.obs-textarea-mini {
+  width: 150px;
+  font-size: 11px;
+  padding: 4px 8px;
+  min-height: 30px;
+}
+
+.obs-btns {
+  display: flex;
+  gap: 2px;
+}
+
+.obs-btns button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Timeline de Etapas (antigo, manter compatibilidade) */
+.etapas-section {
+  margin-top: 24px;
 }
 
 .etapas-timeline {
