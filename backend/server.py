@@ -832,8 +832,595 @@ async def dashboard_stats():
 
 
 # ==========================================
-# ROUTES - Legacy (mantidos para compatibilidade)
+# MODELS - Template de Prazos
 # ==========================================
+
+class EtapaPrazo(BaseModel):
+    etapa_id: int
+    etapa_nome: str
+    departamento: str
+    prazo_dias: int
+    descricao: Optional[str] = None
+
+
+class TemplatePrazos(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    nome: str
+    descricao: Optional[str] = None
+    etapas: List[EtapaPrazo] = []
+    prazo_total_dias: int = 0
+    ativo: bool = True
+    criado_por: str
+    criado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    atualizado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class TemplatePrazosCreate(BaseModel):
+    nome: str
+    descricao: Optional[str] = None
+    etapas: List[dict] = []
+
+
+class TemplatePrazosUpdate(BaseModel):
+    nome: Optional[str] = None
+    descricao: Optional[str] = None
+    etapas: Optional[List[dict]] = None
+    ativo: Optional[bool] = None
+
+
+# ==========================================
+# ROUTES - Template de Prazos
+# ==========================================
+
+@api_router.get("/templates-prazos", response_model=List[dict])
+async def listar_templates_prazos():
+    """Lista todos os templates de prazos"""
+    templates = await db.templates_prazos.find({"ativo": True}, {"_id": 0}).to_list(100)
+    return [deserialize_doc(t) for t in templates]
+
+
+@api_router.get("/templates-prazos/{template_id}", response_model=dict)
+async def obter_template_prazo(template_id: str):
+    """Obtém um template específico"""
+    template = await db.templates_prazos.find_one({"id": template_id}, {"_id": 0})
+    if not template:
+        raise HTTPException(status_code=404, detail="Template não encontrado")
+    return deserialize_doc(template)
+
+
+@api_router.post("/templates-prazos", response_model=dict)
+async def criar_template_prazo(input: TemplatePrazosCreate, user_id: str = Query(...), user_role: str = Query(...)):
+    """Cria um novo template de prazos (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar templates")
+    
+    # Calculate total days
+    prazo_total = sum(etapa.get("prazo_dias", 0) for etapa in input.etapas)
+    
+    template_obj = TemplatePrazos(
+        nome=input.nome,
+        descricao=input.descricao,
+        etapas=input.etapas,
+        prazo_total_dias=prazo_total,
+        criado_por=user_id
+    )
+    
+    doc = serialize_doc(template_obj.model_dump())
+    await db.templates_prazos.insert_one(doc)
+    
+    return deserialize_doc(doc)
+
+
+@api_router.put("/templates-prazos/{template_id}", response_model=dict)
+async def atualizar_template_prazo(template_id: str, input: TemplatePrazosUpdate, user_role: str = Query(...)):
+    """Atualiza um template de prazos (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem atualizar templates")
+    
+    existing = await db.templates_prazos.find_one({"id": template_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Template não encontrado")
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    
+    if "etapas" in update_data:
+        update_data["prazo_total_dias"] = sum(etapa.get("prazo_dias", 0) for etapa in update_data["etapas"])
+    
+    update_data["atualizado_em"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.templates_prazos.update_one({"id": template_id}, {"$set": update_data})
+    
+    updated = await db.templates_prazos.find_one({"id": template_id}, {"_id": 0})
+    return deserialize_doc(updated)
+
+
+@api_router.delete("/templates-prazos/{template_id}")
+async def deletar_template_prazo(template_id: str, user_role: str = Query(...)):
+    """Deleta um template de prazos (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem deletar templates")
+    
+    existing = await db.templates_prazos.find_one({"id": template_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Template não encontrado")
+    
+    await db.templates_prazos.delete_one({"id": template_id})
+    return {"message": "Template deletado com sucesso"}
+
+
+@api_router.post("/contratos/{contrato_id}/aplicar-template/{template_id}", response_model=dict)
+async def aplicar_template_contrato(contrato_id: str, template_id: str, data_inicio: str = Query(...)):
+    """Aplica um template de prazos a um contrato, gerando as datas de cada etapa"""
+    template = await db.templates_prazos.find_one({"id": template_id}, {"_id": 0})
+    if not template:
+        raise HTTPException(status_code=404, detail="Template não encontrado")
+    
+    from datetime import timedelta
+    
+    try:
+        inicio = datetime.fromisoformat(data_inicio).date()
+    except:
+        raise HTTPException(status_code=400, detail="Data de início inválida")
+    
+    prazos_gerados = []
+    data_atual = inicio
+    
+    for etapa in template.get("etapas", []):
+        prazo_dias = etapa.get("prazo_dias", 0)
+        data_fim = data_atual + timedelta(days=prazo_dias)
+        
+        prazos_gerados.append({
+            "etapa_id": etapa.get("etapa_id"),
+            "etapa_nome": etapa.get("etapa_nome"),
+            "departamento": etapa.get("departamento"),
+            "data_inicio": data_atual.isoformat(),
+            "data_fim": data_fim.isoformat(),
+            "prazo_dias": prazo_dias
+        })
+        
+        data_atual = data_fim
+    
+    # Save to contract prazos collection
+    prazo_contrato = {
+        "id": str(uuid.uuid4()),
+        "contrato_id": contrato_id,
+        "template_id": template_id,
+        "template_nome": template.get("nome"),
+        "data_inicio": data_inicio,
+        "data_fim_prevista": data_atual.isoformat(),
+        "prazo_total_dias": template.get("prazo_total_dias", 0),
+        "etapas": prazos_gerados,
+        "criado_em": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.prazos_contratos.insert_one(prazo_contrato)
+    
+    return prazo_contrato
+
+
+@api_router.get("/contratos/{contrato_id}/prazos", response_model=dict)
+async def obter_prazos_contrato(contrato_id: str):
+    """Obtém os prazos aplicados a um contrato"""
+    prazos = await db.prazos_contratos.find_one({"contrato_id": contrato_id}, {"_id": 0})
+    if not prazos:
+        return {"contrato_id": contrato_id, "prazos": None, "message": "Nenhum template aplicado"}
+    return deserialize_doc(prazos)
+
+
+# ==========================================
+# ROUTES - Relatórios de Gargalos e Cobrança
+# ==========================================
+
+@api_router.get("/relatorio-gargalos", response_model=dict)
+async def relatorio_gargalos():
+    """Relatório de gargalos - O que está travando os processos"""
+    tarefas = await db.tarefas.find({"finalizada": False}, {"_id": 0}).to_list(1000)
+    
+    # Análise de gargalos
+    gargalos_por_setor = {}
+    gargalos_por_responsavel = {}
+    gargalos_por_projeto = {}
+    tarefas_criticas = []
+    
+    for tarefa in tarefas:
+        tarefa = deserialize_doc(tarefa)
+        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+        
+        if not is_atrasada:
+            continue
+            
+        setor = tarefa.get("setor", "Sem setor")
+        responsavel = tarefa.get("responsavel_nome", "Não atribuído")
+        projeto = tarefa.get("projeto_id", "Sem projeto")
+        
+        # Por setor
+        if setor not in gargalos_por_setor:
+            gargalos_por_setor[setor] = {
+                "setor": setor,
+                "quantidade_atrasadas": 0,
+                "total_dias_atraso": 0,
+                "media_dias_atraso": 0,
+                "tarefas": []
+            }
+        gargalos_por_setor[setor]["quantidade_atrasadas"] += 1
+        gargalos_por_setor[setor]["total_dias_atraso"] += dias_atraso
+        gargalos_por_setor[setor]["tarefas"].append({
+            "id": tarefa["id"],
+            "titulo": tarefa["titulo"],
+            "dias_atraso": dias_atraso,
+            "responsavel": responsavel,
+            "prioridade": tarefa.get("prioridade", "media")
+        })
+        
+        # Por responsável
+        if responsavel not in gargalos_por_responsavel:
+            gargalos_por_responsavel[responsavel] = {
+                "responsavel": responsavel,
+                "quantidade_atrasadas": 0,
+                "total_dias_atraso": 0,
+                "setores_afetados": set()
+            }
+        gargalos_por_responsavel[responsavel]["quantidade_atrasadas"] += 1
+        gargalos_por_responsavel[responsavel]["total_dias_atraso"] += dias_atraso
+        gargalos_por_responsavel[responsavel]["setores_afetados"].add(setor)
+        
+        # Por projeto
+        if projeto not in gargalos_por_projeto:
+            gargalos_por_projeto[projeto] = {
+                "projeto_id": projeto,
+                "quantidade_atrasadas": 0,
+                "total_dias_atraso": 0
+            }
+        gargalos_por_projeto[projeto]["quantidade_atrasadas"] += 1
+        gargalos_por_projeto[projeto]["total_dias_atraso"] += dias_atraso
+        
+        # Tarefas críticas (atraso > 7 dias ou prioridade crítica)
+        if dias_atraso > 7 or tarefa.get("prioridade") == "critica":
+            tarefas_criticas.append({
+                "id": tarefa["id"],
+                "titulo": tarefa["titulo"],
+                "setor": setor,
+                "responsavel": responsavel,
+                "dias_atraso": dias_atraso,
+                "prioridade": tarefa.get("prioridade", "media"),
+                "projeto_id": projeto,
+                "criado_por": tarefa.get("criado_por_nome"),
+                "criado_em": tarefa.get("criado_em")
+            })
+    
+    # Calculate averages
+    for setor_data in gargalos_por_setor.values():
+        if setor_data["quantidade_atrasadas"] > 0:
+            setor_data["media_dias_atraso"] = round(
+                setor_data["total_dias_atraso"] / setor_data["quantidade_atrasadas"], 1
+            )
+    
+    # Convert sets to lists
+    for resp_data in gargalos_por_responsavel.values():
+        resp_data["setores_afetados"] = list(resp_data["setores_afetados"])
+    
+    # Sort by severity
+    setores_ordenados = sorted(
+        gargalos_por_setor.values(), 
+        key=lambda x: x["total_dias_atraso"], 
+        reverse=True
+    )
+    
+    responsaveis_ordenados = sorted(
+        gargalos_por_responsavel.values(), 
+        key=lambda x: x["quantidade_atrasadas"], 
+        reverse=True
+    )
+    
+    tarefas_criticas.sort(key=lambda x: x["dias_atraso"], reverse=True)
+    
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "resumo": {
+            "total_tarefas_atrasadas": sum(s["quantidade_atrasadas"] for s in gargalos_por_setor.values()),
+            "total_dias_atraso": sum(s["total_dias_atraso"] for s in gargalos_por_setor.values()),
+            "setores_com_gargalo": len(gargalos_por_setor),
+            "responsaveis_com_atraso": len(gargalos_por_responsavel),
+            "tarefas_criticas": len(tarefas_criticas)
+        },
+        "gargalos_por_setor": setores_ordenados,
+        "gargalos_por_responsavel": responsaveis_ordenados[:10],  # Top 10
+        "tarefas_criticas": tarefas_criticas[:20],  # Top 20
+        "indicadores_cobranca": {
+            "setor_mais_critico": setores_ordenados[0] if setores_ordenados else None,
+            "responsavel_mais_atrasado": responsaveis_ordenados[0] if responsaveis_ordenados else None
+        }
+    }
+
+
+@api_router.get("/relatorio-semanal", response_model=dict)
+async def relatorio_semanal():
+    """Relatório semanal de produtividade"""
+    from datetime import timedelta
+    
+    hoje = datetime.now(timezone.utc)
+    inicio_semana = hoje - timedelta(days=7)
+    
+    # Tarefas criadas na semana
+    tarefas = await db.tarefas.find({}, {"_id": 0}).to_list(1000)
+    
+    criadas_semana = []
+    finalizadas_semana = []
+    atrasadas_atuais = []
+    
+    for tarefa in tarefas:
+        tarefa = deserialize_doc(tarefa)
+        
+        criado_em = tarefa.get("criado_em")
+        if isinstance(criado_em, str):
+            criado_em = datetime.fromisoformat(criado_em.replace('Z', '+00:00'))
+        
+        if criado_em and criado_em >= inicio_semana:
+            criadas_semana.append(tarefa)
+        
+        if tarefa.get("finalizada"):
+            data_finalizacao = tarefa.get("data_finalizacao")
+            if isinstance(data_finalizacao, str):
+                data_finalizacao = datetime.fromisoformat(data_finalizacao.replace('Z', '+00:00'))
+            if data_finalizacao and data_finalizacao >= inicio_semana:
+                finalizadas_semana.append(tarefa)
+        else:
+            dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+            if is_atrasada:
+                tarefa["dias_atraso"] = dias_atraso
+                atrasadas_atuais.append(tarefa)
+    
+    # Agrupar por setor
+    por_setor = {}
+    for tarefa in tarefas:
+        setor = tarefa.get("setor", "Sem setor")
+        if setor not in por_setor:
+            por_setor[setor] = {"criadas": 0, "finalizadas": 0, "atrasadas": 0}
+    
+    for t in criadas_semana:
+        setor = t.get("setor", "Sem setor")
+        if setor in por_setor:
+            por_setor[setor]["criadas"] += 1
+    
+    for t in finalizadas_semana:
+        setor = t.get("setor", "Sem setor")
+        if setor in por_setor:
+            por_setor[setor]["finalizadas"] += 1
+    
+    for t in atrasadas_atuais:
+        setor = t.get("setor", "Sem setor")
+        if setor in por_setor:
+            por_setor[setor]["atrasadas"] += 1
+    
+    return {
+        "periodo": {
+            "inicio": inicio_semana.isoformat(),
+            "fim": hoje.isoformat(),
+            "tipo": "semanal"
+        },
+        "resumo": {
+            "tarefas_criadas": len(criadas_semana),
+            "tarefas_finalizadas": len(finalizadas_semana),
+            "tarefas_atrasadas": len(atrasadas_atuais),
+            "taxa_conclusao": round(
+                (len(finalizadas_semana) / len(criadas_semana) * 100) 
+                if criadas_semana else 0, 1
+            )
+        },
+        "por_setor": por_setor,
+        "detalhes_atrasadas": [
+            {
+                "id": t["id"],
+                "titulo": t["titulo"],
+                "setor": t.get("setor"),
+                "responsavel": t.get("responsavel_nome"),
+                "dias_atraso": t.get("dias_atraso", 0),
+                "prioridade": t.get("prioridade")
+            }
+            for t in sorted(atrasadas_atuais, key=lambda x: x.get("dias_atraso", 0), reverse=True)[:10]
+        ],
+        "timestamp": hoje.isoformat()
+    }
+
+
+@api_router.get("/relatorio-mensal", response_model=dict)
+async def relatorio_mensal():
+    """Relatório mensal de produtividade"""
+    from datetime import timedelta
+    
+    hoje = datetime.now(timezone.utc)
+    inicio_mes = hoje - timedelta(days=30)
+    
+    tarefas = await db.tarefas.find({}, {"_id": 0}).to_list(1000)
+    
+    criadas_mes = []
+    finalizadas_mes = []
+    atrasadas_atuais = []
+    
+    for tarefa in tarefas:
+        tarefa = deserialize_doc(tarefa)
+        
+        criado_em = tarefa.get("criado_em")
+        if isinstance(criado_em, str):
+            criado_em = datetime.fromisoformat(criado_em.replace('Z', '+00:00'))
+        
+        if criado_em and criado_em >= inicio_mes:
+            criadas_mes.append(tarefa)
+        
+        if tarefa.get("finalizada"):
+            data_finalizacao = tarefa.get("data_finalizacao")
+            if isinstance(data_finalizacao, str):
+                data_finalizacao = datetime.fromisoformat(data_finalizacao.replace('Z', '+00:00'))
+            if data_finalizacao and data_finalizacao >= inicio_mes:
+                finalizadas_mes.append(tarefa)
+        else:
+            dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+            if is_atrasada:
+                tarefa["dias_atraso"] = dias_atraso
+                atrasadas_atuais.append(tarefa)
+    
+    # Evolução por semana
+    semanas = []
+    for i in range(4):
+        inicio_semana = hoje - timedelta(days=30 - (i * 7))
+        fim_semana = inicio_semana + timedelta(days=7)
+        
+        criadas = sum(1 for t in criadas_mes 
+                     if isinstance(t.get("criado_em"), datetime) 
+                     and inicio_semana <= t.get("criado_em") < fim_semana)
+        
+        finalizadas = sum(1 for t in finalizadas_mes 
+                        if isinstance(t.get("data_finalizacao"), datetime)
+                        and inicio_semana <= t.get("data_finalizacao") < fim_semana)
+        
+        semanas.append({
+            "semana": i + 1,
+            "inicio": inicio_semana.isoformat(),
+            "fim": fim_semana.isoformat(),
+            "criadas": criadas,
+            "finalizadas": finalizadas
+        })
+    
+    # Análise por setor
+    analise_setor = {}
+    for tarefa in tarefas:
+        setor = tarefa.get("setor", "Sem setor")
+        if setor not in analise_setor:
+            analise_setor[setor] = {
+                "total": 0,
+                "finalizadas": 0,
+                "em_andamento": 0,
+                "atrasadas": 0,
+                "taxa_conclusao": 0
+            }
+        analise_setor[setor]["total"] += 1
+        if tarefa.get("finalizada"):
+            analise_setor[setor]["finalizadas"] += 1
+        else:
+            analise_setor[setor]["em_andamento"] += 1
+    
+    for t in atrasadas_atuais:
+        setor = t.get("setor", "Sem setor")
+        if setor in analise_setor:
+            analise_setor[setor]["atrasadas"] += 1
+    
+    for setor_data in analise_setor.values():
+        if setor_data["total"] > 0:
+            setor_data["taxa_conclusao"] = round(
+                setor_data["finalizadas"] / setor_data["total"] * 100, 1
+            )
+    
+    # Gargalos críticos para cobrança
+    gargalos_cobranca = []
+    for t in atrasadas_atuais:
+        if t.get("dias_atraso", 0) > 5:
+            gargalos_cobranca.append({
+                "tarefa": t["titulo"],
+                "setor": t.get("setor"),
+                "responsavel": t.get("responsavel_nome", "Não atribuído"),
+                "dias_atraso": t.get("dias_atraso", 0),
+                "prioridade": t.get("prioridade"),
+                "acao_sugerida": "Cobrança imediata" if t.get("dias_atraso", 0) > 10 else "Acompanhamento urgente"
+            })
+    
+    gargalos_cobranca.sort(key=lambda x: x["dias_atraso"], reverse=True)
+    
+    return {
+        "periodo": {
+            "inicio": inicio_mes.isoformat(),
+            "fim": hoje.isoformat(),
+            "tipo": "mensal"
+        },
+        "resumo": {
+            "tarefas_criadas": len(criadas_mes),
+            "tarefas_finalizadas": len(finalizadas_mes),
+            "tarefas_atrasadas": len(atrasadas_atuais),
+            "taxa_conclusao": round(
+                (len(finalizadas_mes) / len(criadas_mes) * 100) 
+                if criadas_mes else 0, 1
+            ),
+            "media_diaria_criadas": round(len(criadas_mes) / 30, 1),
+            "media_diaria_finalizadas": round(len(finalizadas_mes) / 30, 1)
+        },
+        "evolucao_semanal": semanas,
+        "analise_por_setor": analise_setor,
+        "gargalos_para_cobranca": gargalos_cobranca[:15],
+        "timestamp": hoje.isoformat()
+    }
+
+
+# ==========================================
+# ROUTES - Template Padrão
+# ==========================================
+
+@api_router.post("/templates-prazos/criar-padrao")
+async def criar_template_padrao(user_id: str = Query(...), user_role: str = Query(...)):
+    """Cria o template padrão de prazos baseado nas etapas do sistema"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar templates")
+    
+    # Template baseado nas etapas do mockNovo.js
+    etapas_padrao = [
+        # ATENDIMENTO
+        {"etapa_id": 1, "etapa_nome": "Informar recebimento do contrato", "departamento": "atendimento", "prazo_dias": 1},
+        {"etapa_id": 2, "etapa_nome": "Ativar contrato no site", "departamento": "atendimento", "prazo_dias": 1},
+        {"etapa_id": 3, "etapa_nome": "1º contato com a comissão", "departamento": "atendimento", "prazo_dias": 2},
+        {"etapa_id": 4, "etapa_nome": "Reunião de atendimento", "departamento": "atendimento", "prazo_dias": 15},
+        {"etapa_id": 5, "etapa_nome": "Envio do questionário de criação", "departamento": "atendimento", "prazo_dias": 1},
+        {"etapa_id": 6, "etapa_nome": "Recebimento do questionário preenchido", "departamento": "atendimento", "prazo_dias": 30},
+        {"etapa_id": 7, "etapa_nome": "Envio do e-mail de layout de fotos", "departamento": "atendimento", "prazo_dias": 1},
+        {"etapa_id": 8, "etapa_nome": "Enviar layout para comissão", "departamento": "atendimento", "prazo_dias": 1},
+        {"etapa_id": 9, "etapa_nome": "Agendar reunião de criação", "departamento": "atendimento", "prazo_dias": 5},
+        {"etapa_id": 10, "etapa_nome": "Liberação das fotos", "departamento": "atendimento", "prazo_dias": 3},
+        {"etapa_id": 11, "etapa_nome": "Cadastro de textos/REV1", "departamento": "atendimento", "prazo_dias": 2},
+        {"etapa_id": 12, "etapa_nome": "Acompanhar aprovação", "departamento": "atendimento", "prazo_dias": 7},
+        
+        # CRIAÇÃO
+        {"etapa_id": 18, "etapa_nome": "RC - Reunião de criação", "departamento": "criacao", "prazo_dias": 2},
+        {"etapa_id": 19, "etapa_nome": "Envio do briefing", "departamento": "criacao", "prazo_dias": 2},
+        {"etapa_id": 20, "etapa_nome": "Layout de Fotos", "departamento": "criacao", "prazo_dias": 5},
+        {"etapa_id": 24, "etapa_nome": "Início da criação", "departamento": "criacao", "prazo_dias": 10},
+        {"etapa_id": 25, "etapa_nome": "Criação do convite", "departamento": "criacao", "prazo_dias": 5},
+        {"etapa_id": 26, "etapa_nome": "Correções", "departamento": "criacao", "prazo_dias": 3},
+        {"etapa_id": 28, "etapa_nome": "Miolo aprovado", "departamento": "criacao", "prazo_dias": 2},
+        {"etapa_id": 29, "etapa_nome": "Capa aprovada", "departamento": "criacao", "prazo_dias": 2},
+        {"etapa_id": 30, "etapa_nome": "Demais Peças", "departamento": "criacao", "prazo_dias": 5},
+        {"etapa_id": 33, "etapa_nome": "Saída/Finalização", "departamento": "criacao", "prazo_dias": 3},
+        
+        # PRÉ-PRODUÇÃO
+        {"etapa_id": 34, "etapa_nome": "Recorte e tratamento", "departamento": "pre-producao", "prazo_dias": 10},
+        {"etapa_id": 35, "etapa_nome": "Recebimento envelope", "departamento": "pre-producao", "prazo_dias": 1},
+        {"etapa_id": 36, "etapa_nome": "Conferir textos", "departamento": "pre-producao", "prazo_dias": 2},
+        {"etapa_id": 37, "etapa_nome": "Envio para gráfica", "departamento": "pre-producao", "prazo_dias": 1},
+        
+        # PRODUÇÃO
+        {"etapa_id": 40, "etapa_nome": "Triagem materiais", "departamento": "producao", "prazo_dias": 1},
+        {"etapa_id": 41, "etapa_nome": "Envio à gráfica", "departamento": "producao", "prazo_dias": 1},
+        {"etapa_id": 42, "etapa_nome": "Ordem de produção", "departamento": "producao", "prazo_dias": 1},
+        {"etapa_id": 43, "etapa_nome": "Costura e acabamento", "departamento": "producao", "prazo_dias": 7},
+        {"etapa_id": 44, "etapa_nome": "Conferência qualidade", "departamento": "producao", "prazo_dias": 1},
+        {"etapa_id": 45, "etapa_nome": "Entrega convites", "departamento": "producao", "prazo_dias": 1},
+    ]
+    
+    prazo_total = sum(e["prazo_dias"] for e in etapas_padrao)
+    
+    template = {
+        "id": str(uuid.uuid4()),
+        "nome": "Template Padrão IDEIABH",
+        "descricao": "Template completo com todas as etapas do processo de formaturas",
+        "etapas": etapas_padrao,
+        "prazo_total_dias": prazo_total,
+        "ativo": True,
+        "criado_por": user_id,
+        "criado_em": datetime.now(timezone.utc).isoformat(),
+        "atualizado_em": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.templates_prazos.insert_one(template)
+    
+    return {"message": f"Template padrão criado com sucesso ({prazo_total} dias)", "template": template}
 
 class StatusCheck(BaseModel):
     model_config = ConfigDict(extra="ignore")
