@@ -207,10 +207,105 @@ const ProjetosVisaoGeral = () => {
               Concluídos ({projetos.filter(p => p.status === 'Concluído').length})
             </button>
           </div>
+          
+          {/* Toggle de Visualização */}
+          <div className="view-toggle">
+            <button 
+              className={`view-btn ${viewMode === 'cards' ? 'active' : ''}`}
+              onClick={() => setViewMode('cards')}
+              title="Visualização em Cards"
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button 
+              className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+              title="Visualização em Lista"
+            >
+              <List size={18} />
+            </button>
+          </div>
         </div>
 
-        {/* Grid de Projetos */}
-        <div className="projetos-grid">
+        {/* Visualização em Lista/Tabela */}
+        {viewMode === 'list' && (
+          <div className="projetos-table-container">
+            <table className="projetos-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Instituição</th>
+                  <th>Etapa Atual</th>
+                  <th>Progresso</th>
+                  <th>Data Entrega</th>
+                  <th>Dias Restantes</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProjetos.map((projeto) => {
+                  const statusColor = getStatusColor(projeto.status);
+                  return (
+                    <tr 
+                      key={projeto.id} 
+                      className={`table-row ${projeto.status === 'Atrasado' ? 'atrasado' : ''}`}
+                    >
+                      <td className="td-cliente">{projeto.cliente}</td>
+                      <td className="td-instituicao">
+                        <Building2 size={14} />
+                        {projeto.instituicao}
+                      </td>
+                      <td className="td-etapa">{projeto.etapa_atual_nome}</td>
+                      <td className="td-progresso">
+                        <div className="progresso-cell">
+                          <Progress value={projeto.progresso} className="progress-mini" />
+                          <span className="progresso-text">{projeto.progresso}%</span>
+                        </div>
+                      </td>
+                      <td className="td-data">{formatDate(projeto.data_entrega)}</td>
+                      <td className="td-dias">
+                        {projeto.dias_atraso > 0 ? (
+                          <span className="dias-atraso">
+                            <AlertTriangle size={14} />
+                            {projeto.dias_atraso}d atraso
+                          </span>
+                        ) : (
+                          <span className="dias-restantes">{projeto.dias_restantes}d</span>
+                        )}
+                      </td>
+                      <td className="td-status">
+                        <Badge 
+                          style={{ 
+                            backgroundColor: statusColor.bg,
+                            color: statusColor.color,
+                            border: `1px solid ${statusColor.border}`
+                          }}
+                        >
+                          {projeto.status}
+                        </Badge>
+                      </td>
+                      <td className="td-acoes">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedProjeto(projeto)}
+                        >
+                          <Eye size={16} />
+                          Detalhes
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Grid de Projetos (Cards) */}
+        {viewMode === 'cards' && (
+          <div className="projetos-grid">
           {filteredProjetos.map((projeto) => {
             const contrato = getContrato(projeto.contrato_id);
             const statusColor = getStatusColor(projeto.status);
