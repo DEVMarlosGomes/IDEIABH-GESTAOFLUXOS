@@ -449,20 +449,56 @@ const ContratosVisaoGeral = () => {
                   </div>
                 </div>
 
-                {/* Projeto Vinculado */}
+                {/* Projeto Vinculado com Etapas Completas */}
                 {(() => {
                   const projeto = getProjeto(selectedContrato.projeto_id);
                   if (!projeto) return null;
 
+                  // Funções auxiliares para status
+                  const getEtapaStatusClass = (status) => {
+                    switch(status) {
+                      case 'Concluída': return 'concluida';
+                      case 'Em Andamento': return 'em-andamento';
+                      case 'Atrasada': return 'atrasada';
+                      default: return 'nao-iniciada';
+                    }
+                  };
+
+                  // Departamentos para agrupamento
+                  const DEPS = {
+                    'atendimento': { nome: 'Atendimento', cor: '#3b82f6' },
+                    'criacao': { nome: 'Criação', cor: '#8b5cf6' },
+                    'pre-producao': { nome: 'Pré-Produção', cor: '#f59e0b' },
+                    'producao': { nome: 'Produção/Entrega', cor: '#10b981' }
+                  };
+
                   return (
-                    <div className="projeto-vinculado-section">
-                      <h4 className="section-title-modal">Projeto Vinculado</h4>
+                    <div className="projeto-vinculado-section-full">
+                      <h4 className="section-title-modal">
+                        Projeto Vinculado - Visão Completa
+                      </h4>
                       
-                      <div className="projeto-resumo-modal">
-                        <div className="resumo-header">
-                          <span className="etapa-atual">
-                            Etapa atual: <strong>{projeto.etapa_atual_nome}</strong>
-                          </span>
+                      {/* Resumo do Projeto */}
+                      <div className="projeto-resumo-full">
+                        <div className="resumo-header-full">
+                          <div className="resumo-info">
+                            <span className="etapa-atual-label">Etapa atual:</span>
+                            <strong>{projeto.etapa_atual_nome}</strong>
+                          </div>
+                          <div className="resumo-stats">
+                            <span className="stat-item">
+                              <CheckCircle size={14} className="text-green" />
+                              {projeto.etapas.filter(e => e.status === 'Concluída').length} concluídas
+                            </span>
+                            <span className="stat-item">
+                              <Clock size={14} className="text-blue" />
+                              {projeto.etapas.filter(e => e.status === 'Em Andamento').length} em andamento
+                            </span>
+                            <span className="stat-item">
+                              <AlertTriangle size={14} className="text-red" />
+                              {projeto.etapas.filter(e => e.status === 'Atrasada').length} atrasadas
+                            </span>
+                          </div>
                           {projeto.dias_atraso > 0 && (
                             <Badge variant="destructive">
                               {projeto.dias_atraso} dias de atraso
@@ -470,47 +506,68 @@ const ContratosVisaoGeral = () => {
                           )}
                         </div>
 
-                        <div className="progresso-modal">
+                        <div className="progresso-modal-full">
                           <div className="progresso-header">
-                            <span>Progresso geral</span>
+                            <span>Progresso geral ({projeto.etapas.filter(e => e.status === 'Concluída').length}/{projeto.etapas.length} etapas)</span>
                             <span className="progresso-percent">{projeto.progresso}%</span>
                           </div>
                           <Progress value={projeto.progresso} />
                         </div>
                       </div>
 
-                      {/* Lista de Etapas */}
-                      <div className="etapas-lista-modal">
-                        <h5 className="etapas-title">Etapas do Projeto</h5>
-                        <div className="etapas-scroll">
-                          {projeto.etapas.map((etapa) => (
-                            <div 
-                              key={etapa.id} 
-                              className={`etapa-item-modal ${etapa.status.toLowerCase().replace(/ã/g, 'a').replace(/í/g, 'i').replace(/ /g, '-')}`}
-                            >
-                              <div className="etapa-status-icon">
-                                {etapa.status === 'Concluída' && <CheckCircle size={16} />}
-                                {etapa.status === 'Em Andamento' && <Clock size={16} />}
-                                {etapa.status === 'Atrasada' && <AlertTriangle size={16} />}
-                                {etapa.status === 'Não Iniciada' && <div className="circle-empty" />}
+                      {/* Etapas Agrupadas por Departamento */}
+                      <div className="etapas-por-departamento">
+                        <h5 className="etapas-title-full">
+                          Todas as Etapas ({projeto.etapas.length})
+                        </h5>
+                        
+                        {['atendimento', 'criacao', 'pre-producao', 'producao'].map(deptId => {
+                          const deptEtapas = projeto.etapas.filter(e => e.departamento === deptId);
+                          if (deptEtapas.length === 0) return null;
+                          
+                          const deptInfo = DEPS[deptId];
+                          const concluidas = deptEtapas.filter(e => e.status === 'Concluída').length;
+                          const total = deptEtapas.length;
+                          const progressoDept = Math.round((concluidas / total) * 100);
+                          
+                          return (
+                            <div key={deptId} className="dept-section-contrato">
+                              <div className="dept-header-contrato" style={{ borderLeftColor: deptInfo.cor }}>
+                                <span className="dept-nome" style={{ color: deptInfo.cor }}>{deptInfo.nome}</span>
+                                <span className="dept-stats">{concluidas}/{total} ({progressoDept}%)</span>
                               </div>
-                              <div className="etapa-info-modal">
-                                <span className="etapa-nome">{etapa.nome}</span>
-                                <span className="etapa-responsavel">
-                                  <User size={12} /> {etapa.responsavel}
-                                </span>
+                              
+                              <div className="etapas-list-contrato">
+                                {deptEtapas.map((etapa) => (
+                                  <div 
+                                    key={etapa.id} 
+                                    className={`etapa-item-contrato ${getEtapaStatusClass(etapa.status)}`}
+                                  >
+                                    <div className="etapa-status-icon">
+                                      {etapa.status === 'Concluída' && <CheckCircle size={14} className="icon-concluida" />}
+                                      {etapa.status === 'Em Andamento' && <Clock size={14} className="icon-andamento" />}
+                                      {etapa.status === 'Atrasada' && <AlertTriangle size={14} className="icon-atrasada" />}
+                                      {etapa.status === 'Não Iniciada' && <div className="circle-empty-small" />}
+                                    </div>
+                                    <div className="etapa-info-contrato">
+                                      <span className="etapa-num">{etapa.id}</span>
+                                      <span className="etapa-nome">{etapa.nome}</span>
+                                    </div>
+                                    <div className="etapa-meta-contrato">
+                                      <span className="responsavel"><User size={10} /> {etapa.responsavel}</span>
+                                      <span className="datas">{formatDate(etapa.data_prevista_fim)}</span>
+                                    </div>
+                                    {etapa.dias_atraso > 0 && (
+                                      <Badge variant="destructive" className="atraso-mini">
+                                        +{etapa.dias_atraso}d
+                                      </Badge>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
-                              <div className="etapa-datas">
-                                <span>{formatDate(etapa.data_prevista_inicio)} - {formatDate(etapa.data_prevista_fim)}</span>
-                              </div>
-                              {etapa.dias_atraso > 0 && (
-                                <Badge variant="destructive" className="atraso-badge-modal">
-                                  +{etapa.dias_atraso}d
-                                </Badge>
-                              )}
                             </div>
-                          ))}
-                        </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
