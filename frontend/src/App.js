@@ -154,6 +154,24 @@ function AppRoutes() {
         }
       />
 
+      {/* Relatórios e Templates */}
+      <Route
+        path="/relatorios"
+        element={
+          <ProtectedRoute>
+            <Relatorios />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/templates-prazos"
+        element={
+          <ProtectedRoute>
+            <TemplatesPrazos />
+          </ProtectedRoute>
+        }
+      />
+
       {/* Default Redirect */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
