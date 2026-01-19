@@ -75,6 +75,18 @@ const SidebarNova = ({ isOpen, onClose }) => {
       path: '/contratos',
       permission: 'contratos_visualizar'
     },
+    { 
+      icon: BarChart3, 
+      label: 'Relatórios', 
+      path: '/relatorios',
+      cor: '#ef4444'
+    },
+    { 
+      icon: Calendar, 
+      label: 'Templates Prazos', 
+      path: '/templates-prazos',
+      cor: '#8b5cf6'
+    },
   ];
 
   const menuAdmin = [
