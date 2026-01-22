@@ -3,10 +3,26 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+  background: var(--bg-primary);
   position: relative;
   overflow: hidden;
   padding: 20px;
+  transition: background-color var(--transition-normal);
+}
+
+/* Theme Toggle Position */
+.login-theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+}
+
+@media (max-width: 639px) {
+  .login-theme-toggle {
+    top: 16px;
+    right: 16px;
+  }
 }
 
 .login-background {
