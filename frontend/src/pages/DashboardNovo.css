@@ -155,7 +155,7 @@
 .projeto-nome-novo {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -163,7 +163,7 @@
 
 .projeto-etapa-novo {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .projeto-progress-novo {
