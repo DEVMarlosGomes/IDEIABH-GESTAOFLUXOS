@@ -115,3 +115,102 @@ code {
         border-bottom-color: inherit;
     }
 }
+
+/* ===========================================
+   Global Responsive Utilities
+   =========================================== */
+
+/* Prevent horizontal scroll */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Container utilities */
+.container-fluid {
+  width: 100%;
+  padding-right: 16px;
+  padding-left: 16px;
+}
+
+@media (min-width: 640px) {
+  .container-fluid {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+}
+
+/* Responsive utilities */
+@media (max-width: 639px) {
+  .sm\:hidden {
+    display: none !important;
+  }
+  
+  .sm\:flex-col {
+    flex-direction: column !important;
+  }
+  
+  .sm\:w-full {
+    width: 100% !important;
+  }
+  
+  .sm\:text-sm {
+    font-size: 0.875rem !important;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .md\:hidden {
+    display: none !important;
+  }
+}
+
+/* Touch-friendly sizing for mobile */
+@media (max-width: 639px) {
+  button, .btn, a.button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  input, select, textarea {
+    min-height: 44px !important;
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+}
+
+/* Prevent overflow in cards and containers */
+.card, [class*="card"] {
+  overflow: hidden;
+}
+
+/* Responsive images */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Grid responsive defaults */
+[class*="grid"] {
+  width: 100%;
+}
+
+/* Spacing responsive */
+@media (max-width: 639px) {
+  [class*="gap-"] {
+    gap: 12px !important;
+  }
+  
+  [class*="p-6"] {
+    padding: 16px !important;
+  }
+  
+  [class*="px-6"] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  
+  [class*="py-6"] {
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+  }
+}
