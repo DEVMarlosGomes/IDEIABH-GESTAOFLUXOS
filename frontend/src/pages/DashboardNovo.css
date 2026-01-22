@@ -85,6 +85,19 @@
   gap: 20px;
 }
 
+@media (max-width: 1023px) {
+  .dashboard-grid-novo {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 639px) {
+  .dashboard-grid-novo {
+    gap: 12px;
+  }
+}
+
 .dashboard-card-novo {
   border: none;
   border-radius: var(--radius-xl);
