@@ -242,40 +242,42 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
 .remember-me input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  accent-color: #3b82f6;
+  accent-color: var(--accent-primary);
 }
 
 .forgot-password {
   background: none;
   border: none;
-  color: #3b82f6;
+  color: var(--accent-primary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color var(--transition-fast);
 }
 
 .forgot-password:hover {
-  color: #1d4ed8;
+  color: var(--accent-primary-hover);
 }
 
 .login-button {
   height: 48px;
   font-size: 16px;
   font-weight: 600;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  border-radius: 10px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-primary-hover) 100%);
+  border-radius: var(--radius-md);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  border: none;
+  color: white;
 }
 
-.login-button:hover {
+.login-button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
 }
@@ -289,33 +291,35 @@
 .register-link {
   text-align: center;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .register-link a {
-  color: #3b82f6;
+  color: var(--accent-primary);
   font-weight: 600;
   margin-left: 4px;
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color var(--transition-fast);
 }
 
 .register-link a:hover {
-  color: #1d4ed8;
+  color: var(--accent-primary-hover);
 }
 
 .demo-credentials {
   margin-top: 20px;
   padding: 12px;
-  background: #f0f9ff;
-  border-radius: 10px;
+  background: var(--bg-active);
+  border-radius: var(--radius-md);
   text-align: center;
   font-size: 13px;
-  color: #0369a1;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
 }
 
 .demo-credentials strong {
-  color: #0c4a6e;
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 @media (max-width: 480px) {
