@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { mockProjetos, mockContratos, STATUS_ETAPA, DEPARTAMENTOS } from '../data/mockNovo';
 import './ProjetosVisaoGeral.css';
+import '../styles/modals-detalhes.css';
 
 const ProjetosVisaoGeral = () => {
   const location = useLocation();
