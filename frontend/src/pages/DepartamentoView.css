@@ -484,4 +484,48 @@
   .action-buttons button {
     width: 100%;
   }
+  
+  .info-grid-dept {
+    grid-template-columns: 1fr;
+  }
+  
+  .projeto-header-dept {
+    flex-direction: column;
+  }
+  
+  .etapa-atual-dept {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 479px) {
+  .stat-item {
+    padding: 16px;
+  }
+  
+  .stat-value {
+    font-size: 24px;
+  }
+  
+  .stat-label {
+    font-size: 12px;
+  }
+  
+  .tarefas-grid {
+    gap: 12px;
+  }
+  
+  .projetos-grid-dept {
+    gap: 12px;
+  }
+  
+  .section-title {
+    font-size: 16px;
+  }
+  
+  .equipe-info {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
