@@ -1,0 +1,271 @@
+/* ===========================================
+   DESIGN SYSTEM - HIGH-END RESPONSIVE
+   Professional Grade Design Tokens
+   =========================================== */
+
+:root {
+  /* ===========================================
+     FLUID TYPOGRAPHY SYSTEM
+     Scales smoothly between screen sizes
+     =========================================== */
+  
+  /* Heading Scales */
+  --fs-h1: clamp(2rem, 1.5rem + 2.5vw, 3.5rem);        /* 32px → 56px */
+  --fs-h2: clamp(1.75rem, 1.25rem + 2vw, 2.75rem);     /* 28px → 44px */
+  --fs-h3: clamp(1.5rem, 1.125rem + 1.5vw, 2.25rem);   /* 24px → 36px */
+  --fs-h4: clamp(1.25rem, 1rem + 1vw, 1.75rem);        /* 20px → 28px */
+  --fs-h5: clamp(1.125rem, 0.938rem + 0.75vw, 1.5rem); /* 18px → 24px */
+  --fs-h6: clamp(1rem, 0.875rem + 0.5vw, 1.25rem);     /* 16px → 20px */
+  
+  /* Body Text Scales */
+  --fs-body-lg: clamp(1.125rem, 1rem + 0.5vw, 1.25rem); /* 18px → 20px */
+  --fs-body: clamp(0.938rem, 0.875rem + 0.25vw, 1rem);  /* 15px → 16px */
+  --fs-body-sm: clamp(0.813rem, 0.75rem + 0.25vw, 0.938rem); /* 13px → 15px */
+  --fs-caption: clamp(0.75rem, 0.688rem + 0.25vw, 0.875rem);  /* 12px → 14px */
+  --fs-tiny: clamp(0.688rem, 0.625rem + 0.25vw, 0.813rem);    /* 11px → 13px */
+  
+  /* ===========================================
+     FLUID SPACING SYSTEM
+     =========================================== */
+  
+  /* Base spacing scale */
+  --space-3xs: clamp(0.25rem, 0.2rem + 0.25vw, 0.375rem);    /* 4px → 6px */
+  --space-2xs: clamp(0.5rem, 0.4rem + 0.5vw, 0.75rem);       /* 8px → 12px */
+  --space-xs: clamp(0.75rem, 0.6rem + 0.75vw, 1.125rem);     /* 12px → 18px */
+  --space-sm: clamp(1rem, 0.8rem + 1vw, 1.5rem);             /* 16px → 24px */
+  --space-md: clamp(1.5rem, 1.2rem + 1.5vw, 2.25rem);        /* 24px → 36px */
+  --space-lg: clamp(2rem, 1.6rem + 2vw, 3rem);               /* 32px → 48px */
+  --space-xl: clamp(2.5rem, 2rem + 2.5vw, 3.75rem);          /* 40px → 60px */
+  --space-2xl: clamp(3rem, 2.4rem + 3vw, 4.5rem);            /* 48px → 72px */
+  --space-3xl: clamp(4rem, 3.2rem + 4vw, 6rem);              /* 64px → 96px */
+  
+  /* Component specific spacing */
+  --gap-card: var(--space-sm);
+  --gap-section: var(--space-lg);
+  --gap-page: var(--space-xl);
+  --padding-card: var(--space-md);
+  --padding-section: var(--space-lg);
+  
+  /* ===========================================
+     CONTAINER SIZES
+     =========================================== */
+  
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+  
+  /* ===========================================
+     GRID SYSTEM
+     =========================================== */
+  
+  --grid-columns: 12;
+  --grid-gap: var(--space-sm);
+  --grid-margin: clamp(1rem, 2vw, 2rem);
+  
+  /* ===========================================
+     ANIMATION & TRANSITIONS
+     =========================================== */
+  
+  /* Timing functions */
+  --ease-in-out-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in-smooth: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out-smooth: cubic-bezier(0, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  
+  /* Duration scales */
+  --duration-instant: 100ms;
+  --duration-fast: 200ms;
+  --duration-normal: 300ms;
+  --duration-slow: 400ms;
+  --duration-slower: 600ms;
+  
+  /* Combined transitions */
+  --transition-all: all var(--duration-fast) var(--ease-in-out-smooth);
+  --transition-transform: transform var(--duration-fast) var(--ease-out-smooth);
+  --transition-opacity: opacity var(--duration-normal) var(--ease-in-out-smooth);
+  --transition-colors: background-color var(--duration-fast) var(--ease-in-out-smooth),
+                       color var(--duration-fast) var(--ease-in-out-smooth),
+                       border-color var(--duration-fast) var(--ease-in-out-smooth);
+  
+  /* ===========================================
+     ELEVATION SYSTEM (Shadows)
+     =========================================== */
+  
+  --elevation-0: none;
+  --elevation-1: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --elevation-2: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --elevation-3: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --elevation-4: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --elevation-5: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --elevation-6: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  
+  /* ===========================================
+     BORDER RADIUS SCALE
+     =========================================== */
+  
+  --radius-none: 0;
+  --radius-sm: 0.375rem;   /* 6px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.75rem;    /* 12px */
+  --radius-xl: 1rem;       /* 16px */
+  --radius-2xl: 1.5rem;    /* 24px */
+  --radius-3xl: 2rem;      /* 32px */
+  --radius-full: 9999px;
+  
+  /* ===========================================
+     Z-INDEX SCALE
+     =========================================== */
+  
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-notification: 1080;
+  
+  /* ===========================================
+     RESPONSIVE BREAKPOINTS
+     =========================================== */
+  
+  --breakpoint-xs: 375px;
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* ===========================================
+   DARK MODE ENHANCEMENTS
+   =========================================== */
+
+[data-theme="dark"] {
+  /* Enhanced elevation for dark mode */
+  --elevation-1: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --elevation-2: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  --elevation-3: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
+  --elevation-4: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.6);
+  --elevation-5: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.7);
+  --elevation-6: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+}
+
+/* ===========================================
+   UTILITY CLASSES - Professional Grade
+   =========================================== */
+
+/* Container System */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--grid-margin);
+  padding-right: var(--grid-margin);
+}
+
+.container-sm { max-width: var(--container-sm); }
+.container-md { max-width: var(--container-md); }
+.container-lg { max-width: var(--container-lg); }
+.container-xl { max-width: var(--container-xl); }
+.container-2xl { max-width: var(--container-2xl); }
+
+/* Responsive Grid System */
+.grid {
+  display: grid;
+  gap: var(--grid-gap);
+}
+
+.grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-cols-6 { grid-template-columns: repeat(6, 1fr); }
+.grid-cols-12 { grid-template-columns: repeat(12, 1fr); }
+
+/* Auto-fit responsive grids */
+.grid-auto-fit {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--grid-min, 250px)), 1fr));
+}
+
+.grid-auto-fill {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--grid-min, 250px)), 1fr));
+}
+
+/* Responsive Typography */
+.text-h1 { font-size: var(--fs-h1); line-height: 1.1; font-weight: 700; }
+.text-h2 { font-size: var(--fs-h2); line-height: 1.2; font-weight: 700; }
+.text-h3 { font-size: var(--fs-h3); line-height: 1.2; font-weight: 600; }
+.text-h4 { font-size: var(--fs-h4); line-height: 1.3; font-weight: 600; }
+.text-h5 { font-size: var(--fs-h5); line-height: 1.4; font-weight: 600; }
+.text-h6 { font-size: var(--fs-h6); line-height: 1.4; font-weight: 600; }
+.text-body-lg { font-size: var(--fs-body-lg); line-height: 1.6; }
+.text-body { font-size: var(--fs-body); line-height: 1.6; }
+.text-body-sm { font-size: var(--fs-body-sm); line-height: 1.5; }
+.text-caption { font-size: var(--fs-caption); line-height: 1.4; }
+.text-tiny { font-size: var(--fs-tiny); line-height: 1.3; }
+
+/* Elevation Utilities */
+.elevation-0 { box-shadow: var(--elevation-0); }
+.elevation-1 { box-shadow: var(--elevation-1); }
+.elevation-2 { box-shadow: var(--elevation-2); }
+.elevation-3 { box-shadow: var(--elevation-3); }
+.elevation-4 { box-shadow: var(--elevation-4); }
+.elevation-5 { box-shadow: var(--elevation-5); }
+.elevation-6 { box-shadow: var(--elevation-6); }
+
+/* Smooth Transitions */
+.transition-all { transition: var(--transition-all); }
+.transition-transform { transition: var(--transition-transform); }
+.transition-colors { transition: var(--transition-colors); }
+.transition-opacity { transition: var(--transition-opacity); }
+
+/* Hover Effects */
+.hover-lift {
+  transition: var(--transition-transform), box-shadow var(--duration-fast) var(--ease-out-smooth);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--elevation-4);
+}
+
+.hover-scale {
+  transition: var(--transition-transform);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* Focus Visible (Accessibility) */
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --elevation-1: 0 0 0 1px currentColor;
+    --elevation-2: 0 0 0 2px currentColor;
+    --elevation-3: 0 0 0 3px currentColor;
+  }
+}
