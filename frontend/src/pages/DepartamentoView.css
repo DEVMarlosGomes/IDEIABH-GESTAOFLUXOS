@@ -471,15 +471,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .departamento-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .tarefas-grid,
-  .projetos-grid-dept {
-    grid-template-columns: 1fr;
-  }
-
   .tabs-header {
     flex-direction: column;
     align-items: flex-start;
