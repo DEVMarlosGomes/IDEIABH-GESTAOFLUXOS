@@ -185,6 +185,10 @@ const SidebarNova = ({ isOpen, onClose }) => {
 
       {/* Footer com Usuário */}
       <div className="sidebar-footer">
+        <div className="theme-toggle-wrapper">
+          <ThemeToggle />
+        </div>
+        
         <button className="help-button">
           <HelpCircle size={18} />
           <span>Ajuda</span>
