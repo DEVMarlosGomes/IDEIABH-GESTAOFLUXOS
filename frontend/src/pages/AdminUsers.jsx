@@ -454,7 +454,7 @@ const AdminUsers = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
+    </LayoutNovo>
   );
 };
 
