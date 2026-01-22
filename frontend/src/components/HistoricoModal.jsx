@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,6 +7,8 @@ import {
 } from './ui/dialog';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
   History,
   Plus,
@@ -16,8 +18,12 @@ import {
   User,
   Building2,
   Calendar,
-  MessageSquare
+  MessageSquare,
+  GitBranch,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
+import { TODAS_ETAPAS, DEPARTAMENTOS } from '../data/mockNovo';
 
 const ACAO_CONFIG = {
   criada: { icon: Plus, cor: '#3b82f6', label: 'Criada' },
