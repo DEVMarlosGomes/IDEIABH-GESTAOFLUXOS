@@ -13,26 +13,39 @@
   margin-bottom: 20px;
 }
 
+@media (max-width: 1023px) {
+  .departamento-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 639px) {
+  .departamento-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
 .stat-item {
-  background: white;
+  background: var(--card-bg);
   padding: 20px;
-  border-radius: 12px;
-  border-left: 4px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-lg);
+  border-left: 4px solid var(--border-primary);
+  box-shadow: var(--shadow-sm);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
 .stat-value {
   display: block;
   font-size: 28px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
 .stat-label {
   display: block;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .equipe-info {
