@@ -1,20 +1,20 @@
 .tarefa-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  transition: all var(--transition-fast);
 }
 
 .tarefa-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
 }
 
 .tarefa-card.tarefa-finalizada {
-  background: #f8fafc;
-  border-color: #dcfce7;
+  background: var(--bg-tertiary);
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .tarefa-card.tarefa-atrasada {
-  border-left: 4px solid #ef4444;
+  border-left: 4px solid var(--accent-danger);
 }
 
 .tarefa-header {
@@ -31,7 +31,7 @@
 .tarefa-titulo {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   margin-bottom: 8px;
 }
 
@@ -43,7 +43,7 @@
 
 .tarefa-descricao {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-tertiary);
   margin-bottom: 12px;
   line-height: 1.5;
 }
@@ -53,10 +53,10 @@
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--accent-danger);
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 12px;
@@ -67,16 +67,22 @@
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   padding: 12px 0;
-  border-top: 1px solid #f1f5f9;
-  border-bottom: 1px solid #f1f5f9;
+  border-top: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--border-primary);
   margin-bottom: 12px;
+}
+
+@media (max-width: 480px) {
+  .tarefa-info-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .tarefa-info-item {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .tarefa-info-item svg {
@@ -89,13 +95,13 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .tarefa-info-item .info-value {
   display: block;
   font-size: 13px;
-  color: #334155;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -103,18 +109,34 @@
   margin-bottom: 12px;
 }
 
+.tarefa-criador .text-xs {
+  color: var(--text-muted);
+}
+
+.tarefa-criador strong {
+  color: var(--text-secondary);
+}
+
 .tarefa-finalizacao {
   display: flex;
   gap: 10px;
   padding: 12px;
-  background: #f0fdf4;
-  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: var(--radius-md);
   margin-top: 12px;
 }
 
 .tarefa-finalizacao svg {
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+.tarefa-finalizacao .text-xs {
+  color: var(--text-muted);
+}
+
+.tarefa-finalizacao .text-sm {
+  color: var(--text-secondary);
 }
 
 .tarefa-actions {
@@ -124,14 +146,14 @@
 /* Compact Card */
 .tarefa-card-compact {
   padding: 10px 14px;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
 }
 
 .tarefa-card-compact:hover {
-  background: #f8fafc;
+  background: var(--bg-hover);
 }
 
 .tarefa-compact-header {
@@ -151,7 +173,7 @@
   flex: 1;
   font-size: 14px;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -165,4 +187,8 @@
 .tarefa-compact-info {
   margin-top: 4px;
   padding-left: 16px;
+}
+
+.tarefa-compact-info .text-xs {
+  color: var(--text-muted);
 }
