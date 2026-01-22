@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { mockContratos, mockProjetos } from '../data/mockNovo';
 import './ContratosVisaoGeral.css';
+import '../styles/modals-detalhes.css';
 
 const ContratosVisaoGeral = () => {
   const [contratos, setContratos] = useState(mockContratos);
