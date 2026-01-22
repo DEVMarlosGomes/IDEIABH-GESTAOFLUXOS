@@ -262,6 +262,9 @@ const LayoutNovo = ({ children, title, subtitle }) => {
           </div>
 
           <div className="topbar-right">
+            {/* Theme Toggle */}
+            <ThemeToggle compact={true} />
+            
             <button className="topbar-btn share-btn mobile-hide">
               <Share2 size={18} />
             </button>
