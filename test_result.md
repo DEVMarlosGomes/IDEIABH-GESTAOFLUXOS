@@ -287,3 +287,5 @@ agent_communication:
     message: "Implementadas novas funcionalidades: Templates de Prazos para contratos, Relatórios de Gargalos para cobrança, Relatórios Semanais e Mensais. Páginas adicionadas ao menu lateral."
   - agent: "main"
     message: "✅ DARK/LIGHT MODE IMPLEMENTADO - Sistema de temas completo com suporte a modo claro e escuro. ThemeContext e ThemeToggle adicionados em múltiplos locais (Sidebar, Topbar, Login). CSS atualizado com variáveis de tema. Responsividade revisada e melhorada em todo o projeto com breakpoints mobile-first."
+  - agent: "main"
+    message: "✅ FLUXO DO PROCESSO IMPLEMENTADO - Modal de histórico atualizado com duas abas: 'Histórico da Tarefa' (ações específicas da tarefa) e 'Fluxo do Projeto' (todas as etapas do projeto por departamento). Mostra visualmente por quais departamentos e etapas o projeto já passou, qual está em andamento, e quais ainda faltam. Funciona em todos os departamentos (Atendimento, Criação, Pré-Produção, Produção)."
