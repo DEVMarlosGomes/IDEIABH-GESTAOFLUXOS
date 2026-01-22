@@ -137,17 +137,18 @@
 }
 
 .login-card {
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  border: none;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--card-border);
   overflow: hidden;
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
 .login-title {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .login-form {
