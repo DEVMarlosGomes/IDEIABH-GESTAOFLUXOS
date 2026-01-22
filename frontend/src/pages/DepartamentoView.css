@@ -53,14 +53,15 @@
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
 }
 
 .equipe-label {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-tertiary);
   font-weight: 500;
 }
 
@@ -82,6 +83,16 @@
   flex-wrap: wrap;
 }
 
+@media (max-width: 639px) {
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .action-buttons button {
+    width: 100%;
+  }
+}
+
 /* Atrasos Alert Card */
 .atrasos-alert-card {
   margin-bottom: 24px;
@@ -89,9 +100,18 @@
   background: #fef2f2;
 }
 
+[data-theme="dark"] .atrasos-alert-card {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 /* Tarefas Section */
 .tarefas-section {
   margin-bottom: 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
 .tabs-header {
@@ -99,13 +119,20 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-primary);
   flex-wrap: wrap;
   gap: 16px;
 }
 
+@media (max-width: 768px) {
+  .tabs-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 .tabs-list {
-  background: #f1f5f9;
+  background: var(--bg-tertiary);
 }
 
 .tab-trigger {
@@ -126,7 +153,7 @@
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .status-dot {
@@ -141,13 +168,19 @@
   gap: 16px;
 }
 
+@media (max-width: 639px) {
+  .tarefas-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .loading-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 60px 20px;
-  color: #64748b;
+  color: var(--text-tertiary);
   gap: 12px;
 }
 
@@ -164,26 +197,26 @@
 
 .empty-state h3 {
   font-size: 18px;
-  color: #64748b;
+  color: var(--text-tertiary);
   margin-bottom: 8px;
 }
 
 .empty-state p {
   font-size: 14px;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .empty-state.success {
-  background: #f0fdf4;
-  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: var(--radius-lg);
 }
 
 .empty-state.success h3 {
-  color: #15803d;
+  color: var(--accent-success);
 }
 
 .empty-state.success p {
-  color: #22c55e;
+  color: var(--accent-success);
 }
 
 /* Etapas Card */
