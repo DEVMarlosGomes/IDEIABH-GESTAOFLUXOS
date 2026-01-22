@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import SidebarNova from './SidebarNova';
+import ThemeToggle from './ThemeToggle';
 import { Bell, Search, Share2, ChevronDown, User, Settings, LogOut, Check, Menu, X } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
