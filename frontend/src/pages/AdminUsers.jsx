@@ -274,11 +274,13 @@ const AdminUsers = () => {
               const RoleIcon = roleInfo.icon;
 
             return (
-              <Card key={user.id} className={`user-card ${!user.ativo ? 'inactive' : ''}`}>
-                <CardContent className="user-card-content">
+              <Card key={user.id} className={`user-card ${!user.ativo ? 'user-inactive' : ''}`}>
+                <CardContent className="p-5">
                   <div className="user-header">
-                    <div className="user-avatar">
-                      {user.nome.charAt(0)}
+                    <div className="user-avatar" style={{ 
+                      background: `linear-gradient(135deg, ${roleInfo.color} 0%, ${roleInfo.color}dd 100%)`
+                    }}>
+                      {user.nome.charAt(0).toUpperCase()}
                     </div>
                     <div className="user-info">
                       <h3 className="user-name">{user.nome}</h3>
@@ -287,19 +289,17 @@ const AdminUsers = () => {
                         {user.email}
                       </span>
                     </div>
-                    <div className="user-status">
-                      {user.ativo ? (
-                        <Badge className="status-badge active">
-                          <CheckCircle size={12} />
-                          Ativo
-                        </Badge>
-                      ) : (
-                        <Badge className="status-badge inactive">
-                          <XCircle size={12} />
-                          Inativo
-                        </Badge>
-                      )}
-                    </div>
+                    {user.ativo ? (
+                      <Badge className="status-badge-active">
+                        <CheckCircle size={12} />
+                        Ativo
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="status-badge-inactive">
+                        <XCircle size={12} />
+                        Inativo
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="user-role-section">
@@ -307,7 +307,8 @@ const AdminUsers = () => {
                       className="role-badge"
                       style={{ 
                         backgroundColor: roleInfo.bg,
-                        color: roleInfo.color
+                        color: roleInfo.color,
+                        border: `1px solid ${roleInfo.color}20`
                       }}
                     >
                       <RoleIcon size={14} />
@@ -316,16 +317,19 @@ const AdminUsers = () => {
                   </div>
 
                   <div className="user-permissions">
-                    <span className="permissions-title">Permissões:</span>
+                    <div className="permissions-header">
+                      <UserCog size={14} />
+                      <span>Permissões</span>
+                    </div>
                     <div className="permissions-list">
-                      {Object.entries(user.permissoes || {}).filter(([_, v]) => v).slice(0, 4).map(([key]) => (
+                      {Object.entries(user.permissoes || {}).filter(([_, v]) => v).slice(0, 3).map(([key]) => (
                         <Badge key={key} variant="outline" className="permission-badge">
                           {permissaoLabels[key]}
                         </Badge>
                       ))}
-                      {Object.entries(user.permissoes || {}).filter(([_, v]) => v).length > 4 && (
-                        <Badge variant="outline" className="permission-badge more">
-                          +{Object.entries(user.permissoes || {}).filter(([_, v]) => v).length - 4}
+                      {Object.entries(user.permissoes || {}).filter(([_, v]) => v).length > 3 && (
+                        <Badge variant="outline" className="permission-badge-more">
+                          +{Object.entries(user.permissoes || {}).filter(([_, v]) => v).length - 3}
                         </Badge>
                       )}
                     </div>
@@ -333,28 +337,28 @@ const AdminUsers = () => {
 
                   <div className="user-actions">
                     <Button 
-                      variant="ghost" 
+                      variant="outline"
                       size="sm"
                       onClick={() => handleOpenModal(user)}
                     >
-                      <Edit2 size={16} />
+                      <Edit2 size={14} />
                       Editar
                     </Button>
                     <Button 
-                      variant="ghost" 
+                      variant="outline"
                       size="sm"
                       onClick={() => toggleUserStatus(user.id)}
                     >
-                      {user.ativo ? <XCircle size={16} /> : <CheckCircle size={16} />}
+                      {user.ativo ? <XCircle size={14} /> : <CheckCircle size={14} />}
                       {user.ativo ? 'Desativar' : 'Ativar'}
                     </Button>
                     <Button 
-                      variant="ghost" 
+                      variant="outline"
                       size="sm"
-                      className="delete-btn"
+                      className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                       onClick={() => handleDelete(user.id)}
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </Button>
                   </div>
                 </CardContent>
@@ -362,13 +366,6 @@ const AdminUsers = () => {
             );
           })}
         </div>
-
-        {filteredUsers.length === 0 && (
-          <div className="empty-state">
-            <Users size={48} />
-            <h3>Nenhum usuário encontrado</h3>
-            <p>Tente ajustar os filtros ou adicione um novo usuário.</p>
-          </div>
         )}
 
         {/* Modal de Criar/Editar */}
