@@ -34,7 +34,12 @@
 .bg-shape {
   position: absolute;
   border-radius: 50%;
-  opacity: 0.1;
+  opacity: 0.05;
+  transition: opacity var(--transition-normal);
+}
+
+[data-theme="dark"] .bg-shape {
+  opacity: 0.08;
 }
 
 .shape-1 {
