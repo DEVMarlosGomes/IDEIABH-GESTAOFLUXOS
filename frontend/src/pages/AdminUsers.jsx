@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import Layout from '../components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import LayoutNovo from '../components/LayoutNovo';
+import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
@@ -20,7 +20,9 @@ import {
   Mail,
   User as UserIcon,
   CheckCircle,
-  XCircle
+  XCircle,
+  UserCog,
+  Filter
 } from 'lucide-react';
 import { mockUsers } from '../data/mock';
 import './AdminUsers.css';
