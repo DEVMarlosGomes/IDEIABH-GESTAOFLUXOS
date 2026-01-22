@@ -293,7 +293,7 @@
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   margin-bottom: 16px;
 }
 
@@ -303,14 +303,20 @@
   gap: 16px;
 }
 
+@media (max-width: 639px) {
+  .projetos-grid-dept {
+    grid-template-columns: 1fr;
+  }
+}
+
 .projeto-card-dept {
-  background: white;
-  border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  transition: all var(--transition-fast);
 }
 
 .projeto-card-dept:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
 }
 
 .projeto-header-dept {
@@ -318,6 +324,8 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .projeto-title-dept {
@@ -329,13 +337,13 @@
 .projeto-title-dept h4 {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   margin-bottom: 2px;
 }
 
 .projeto-instituicao {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .etapa-atual-dept {
@@ -343,9 +351,11 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  background: #f8fafc;
-  border-radius: 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
   margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .etapa-info-dept {
@@ -358,13 +368,13 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .etapa-nome-dept {
   font-size: 14px;
   font-weight: 500;
-  color: #334155;
+  color: var(--text-secondary);
 }
 
 .atraso-badge {
@@ -382,12 +392,12 @@
   justify-content: space-between;
   margin-bottom: 8px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .progresso-value {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .progress-bar-dept {
@@ -405,7 +415,7 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .info-item-dept svg {
@@ -418,13 +428,13 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .info-value-dept {
   display: block;
   font-size: 13px;
-  color: #334155;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -444,19 +454,19 @@
 }
 
 .status-icon.atrasado {
-  color: #dc2626;
+  color: var(--accent-danger);
 }
 
 .status-icon.ativo {
-  color: #1d4ed8;
+  color: var(--accent-primary);
 }
 
 .status-icon.concluido {
-  color: #15803d;
+  color: var(--accent-success);
 }
 
 .empty-state-card {
-  background: #f8fafc;
+  background: var(--bg-tertiary);
 }
 
 /* Responsive */
