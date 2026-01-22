@@ -377,7 +377,10 @@ const ProjetosVisaoGeral = () => {
                       <Calendar size={14} />
                       <span>Entrega: {formatDate(projeto.data_entrega)}</span>
                     </div>
-                    <button className="ver-detalhes-btn">
+                    <button 
+                      className="ver-detalhes-btn"
+                      onClick={() => setSelectedProjeto(projeto)}
+                    >
                       Ver detalhes
                       <ChevronRight size={16} />
                     </button>
