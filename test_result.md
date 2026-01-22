@@ -285,3 +285,5 @@ agent_communication:
     message: "✅ BACKEND TESTING COMPLETE - Todos os 21 testes passaram com 100% de sucesso! APIs funcionando perfeitamente: CRUD de status e tarefas, finalização com observação, permissões de admin, relatórios de atrasos. Sistema backend está totalmente operacional e pronto para uso."
   - agent: "main"
     message: "Implementadas novas funcionalidades: Templates de Prazos para contratos, Relatórios de Gargalos para cobrança, Relatórios Semanais e Mensais. Páginas adicionadas ao menu lateral."
+  - agent: "main"
+    message: "✅ DARK/LIGHT MODE IMPLEMENTADO - Sistema de temas completo com suporte a modo claro e escuro. ThemeContext e ThemeToggle adicionados em múltiplos locais (Sidebar, Topbar, Login). CSS atualizado com variáveis de tema. Responsividade revisada e melhorada em todo o projeto com breakpoints mobile-first."
