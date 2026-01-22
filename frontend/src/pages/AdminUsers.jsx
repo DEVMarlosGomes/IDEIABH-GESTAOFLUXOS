@@ -152,22 +152,78 @@ const AdminUsers = () => {
   };
 
   return (
-    <Layout>
-      <div className="admin-container">
-        {/* Header */}
-        <div className="admin-header">
-          <div className="header-left">
-            <h2 className="page-subtitle">Gerenciamento de Usuários</h2>
-            <p className="page-description">Gerencie os usuários e suas permissões</p>
-          </div>
-          <Button className="add-button" onClick={() => handleOpenModal()}>
-            <Plus size={18} />
-            Novo Usuário
-          </Button>
+    <LayoutNovo 
+      title="Gerenciamento de Usuários"
+      subtitle="Gerencie os funcionários e suas permissões no sistema"
+    >
+      <div className="admin-users-container">
+        {/* Stats Cards */}
+        <div className="users-stats-grid">
+          <Card className="stat-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="stat-icon" style={{ backgroundColor: '#dbeafe' }}>
+                  <Users size={24} style={{ color: '#1d4ed8' }} />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Total de Usuários</p>
+                  <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">{users.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="stat-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="stat-icon" style={{ backgroundColor: '#dcfce7' }}>
+                  <CheckCircle size={24} style={{ color: '#15803d' }} />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Usuários Ativos</p>
+                  <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                    {users.filter(u => u.ativo).length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="stat-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="stat-icon" style={{ backgroundColor: '#fef2f2' }}>
+                  <ShieldAlert size={24} style={{ color: '#dc2626' }} />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Administradores</p>
+                  <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                    {users.filter(u => u.role === 'admin').length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="stat-card">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="stat-icon" style={{ backgroundColor: '#f5f3ff' }}>
+                  <ShieldCheck size={24} style={{ color: '#7c3aed' }} />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Gerentes</p>
+                  <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+                    {users.filter(u => u.role === 'gerente').length}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Filters */}
-        <div className="filters-bar">
+        {/* Actions Bar */}
+        <div className="actions-bar">
           <div className="search-wrapper">
             <Search size={18} className="search-icon" />
             <Input
@@ -178,7 +234,9 @@ const AdminUsers = () => {
               className="search-input"
             />
           </div>
+          
           <div className="filter-buttons">
+            <Filter size={16} />
             {['todos', 'admin', 'gerente', 'operador'].map((role) => (
               <button
                 key={role}
@@ -189,13 +247,31 @@ const AdminUsers = () => {
               </button>
             ))}
           </div>
+
+          <Button onClick={() => handleOpenModal()}>
+            <Plus size={18} className="mr-2" />
+            Novo Usuário
+          </Button>
         </div>
 
         {/* Users Grid */}
-        <div className="users-grid">
-          {filteredUsers.map((user) => {
-            const roleInfo = getRoleInfo(user.role);
-            const RoleIcon = roleInfo.icon;
+        {filteredUsers.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">
+              <Users size={64} />
+            </div>
+            <h3>Nenhum usuário encontrado</h3>
+            <p>Tente ajustar os filtros ou adicione um novo usuário.</p>
+            <Button onClick={() => handleOpenModal()} className="mt-4">
+              <Plus size={18} className="mr-2" />
+              Adicionar Usuário
+            </Button>
+          </div>
+        ) : (
+          <div className="users-grid">
+            {filteredUsers.map((user) => {
+              const roleInfo = getRoleInfo(user.role);
+              const RoleIcon = roleInfo.icon;
 
             return (
               <Card key={user.id} className={`user-card ${!user.ativo ? 'inactive' : ''}`}>
