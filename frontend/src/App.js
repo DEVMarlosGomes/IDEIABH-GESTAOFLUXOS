@@ -1,7 +1,9 @@
 import React from "react";
 import "./App.css";
+import "./styles/theme.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 // Pages
 import Login from "./pages/Login";
