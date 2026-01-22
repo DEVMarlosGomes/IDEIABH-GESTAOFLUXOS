@@ -39,6 +39,11 @@ const Login = () => {
 
   return (
     <div className="login-container">
+      {/* Theme Toggle */}
+      <div className="login-theme-toggle">
+        <ThemeToggle compact={true} />
+      </div>
+      
       <div className="login-background">
         <div className="bg-shape shape-1"></div>
         <div className="bg-shape shape-2"></div>
