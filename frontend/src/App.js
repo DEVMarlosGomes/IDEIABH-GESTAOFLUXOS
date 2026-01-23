@@ -9,13 +9,16 @@ import { ThemeProvider } from "./context/ThemeContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import DashboardNovo from "./pages/DashboardNovo";
+import DashboardAvancado from "./pages/DashboardAvancado";
 import ProjetosVisaoGeral from "./pages/ProjetosVisaoGeral";
 import ContratosVisaoGeral from "./pages/ContratosVisaoGeral";
+import ContratosListaNova from "./pages/ContratosListaNova";
 import DepartamentoView from "./pages/DepartamentoView";
 import AdminUsers from "./pages/AdminUsers";
 import Configuracoes from "./pages/Configuracoes";
 import Relatorios from "./pages/Relatorios";
 import TemplatesPrazos from "./pages/TemplatesPrazos";
+import { Toaster } from "./components/ui/sonner";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -83,6 +86,14 @@ function AppRoutes() {
         path="/dashboard"
         element={
           <ProtectedRoute>
+            <DashboardAvancado />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/dashboard-old"
+        element={
+          <ProtectedRoute>
             <DashboardNovo />
           </ProtectedRoute>
         }
@@ -97,6 +108,14 @@ function AppRoutes() {
       />
       <Route
         path="/contratos"
+        element={
+          <ProtectedRoute>
+            <ContratosListaNova />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/contratos-old"
         element={
           <ProtectedRoute>
             <ContratosVisaoGeral />
@@ -188,6 +207,7 @@ function App() {
         <AuthProvider>
           <BrowserRouter>
             <AppRoutes />
+            <Toaster position="top-right" />
           </BrowserRouter>
         </AuthProvider>
       </ThemeProvider>
