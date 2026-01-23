@@ -135,17 +135,17 @@ const DashboardAvancado = () => {
 
   if (loading) {
     return (
-      <Layout>
+      <LayoutNovo>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="animate-spin" size={48} />
         </div>
-      </Layout>
+      </LayoutNovo>
     );
   }
 
   if (!dashboardData) {
     return (
-      <Layout>
+      <LayoutNovo>
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <AlertCircle size={48} className="mx-auto mb-4 text-gray-400" />
@@ -155,7 +155,7 @@ const DashboardAvancado = () => {
             </Button>
           </div>
         </div>
-      </Layout>
+      </LayoutNovo>
     );
   }
 
