@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
+import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -126,16 +126,16 @@ const RelatoriosCompleto = () => {
 
   if (loading) {
     return (
-      <Layout>
+      <LayoutNovo>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="animate-spin" size={48} />
         </div>
-      </Layout>
+      </LayoutNovo>
     );
   }
 
   return (
-    <Layout>
+    <LayoutNovo>
       <div className="relatorios-container p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -750,7 +750,7 @@ const RelatoriosCompleto = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
+    </LayoutNovo>
   );
 };
 
