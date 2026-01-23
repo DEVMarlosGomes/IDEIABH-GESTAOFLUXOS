@@ -165,9 +165,9 @@ const RelatoriosCompleto = () => {
             <TabsTrigger value="mensal">Mensal</TabsTrigger>
           </TabsList>
 
-          {/* TAB: Visão Geral */}
+          {/* Visão Geral */}
           <TabsContent value="geral" className="space-y-6">
-            {dashData && (
+            {dashData && dashData.resumo && (
               <>
                 {/* KPIs Principais */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -281,7 +281,7 @@ const RelatoriosCompleto = () => {
 
           {/* TAB: Gargalos */}
           <TabsContent value="gargalos" className="space-y-6">
-            {relGargalos && (
+            {relGargalos && relGargalos.resumo && (
               <>
                 {/* Resumo de Gargalos */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -437,7 +437,7 @@ const RelatoriosCompleto = () => {
 
           {/* TAB: Semanal */}
           <TabsContent value="semanal" className="space-y-6">
-            {relSemanal && (
+            {relSemanal && relSemanal.resumo && (
               <>
                 {/* Resumo Semanal */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -515,7 +515,7 @@ const RelatoriosCompleto = () => {
 
           {/* TAB: Mensal */}
           <TabsContent value="mensal" className="space-y-6">
-            {relMensal && (
+            {relMensal && relMensal.resumo && (
               <>
                 {/* Resumo Mensal */}
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
