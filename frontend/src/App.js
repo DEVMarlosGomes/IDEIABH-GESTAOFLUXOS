@@ -14,9 +14,11 @@ import ProjetosVisaoGeral from "./pages/ProjetosVisaoGeral";
 import ContratosVisaoGeral from "./pages/ContratosVisaoGeral";
 import ContratosListaNova from "./pages/ContratosListaNova";
 import DepartamentoView from "./pages/DepartamentoView";
+import DepartamentoViewNovo from "./pages/DepartamentoViewNovo";
 import AdminUsers from "./pages/AdminUsers";
 import Configuracoes from "./pages/Configuracoes";
 import Relatorios from "./pages/Relatorios";
+import RelatoriosCompleto from "./pages/RelatoriosCompleto";
 import TemplatesPrazos from "./pages/TemplatesPrazos";
 import { Toaster } from "./components/ui/sonner";
 
@@ -128,7 +130,7 @@ function AppRoutes() {
         path="/departamento/atendimento"
         element={
           <ProtectedRoute>
-            <DepartamentoView departamento="atendimento" />
+            <DepartamentoViewNovo departamento="atendimento" />
           </ProtectedRoute>
         }
       />
@@ -136,7 +138,7 @@ function AppRoutes() {
         path="/departamento/criacao"
         element={
           <ProtectedRoute>
-            <DepartamentoView departamento="criacao" />
+            <DepartamentoViewNovo departamento="criacao" />
           </ProtectedRoute>
         }
       />
@@ -144,7 +146,7 @@ function AppRoutes() {
         path="/departamento/pre-producao"
         element={
           <ProtectedRoute>
-            <DepartamentoView departamento="pre-producao" />
+            <DepartamentoViewNovo departamento="pre-producao" />
           </ProtectedRoute>
         }
       />
@@ -152,7 +154,7 @@ function AppRoutes() {
         path="/departamento/producao"
         element={
           <ProtectedRoute>
-            <DepartamentoView departamento="producao" />
+            <DepartamentoViewNovo departamento="producao" />
           </ProtectedRoute>
         }
       />
@@ -178,6 +180,14 @@ function AppRoutes() {
       {/* Relatórios e Templates */}
       <Route
         path="/relatorios"
+        element={
+          <ProtectedRoute>
+            <RelatoriosCompleto />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/relatorios-old"
         element={
           <ProtectedRoute>
             <Relatorios />
