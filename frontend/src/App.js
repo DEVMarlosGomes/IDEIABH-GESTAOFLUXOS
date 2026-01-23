@@ -11,6 +11,7 @@ import Register from "./pages/Register";
 import DashboardNovo from "./pages/DashboardNovo";
 import DashboardAvancado from "./pages/DashboardAvancado";
 import ProjetosVisaoGeral from "./pages/ProjetosVisaoGeral";
+import ProjetosVisaoGeralNovo from "./pages/ProjetosVisaoGeralNovo";
 import ContratosVisaoGeral from "./pages/ContratosVisaoGeral";
 import ContratosListaNova from "./pages/ContratosListaNova";
 import DepartamentoView from "./pages/DepartamentoView";
@@ -102,6 +103,14 @@ function AppRoutes() {
       />
       <Route
         path="/projetos"
+        element={
+          <ProtectedRoute>
+            <ProjetosVisaoGeralNovo />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/projetos-old"
         element={
           <ProtectedRoute>
             <ProjetosVisaoGeral />
