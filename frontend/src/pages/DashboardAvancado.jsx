@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
+import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Progress } from '../components/ui/progress';
@@ -195,7 +195,7 @@ const DashboardAvancado = () => {
   const podeCobrar = user?.role === 'admin' || user?.role === 'gerente';
 
   return (
-    <Layout>
+    <LayoutNovo>
       <div className="dashboard-container">
         {/* KPI Cards */}
         <div className="kpi-grid">
@@ -478,7 +478,7 @@ const DashboardAvancado = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
+    </LayoutNovo>
   );
 };
 
