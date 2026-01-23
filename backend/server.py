@@ -1580,8 +1580,11 @@ async def criar_contrato(input: ContratoCreate):
     
     logger.info(f"Contrato criado: {contrato_obj.id}, Projeto criado: {projeto_obj.id}, {len(tarefas_criadas)} tarefas criadas")
     
+    # Buscar contrato atualizado com projeto_id
+    contrato_atualizado = await db.contratos.find_one({"id": contrato_obj.id}, {"_id": 0})
+    
     return {
-        "contrato": deserialize_doc(contrato_doc),
+        "contrato": deserialize_doc(contrato_atualizado),
         "projeto": deserialize_doc(projeto_doc),
         "tarefas_criadas": len(tarefas_criadas),
         "message": f"Contrato, projeto e {len(tarefas_criadas)} etapas criados com sucesso!"
