@@ -192,7 +192,7 @@ const DashboardAvancado = () => {
     }
   ];
 
-  const podeC obrar = user?.role === 'admin' || user?.role === 'gerente';
+  const podeCobrar = user?.role === 'admin' || user?.role === 'gerente';
 
   return (
     <Layout>
