@@ -111,6 +111,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/projetos/:id"
+        element={
+          <ProtectedRoute>
+            <ProjetoDetalhes />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/projetos-old"
         element={
           <ProtectedRoute>
