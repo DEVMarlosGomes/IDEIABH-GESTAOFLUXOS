@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
+import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -83,16 +83,16 @@ const ProjetosVisaoGeralNovo = () => {
 
   if (loading) {
     return (
-      <Layout>
+      <LayoutNovo>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="animate-spin" size={48} />
         </div>
-      </Layout>
+      </LayoutNovo>
     );
   }
 
   return (
-    <Layout>
+    <LayoutNovo>
       <div className="projetos-container">
         {/* Header */}
         <div className="projetos-header mb-6">
