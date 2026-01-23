@@ -246,11 +246,11 @@ const ContratosListaNova = () => {
 
   if (loading) {
     return (
-      <Layout>
+      <LayoutNovo>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="animate-spin" size={48} />
         </div>
-      </Layout>
+      </LayoutNovo>
     );
   }
 
