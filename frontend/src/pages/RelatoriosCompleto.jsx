@@ -246,7 +246,7 @@ const RelatoriosCompleto = () => {
                                 {resp.responsavel ? resp.responsavel.charAt(0).toUpperCase() : '?'}
                               </div>
                               <div>
-                                <p className="font-semibold">{resp.responsavel}</p>
+                                <p className="font-semibold">{resp.responsavel || 'Não atribuído'}</p>
                                 <div className="flex gap-4 text-sm text-gray-600 mt-1">
                                   <span>Total: {resp.total_tarefas}</span>
                                   {resp.tarefas_atrasadas > 0 && (
@@ -408,7 +408,7 @@ const RelatoriosCompleto = () => {
                       {relGargalos.gargalos_por_responsavel?.slice(0, 10).map((resp, idx) => (
                         <div key={idx} className="flex items-center justify-between p-4 border rounded-lg bg-red-50">
                           <div className="flex-1">
-                            <p className="font-semibold">{resp.responsavel}</p>
+                            <p className="font-semibold">{resp.responsavel || 'Não atribuído'}</p>
                             <div className="flex gap-4 text-sm text-gray-600 mt-1">
                               <span>Atrasadas: {resp.quantidade_atrasadas}</span>
                               <span>Total atraso: {resp.total_dias_atraso} dias</span>
