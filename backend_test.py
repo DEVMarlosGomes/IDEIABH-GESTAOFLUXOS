@@ -681,17 +681,24 @@ class IDEIABHAPITester:
 
     def run_all_tests(self):
         """Run all test suites"""
-        print(f"{Colors.BOLD}IDEIABH Backend API Testing{Colors.ENDC}")
+        print(f"{Colors.BOLD}IDEIABH Backend API Testing - Comprehensive Review{Colors.ENDC}")
         print(f"Testing against: {self.base_url}")
         print("=" * 60)
 
-        # Run test suites in order
+        # Run test suites in order as requested in review
         if self.test_health_check():
+            self.test_root_endpoint()
+            self.test_templates_prazos()
+            self.test_contratos_creation()
+            self.test_listar_dados_criados()
+            self.test_dashboard_avancado()
+            self.test_relatorios_atrasos()
+            
+            # Additional comprehensive tests
             self.test_status_tarefas_crud()
             self.test_tarefas_crud()
             self.test_finalizar_tarefa()
             self.test_permissions()
-            self.test_relatorios_atrasos()
         else:
             print(f"{Colors.RED}Health check failed - skipping other tests{Colors.ENDC}")
 
