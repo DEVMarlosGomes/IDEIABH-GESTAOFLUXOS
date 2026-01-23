@@ -189,6 +189,81 @@ backend:
         agent: "testing"
         comment: "✅ PASSED - Permissões implementadas corretamente: operador recebe 403 ao tentar deletar tarefa, admin consegue deletar. Controle de acesso funcionando conforme especificado."
 
+  - task: "API Health Check"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoints GET /api/health e GET /api/ para verificação de status"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Health check endpoints funcionando: GET /api/health retorna status healthy, GET /api/ retorna mensagem do sistema IDEIABH."
+
+  - task: "API Templates de Prazos"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Sistema de templates com 32 etapas padrão para contratos"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Templates funcionando perfeitamente: GET /api/templates-prazos lista templates, POST /api/templates-prazos/criar-padrao cria template com 32 etapas (Atendimento, Criação, Pré-Produção, Produção). Template padrão IDEIABH com 134 dias totais."
+
+  - task: "API Criação de Contratos (FUNCIONALIDADE PRINCIPAL)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Criação automática de contrato + projeto + 32 tarefas baseado em template"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - FUNCIONALIDADE PRINCIPAL funcionando 100%: POST /api/contratos cria contrato, projeto automaticamente, e 32 tarefas sequenciais. Todas as etapas do processo de formaturas criadas com prazos calculados. Sistema completo operacional."
+
+  - task: "API Dashboard Avançado"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Dashboard com resumo, projetos em andamento, alertas de atrasos"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - GET /api/dashboard-avancado funcionando: retorna resumo geral, projetos em andamento, alertas de atrasos críticos, carga por responsável. Estatísticas em tempo real."
+
+  - task: "API Listagem de Dados"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Endpoints para listar contratos, projetos e tarefas criados"
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Listagem funcionando: GET /api/contratos, GET /api/projetos, GET /api/tarefas retornam dados corretos. Contratos e projetos criados aparecem nas listagens. Filtros funcionando."
+
 frontend:
   - task: "Modal Criar Tarefa"
     implemented: true
