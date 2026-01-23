@@ -361,6 +361,221 @@ class IDEIABHAPITester:
         except Exception as e:
             self.record_result("DELETE /api/tarefas - Permission testing", False, f"Exception: {str(e)}")
 
+    def test_root_endpoint(self):
+        """Test GET /api/"""
+        log_section("Root Endpoint")
+        try:
+            response = self.session.get(f"{self.base_url}/")
+            if response.status_code == 200:
+                data = response.json()
+                if "message" in data and "IDEIABH" in data["message"]:
+                    self.record_result("GET /api/ - Root endpoint", True)
+                else:
+                    self.record_result("GET /api/ - Root endpoint", False, f"Invalid response: {data}")
+            else:
+                self.record_result("GET /api/ - Root endpoint", False, f"Status {response.status_code}: {response.text}")
+        except Exception as e:
+            self.record_result("GET /api/ - Root endpoint", False, f"Exception: {str(e)}")
+
+    def test_templates_prazos(self):
+        """Test Templates de Prazos endpoints"""
+        log_section("Templates de Prazos")
+        
+        # Test GET /api/templates-prazos (list templates)
+        try:
+            response = self.session.get(f"{self.base_url}/templates-prazos")
+            if response.status_code == 200:
+                templates = response.json()
+                if isinstance(templates, list):
+                    self.record_result("GET /api/templates-prazos - List templates", True)
+                    print(f"    Found {len(templates)} templates")
+                else:
+                    self.record_result("GET /api/templates-prazos - List templates", False, "Response not a list")
+            else:
+                self.record_result("GET /api/templates-prazos - List templates", False, f"Status {response.status_code}: {response.text}")
+        except Exception as e:
+            self.record_result("GET /api/templates-prazos - List templates", False, f"Exception: {str(e)}")
+
+        # Test POST /api/templates-prazos/criar-padrao (create default template with 31 steps)
+        try:
+            response = self.session.post(f"{self.base_url}/templates-prazos/criar-padrao?user_id=admin&user_role=admin")
+            if response.status_code == 200:
+                template_data = response.json()
+                if "etapas" in template_data and len(template_data["etapas"]) == 31:
+                    self.record_result("POST /api/templates-prazos/criar-padrao - Create default template", True)
+                    print(f"    Created template with {len(template_data['etapas'])} steps")
+                    self.created_template_id = template_data["id"]
+                    return template_data["id"]
+                else:
+                    self.record_result("POST /api/templates-prazos/criar-padrao - Create default template", False, f"Expected 31 steps, got {len(template_data.get('etapas', []))}")
+            else:
+                self.record_result("POST /api/templates-prazos/criar-padrao - Create default template", False, f"Status {response.status_code}: {response.text}")
+        except Exception as e:
+            self.record_result("POST /api/templates-prazos/criar-padrao - Create default template", False, f"Exception: {str(e)}")
+        
+        return None
+
+    def test_contratos_creation(self):
+        """Test Contract creation with automatic project and task generation"""
+        log_section("Criação de Contratos (FUNCIONALIDADE PRINCIPAL)")
+        
+        # First ensure we have a template
+        template_id = self.test_templates_prazos()
+        if not template_id:
+            # Try to get existing template
+            try:
+                response = self.session.get(f"{self.base_url}/templates-prazos")
+                if response.status_code == 200:
+                    templates = response.json()
+                    if templates and len(templates) > 0:
+                        template_id = templates[0]["id"]
+                        print(f"    Using existing template: {template_id}")
+                    else:
+                        self.record_result("Contract Creation - No template available", False, "No templates found for testing")
+                        return
+            except Exception as e:
+                self.record_result("Contract Creation - Template lookup", False, f"Exception: {str(e)}")
+                return
+
+        # Test POST /api/contratos with contract data
+        try:
+            contract_data = {
+                "cliente": "Universidade Federal de MG",
+                "faculdade": "Engenharia Civil", 
+                "numero_contrato": "2025-001",
+                "valor": 45000.00,
+                "data_inicio": "2025-02-01",
+                "template_id": template_id,
+                "criado_por": "admin"
+            }
+            
+            response = self.session.post(f"{self.base_url}/contratos", json=contract_data)
+            if response.status_code == 200:
+                contract_result = response.json()
+                
+                # Verify contract was created
+                if "contrato" in contract_result and contract_result["contrato"]["cliente"] == contract_data["cliente"]:
+                    self.record_result("POST /api/contratos - Contract created", True)
+                    self.created_contract_id = contract_result["contrato"]["id"]
+                    
+                    # Verify project was created automatically
+                    if "projeto" in contract_result:
+                        self.record_result("POST /api/contratos - Project created automatically", True)
+                        self.created_project_id = contract_result["projeto"]["id"]
+                        
+                        # Verify 31 tasks were created
+                        tasks_created = contract_result.get("tarefas_criadas", 0)
+                        if tasks_created == 31:
+                            self.record_result("POST /api/contratos - 31 tasks created automatically", True)
+                            print(f"    ✅ Contract, project and {tasks_created} tasks created successfully!")
+                        else:
+                            self.record_result("POST /api/contratos - 31 tasks created automatically", False, f"Expected 31 tasks, got {tasks_created}")
+                    else:
+                        self.record_result("POST /api/contratos - Project created automatically", False, "No project in response")
+                else:
+                    self.record_result("POST /api/contratos - Contract created", False, f"Contract data mismatch")
+            else:
+                self.record_result("POST /api/contratos - Contract created", False, f"Status {response.status_code}: {response.text}")
+        except Exception as e:
+            self.record_result("POST /api/contratos - Contract created", False, f"Exception: {str(e)}")
+
+    def test_listar_dados_criados(self):
+        """Test listing created data"""
+        log_section("Listar Dados Criados")
+        
+        # Test GET /api/contratos (verify contract appears)
+        try:
+            response = self.session.get(f"{self.base_url}/contratos")
+            if response.status_code == 200:
+                contracts = response.json()
+                if isinstance(contracts, list):
+                    self.record_result("GET /api/contratos - List contracts", True)
+                    print(f"    Found {len(contracts)} contracts")
+                    
+                    # Check if our created contract is in the list
+                    if hasattr(self, 'created_contract_id'):
+                        contract_found = any(c.get("id") == self.created_contract_id for c in contracts)
+                        if contract_found:
+                            self.record_result("GET /api/contratos - Created contract found", True)
+                        else:
+                            self.record_result("GET /api/contratos - Created contract found", False, "Created contract not found in list")
+                else:
+                    self.record_result("GET /api/contratos - List contracts", False, "Response not a list")
+            else:
+                self.record_result("GET /api/contratos - List contracts", False, f"Status {response.status_code}: {response.text}")
+        except Exception as e:
+            self.record_result("GET /api/contratos - List contracts", False, f"Exception: {str(e)}")
+
+        # Test GET /api/projetos (verify project was created)
+        try:
+            response = self.session.get(f"{self.base_url}/projetos")
+            if response.status_code == 200:
+                projects = response.json()
+                if isinstance(projects, list):
+                    self.record_result("GET /api/projetos - List projects", True)
+                    print(f"    Found {len(projects)} projects")
+                    
+                    # Check if our created project is in the list
+                    if hasattr(self, 'created_project_id'):
+                        project_found = any(p.get("id") == self.created_project_id for p in projects)
+                        if project_found:
+                            self.record_result("GET /api/projetos - Created project found", True)
+                        else:
+                            self.record_result("GET /api/projetos - Created project found", False, "Created project not found in list")
+                else:
+                    self.record_result("GET /api/projetos - List projects", False, "Response not a list")
+            else:
+                self.record_result("GET /api/projetos - List projects", False, f"Status {response.status_code}: {response.text}")
+        except Exception as e:
+            self.record_result("GET /api/projetos - List projects", False, f"Exception: {str(e)}")
+
+        # Test GET /api/tarefas (verify 31 tasks were created)
+        try:
+            response = self.session.get(f"{self.base_url}/tarefas")
+            if response.status_code == 200:
+                tasks = response.json()
+                if isinstance(tasks, list):
+                    self.record_result("GET /api/tarefas - List tasks", True)
+                    print(f"    Found {len(tasks)} total tasks")
+                    
+                    # Count tasks for our project
+                    if hasattr(self, 'created_project_id'):
+                        project_tasks = [t for t in tasks if t.get("projeto_id") == self.created_project_id]
+                        if len(project_tasks) == 31:
+                            self.record_result("GET /api/tarefas - 31 tasks for project", True)
+                            print(f"    ✅ Found exactly 31 tasks for the created project")
+                        else:
+                            self.record_result("GET /api/tarefas - 31 tasks for project", False, f"Expected 31 tasks for project, found {len(project_tasks)}")
+                else:
+                    self.record_result("GET /api/tarefas - List tasks", False, "Response not a list")
+            else:
+                self.record_result("GET /api/tarefas - List tasks", False, f"Status {response.status_code}: {response.text}")
+        except Exception as e:
+            self.record_result("GET /api/tarefas - List tasks", False, f"Exception: {str(e)}")
+
+    def test_dashboard_avancado(self):
+        """Test GET /api/dashboard-avancado"""
+        log_section("Dashboard Avançado")
+        
+        try:
+            response = self.session.get(f"{self.base_url}/dashboard-avancado")
+            if response.status_code == 200:
+                dashboard_data = response.json()
+                
+                # Check for expected dashboard fields
+                expected_sections = ["resumo_geral", "projetos_por_status", "tarefas_por_setor", "indicadores_performance"]
+                found_sections = [section for section in expected_sections if section in dashboard_data]
+                
+                if len(found_sections) >= 2:  # At least 2 sections should be present
+                    self.record_result("GET /api/dashboard-avancado - Advanced dashboard", True)
+                    print(f"    Dashboard sections found: {found_sections}")
+                else:
+                    self.record_result("GET /api/dashboard-avancado - Advanced dashboard", False, f"Expected dashboard sections, found: {list(dashboard_data.keys())}")
+            else:
+                self.record_result("GET /api/dashboard-avancado - Advanced dashboard", False, f"Status {response.status_code}: {response.text}")
+        except Exception as e:
+            self.record_result("GET /api/dashboard-avancado - Advanced dashboard", False, f"Exception: {str(e)}")
+
     def test_relatorios_atrasos(self):
         """Test delay reports endpoints"""
         log_section("Relatórios de Atrasos")
@@ -395,6 +610,7 @@ class IDEIABHAPITester:
                 overdue_tasks = response.json()
                 if isinstance(overdue_tasks, list):
                     self.record_result("GET /api/tarefas-atrasadas - List overdue tasks", True)
+                    print(f"    Found {len(overdue_tasks)} overdue tasks")
                 else:
                     self.record_result("GET /api/tarefas-atrasadas - List overdue tasks", False, "Response not a list")
             else:
@@ -409,6 +625,7 @@ class IDEIABHAPITester:
                 delays_by_sector = response.json()
                 if isinstance(delays_by_sector, list):
                     self.record_result("GET /api/atrasos-por-setor - Group by sector", True)
+                    print(f"    Found delays in {len(delays_by_sector)} sectors")
                 else:
                     self.record_result("GET /api/atrasos-por-setor - Group by sector", False, "Response not a list")
             else:
@@ -424,6 +641,7 @@ class IDEIABHAPITester:
                 required_fields = ["total_tarefas", "tarefas_finalizadas", "tarefas_em_andamento", "tarefas_atrasadas"]
                 if all(field in stats for field in required_fields):
                     self.record_result("GET /api/dashboard-stats - General statistics", True)
+                    print(f"    Stats: {stats['total_tarefas']} total, {stats['tarefas_finalizadas']} finished, {stats['tarefas_atrasadas']} overdue")
                 else:
                     missing = [f for f in required_fields if f not in stats]
                     self.record_result("GET /api/dashboard-stats - General statistics", False, f"Missing fields: {missing}")
