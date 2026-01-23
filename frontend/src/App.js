@@ -183,6 +183,14 @@ function AppRoutes() {
         path="/admin/users"
         element={
           <ProtectedRoute>
+            <AdminUsersNovo />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users-old"
+        element={
+          <ProtectedRoute>
             <AdminUsers />
           </ProtectedRoute>
         }
