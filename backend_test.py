@@ -570,12 +570,23 @@ class IDEIABHAPITester:
                 dashboard_data = response.json()
                 
                 # Check for expected dashboard fields
-                expected_sections = ["resumo_geral", "projetos_por_status", "tarefas_por_setor", "indicadores_performance"]
+                expected_sections = ["resumo", "projetos_em_andamento", "alertas_atrasos", "carga_por_responsavel"]
                 found_sections = [section for section in expected_sections if section in dashboard_data]
                 
-                if len(found_sections) >= 2:  # At least 2 sections should be present
+                if len(found_sections) >= 3:  # At least 3 sections should be present
                     self.record_result("GET /api/dashboard-avancado - Advanced dashboard", True)
                     print(f"    Dashboard sections found: {found_sections}")
+                    
+                    # Verify specific content
+                    if "resumo" in dashboard_data and "total_projetos" in dashboard_data["resumo"]:
+                        self.record_result("GET /api/dashboard-avancado - Dashboard resumo", True)
+                    else:
+                        self.record_result("GET /api/dashboard-avancado - Dashboard resumo", False, "Missing resumo section")
+                        
+                    if "projetos_em_andamento" in dashboard_data and isinstance(dashboard_data["projetos_em_andamento"], list):
+                        self.record_result("GET /api/dashboard-avancado - Projects list", True)
+                    else:
+                        self.record_result("GET /api/dashboard-avancado - Projects list", False, "Missing or invalid projetos_em_andamento")
                 else:
                     self.record_result("GET /api/dashboard-avancado - Advanced dashboard", False, f"Expected dashboard sections, found: {list(dashboard_data.keys())}")
             else:
