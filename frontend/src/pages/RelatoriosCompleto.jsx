@@ -243,7 +243,7 @@ const RelatoriosCompleto = () => {
                               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
                                 resp.tarefas_atrasadas > 0 ? 'bg-red-500' : 'bg-green-500'
                               }`}>
-                                {resp.responsavel.charAt(0)}
+                                {resp.responsavel ? resp.responsavel.charAt(0).toUpperCase() : '?'}
                               </div>
                               <div>
                                 <p className="font-semibold">{resp.responsavel}</p>
