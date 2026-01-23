@@ -12,6 +12,7 @@ import DashboardNovo from "./pages/DashboardNovo";
 import DashboardAvancado from "./pages/DashboardAvancado";
 import ProjetosVisaoGeral from "./pages/ProjetosVisaoGeral";
 import ProjetosVisaoGeralNovo from "./pages/ProjetosVisaoGeralNovo";
+import ProjetoDetalhes from "./pages/ProjetoDetalhes";
 import ContratosVisaoGeral from "./pages/ContratosVisaoGeral";
 import ContratosListaNova from "./pages/ContratosListaNova";
 import DepartamentoView from "./pages/DepartamentoView";
