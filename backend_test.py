@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import sys
 
 # Get backend URL from frontend .env
-BACKEND_URL = "https://theme-switcher-27.preview.emergentagent.com/api"
+BACKEND_URL = "https://project-flow-39.preview.emergentagent.com/api"
 
 class Colors:
     GREEN = '\033[92m'
