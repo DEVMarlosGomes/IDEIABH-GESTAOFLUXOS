@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -19,6 +20,7 @@ import { toast } from 'sonner';
 import './ProjetosVisaoGeral.css';
 
 const ProjetosVisaoGeralNovo = () => {
+  const navigate = useNavigate();
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -224,7 +226,7 @@ const ProjetosVisaoGeralNovo = () => {
                     </div>
                     <Button 
                       className="bg-blue-600 hover:bg-blue-700 text-white"
-                      onClick={() => window.location.href = `/projetos/${projeto.id}`}
+                      onClick={() => navigate(`/projetos/${projeto.id}`)}
                     >
                       Ver detalhes
                       <ChevronRight size={16} className="ml-1" />
