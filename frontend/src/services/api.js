@@ -181,4 +181,80 @@ export const getRelatorioMensal = async () => {
   return response.data;
 };
 
+// ==========================================
+// Contratos
+// ==========================================
+
+export const getContratos = async () => {
+  const response = await api.get('/api/contratos');
+  return response.data;
+};
+
+export const getContrato = async (contratoId) => {
+  const response = await api.get(`/api/contratos/${contratoId}`);
+  return response.data;
+};
+
+export const criarContrato = async (data) => {
+  const response = await api.post('/api/contratos', data);
+  return response.data;
+};
+
+export const atualizarContrato = async (contratoId, data) => {
+  const response = await api.put(`/api/contratos/${contratoId}`, data);
+  return response.data;
+};
+
+export const deletarContrato = async (contratoId, userRole) => {
+  const response = await api.delete(`/api/contratos/${contratoId}?user_role=${userRole}`);
+  return response.data;
+};
+
+// ==========================================
+// Projetos
+// ==========================================
+
+export const getProjetos = async () => {
+  const response = await api.get('/api/projetos');
+  return response.data;
+};
+
+export const getProjeto = async (projetoId) => {
+  const response = await api.get(`/api/projetos/${projetoId}`);
+  return response.data;
+};
+
+// ==========================================
+// Notificações
+// ==========================================
+
+export const getNotificacoes = async (usuarioId, apenasNaoLidas = false) => {
+  const response = await api.get(`/api/notificacoes/${usuarioId}?apenas_nao_lidas=${apenasNaoLidas}`);
+  return response.data;
+};
+
+export const criarNotificacao = async (data) => {
+  const response = await api.post('/api/notificacoes', data);
+  return response.data;
+};
+
+export const marcarNotificacaoLida = async (notificacaoId) => {
+  const response = await api.put(`/api/notificacoes/${notificacaoId}/marcar-lida`);
+  return response.data;
+};
+
+export const cobrarOperador = async (data, userRole) => {
+  const response = await api.post(`/api/cobrar-operador?user_role=${userRole}`, data);
+  return response.data;
+};
+
+// ==========================================
+// Dashboard Avançado
+// ==========================================
+
+export const getDashboardAvancado = async () => {
+  const response = await api.get('/api/dashboard-avancado');
+  return response.data;
+};
+
 export default api;
