@@ -74,6 +74,55 @@ class StatusTarefaUpdate(BaseModel):
 
 
 # ==========================================
+# MODELS - User Management
+# ==========================================
+
+class User(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    username: str
+    email: str
+    password_hash: str
+    nome: str
+    role: str = "operador"  # admin, gerente, operador
+    setor: Optional[str] = None  # Para operadores: atendimento, criacao, pre-producao, producao
+    ativo: bool = False  # Novo usuário precisa aprovação do admin
+    aprovado: bool = False
+    aprovado_por: Optional[str] = None
+    aprovado_em: Optional[datetime] = None
+    criado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    atualizado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    password: str
+    nome: str
+    role: str = "operador"
+    setor: Optional[str] = None
+
+
+class UserUpdate(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    setor: Optional[str] = None
+    ativo: Optional[bool] = None
+
+
+class UserApprove(BaseModel):
+    aprovado: bool
+    aprovado_por: str
+
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+
+# ==========================================
 # MODELS - Tarefas
 # ==========================================
 
