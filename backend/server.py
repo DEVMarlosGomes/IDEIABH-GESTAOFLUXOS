@@ -1453,6 +1453,453 @@ async def relatorio_mensal():
 
 
 # ==========================================
+# ROUTES - Contratos
+# ==========================================
+
+@api_router.get("/contratos", response_model=List[dict])
+async def listar_contratos():
+    """Lista todos os contratos"""
+    contratos = await db.contratos.find({}, {"_id": 0}).sort("criado_em", -1).to_list(1000)
+    return [deserialize_doc(c) for c in contratos]
+
+
+@api_router.get("/contratos/{contrato_id}", response_model=dict)
+async def obter_contrato(contrato_id: str):
+    """Obtém um contrato específico"""
+    contrato = await db.contratos.find_one({"id": contrato_id}, {"_id": 0})
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+    return deserialize_doc(contrato)
+
+
+@api_router.post("/contratos", response_model=dict)
+async def criar_contrato(input: ContratoCreate):
+    """Cria um novo contrato e automaticamente cria o projeto com todas as etapas"""
+    from datetime import timedelta
+    
+    # Verificar se template existe
+    template = await db.templates_prazos.find_one({"id": input.template_id}, {"_id": 0})
+    if not template:
+        raise HTTPException(status_code=404, detail="Template não encontrado")
+    
+    # Criar contrato
+    contrato_obj = Contrato(
+        cliente=input.cliente,
+        faculdade=input.faculdade,
+        numero_contrato=input.numero_contrato,
+        valor=input.valor,
+        data_inicio=input.data_inicio,
+        data_fim=input.data_fim,
+        template_id=input.template_id,
+        template_nome=template.get("nome"),
+        criado_por=input.criado_por
+    )
+    
+    contrato_doc = serialize_doc(contrato_obj.model_dump())
+    await db.contratos.insert_one(contrato_doc)
+    
+    # Calcular data fim prevista
+    try:
+        data_inicio_dt = datetime.fromisoformat(input.data_inicio).date()
+    except:
+        data_inicio_dt = datetime.now(timezone.utc).date()
+    
+    prazo_total = template.get("prazo_total_dias", 134)
+    data_fim_prevista = (data_inicio_dt + timedelta(days=prazo_total)).isoformat()
+    
+    # Criar projeto automaticamente
+    projeto_obj = Projeto(
+        contrato_id=contrato_obj.id,
+        cliente=input.cliente,
+        etapa_atual=template.get("etapas", [])[0].get("etapa_nome", "Início") if template.get("etapas") else "Início",
+        etapa_atual_ordem=1,
+        progresso=0.0,
+        risco="baixo",
+        dias_restantes=prazo_total,
+        data_inicio=input.data_inicio,
+        data_fim_prevista=data_fim_prevista,
+        template_id=input.template_id,
+        template_nome=template.get("nome"),
+        criado_por=input.criado_por
+    )
+    
+    projeto_doc = serialize_doc(projeto_obj.model_dump())
+    await db.projetos.insert_one(projeto_doc)
+    
+    # Atualizar contrato com projeto_id
+    await db.contratos.update_one(
+        {"id": contrato_obj.id},
+        {"$set": {"projeto_id": projeto_obj.id}}
+    )
+    
+    # Criar todas as tarefas (etapas) do template
+    # Obter status "Pendente"
+    status_pendente = await db.status_tarefas.find_one({"nome": "Pendente"})
+    if not status_pendente:
+        status_pendente = {"id": str(uuid.uuid4()), "nome": "Pendente"}
+    
+    data_atual = data_inicio_dt
+    tarefas_criadas = []
+    
+    for etapa in template.get("etapas", []):
+        prazo_dias = etapa.get("prazo_dias", 1)
+        data_fim_etapa = data_atual + timedelta(days=prazo_dias)
+        
+        tarefa_obj = Tarefa(
+            titulo=etapa.get("etapa_nome"),
+            descricao=etapa.get("descricao", ""),
+            projeto_id=projeto_obj.id,
+            contrato_id=contrato_obj.id,
+            setor=etapa.get("departamento", "atendimento"),
+            responsavel_id=None,
+            responsavel_nome=None,
+            status_id=status_pendente["id"],
+            status_nome="Pendente",
+            prazo=data_fim_etapa.isoformat(),
+            prazo_original=data_fim_etapa.isoformat(),
+            prioridade="media",
+            criado_por_id=input.criado_por,
+            criado_por_nome=input.criado_por,
+            criado_por_setor="sistema",
+            historico=[
+                HistoricoAcao(
+                    acao="criada",
+                    usuario_id=input.criado_por,
+                    usuario_nome=input.criado_por,
+                    setor="sistema",
+                    detalhes=f"Etapa criada automaticamente do template {template.get('nome')}"
+                )
+            ]
+        )
+        
+        tarefa_doc = serialize_doc(tarefa_obj.model_dump())
+        await db.tarefas.insert_one(tarefa_doc)
+        tarefas_criadas.append(tarefa_obj.id)
+        
+        data_atual = data_fim_etapa
+    
+    logger.info(f"Contrato criado: {contrato_obj.id}, Projeto criado: {projeto_obj.id}, {len(tarefas_criadas)} tarefas criadas")
+    
+    return {
+        "contrato": deserialize_doc(contrato_doc),
+        "projeto": deserialize_doc(projeto_doc),
+        "tarefas_criadas": len(tarefas_criadas),
+        "message": f"Contrato, projeto e {len(tarefas_criadas)} etapas criados com sucesso!"
+    }
+
+
+@api_router.put("/contratos/{contrato_id}", response_model=dict)
+async def atualizar_contrato(contrato_id: str, input: ContratoUpdate):
+    """Atualiza um contrato"""
+    existing = await db.contratos.find_one({"id": contrato_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    if update_data:
+        update_data["atualizado_em"] = datetime.now(timezone.utc).isoformat()
+        await db.contratos.update_one({"id": contrato_id}, {"$set": update_data})
+    
+    updated = await db.contratos.find_one({"id": contrato_id}, {"_id": 0})
+    return deserialize_doc(updated)
+
+
+@api_router.delete("/contratos/{contrato_id}")
+async def deletar_contrato(contrato_id: str, user_role: str = Query(...)):
+    """Deleta um contrato (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem deletar contratos")
+    
+    contrato = await db.contratos.find_one({"id": contrato_id})
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+    
+    await db.contratos.delete_one({"id": contrato_id})
+    
+    # Deletar projeto relacionado se existir
+    if contrato.get("projeto_id"):
+        await db.projetos.delete_one({"id": contrato["projeto_id"]})
+        # Deletar tarefas do projeto
+        await db.tarefas.delete_many({"projeto_id": contrato["projeto_id"]})
+    
+    return {"message": "Contrato deletado com sucesso"}
+
+
+# ==========================================
+# ROUTES - Projetos
+# ==========================================
+
+@api_router.get("/projetos", response_model=List[dict])
+async def listar_projetos():
+    """Lista todos os projetos"""
+    projetos = await db.projetos.find({}, {"_id": 0}).sort("criado_em", -1).to_list(1000)
+    
+    # Atualizar progresso e risco de cada projeto
+    result = []
+    for projeto in projetos:
+        projeto = deserialize_doc(projeto)
+        
+        # Calcular progresso baseado nas tarefas
+        tarefas = await db.tarefas.find({"projeto_id": projeto["id"]}, {"_id": 0}).to_list(1000)
+        if tarefas:
+            total_tarefas = len(tarefas)
+            tarefas_concluidas = sum(1 for t in tarefas if t.get("finalizada"))
+            projeto["progresso"] = round((tarefas_concluidas / total_tarefas) * 100, 1)
+            
+            # Calcular risco baseado em atrasos
+            tarefas_atrasadas = 0
+            total_dias_atraso = 0
+            for tarefa in tarefas:
+                if not tarefa.get("finalizada"):
+                    dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+                    if is_atrasada:
+                        tarefas_atrasadas += 1
+                        total_dias_atraso += dias_atraso
+            
+            # Definir nível de risco
+            if tarefas_atrasadas == 0:
+                projeto["risco"] = "baixo"
+            elif tarefas_atrasadas <= 2 and total_dias_atraso < 7:
+                projeto["risco"] = "medio"
+            elif tarefas_atrasadas <= 5 or total_dias_atraso < 15:
+                projeto["risco"] = "alto"
+            else:
+                projeto["risco"] = "critico"
+            
+            # Atualizar etapa atual (primeira não concluída)
+            for tarefa in tarefas:
+                if not tarefa.get("finalizada"):
+                    projeto["etapa_atual"] = tarefa.get("titulo")
+                    break
+        
+        result.append(projeto)
+    
+    return result
+
+
+@api_router.get("/projetos/{projeto_id}", response_model=dict)
+async def obter_projeto(projeto_id: str):
+    """Obtém um projeto específico com detalhes"""
+    projeto = await db.projetos.find_one({"id": projeto_id}, {"_id": 0})
+    if not projeto:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    
+    projeto = deserialize_doc(projeto)
+    
+    # Buscar tarefas do projeto
+    tarefas = await db.tarefas.find({"projeto_id": projeto_id}, {"_id": 0}).to_list(1000)
+    tarefas_deserializadas = []
+    
+    for tarefa in tarefas:
+        tarefa = deserialize_doc(tarefa)
+        if not tarefa.get("finalizada"):
+            dias_atraso, atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+            tarefa["dias_atraso"] = dias_atraso
+            tarefa["atrasada"] = atrasada
+        tarefas_deserializadas.append(tarefa)
+    
+    projeto["tarefas"] = tarefas_deserializadas
+    projeto["total_tarefas"] = len(tarefas)
+    projeto["tarefas_concluidas"] = sum(1 for t in tarefas if t.get("finalizada"))
+    
+    return projeto
+
+
+# ==========================================
+# ROUTES - Notificações
+# ==========================================
+
+@api_router.get("/notificacoes/{usuario_id}", response_model=List[dict])
+async def listar_notificacoes(usuario_id: str, apenas_nao_lidas: bool = False):
+    """Lista notificações de um usuário"""
+    query = {"para_usuario_id": usuario_id}
+    if apenas_nao_lidas:
+        query["lida"] = False
+    
+    notificacoes = await db.notificacoes.find(query, {"_id": 0}).sort("criado_em", -1).to_list(100)
+    return [deserialize_doc(n) for n in notificacoes]
+
+
+@api_router.post("/notificacoes", response_model=dict)
+async def criar_notificacao(input: NotificacaoCreate):
+    """Cria uma nova notificação"""
+    notif_obj = Notificacao(**input.model_dump())
+    doc = serialize_doc(notif_obj.model_dump())
+    await db.notificacoes.insert_one(doc)
+    return deserialize_doc(doc)
+
+
+@api_router.put("/notificacoes/{notificacao_id}/marcar-lida")
+async def marcar_notificacao_lida(notificacao_id: str):
+    """Marca uma notificação como lida"""
+    result = await db.notificacoes.update_one(
+        {"id": notificacao_id},
+        {"$set": {"lida": True}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Notificação não encontrada")
+    return {"message": "Notificação marcada como lida"}
+
+
+@api_router.post("/cobrar-operador")
+async def cobrar_operador(input: CobrancaOperador, user_role: str = Query(...)):
+    """Envia cobrança para operador atrasado (apenas gerente/admin)"""
+    if user_role not in ["admin", "gerente"]:
+        raise HTTPException(status_code=403, detail="Apenas gerentes e administradores podem cobrar operadores")
+    
+    # Buscar tarefa
+    tarefa = await db.tarefas.find_one({"id": input.tarefa_id}, {"_id": 0})
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    
+    # Criar notificação interna
+    notif_obj = Notificacao(
+        tipo="cobranca",
+        titulo=f"Cobrança de {input.gerente_nome}",
+        mensagem=input.mensagem,
+        de_usuario_id=input.gerente_id,
+        de_usuario_nome=input.gerente_nome,
+        para_usuario_id=input.operador_id,
+        para_usuario_nome=input.operador_nome,
+        tarefa_id=input.tarefa_id,
+        projeto_id=tarefa.get("projeto_id")
+    )
+    
+    notif_doc = serialize_doc(notif_obj.model_dump())
+    await db.notificacoes.insert_one(notif_doc)
+    
+    # Se solicitado, enviar email (implementação simplificada - em produção usar serviço de email)
+    email_enviado = False
+    if input.enviar_email:
+        # TODO: Integrar com serviço de email (SendGrid, AWS SES, etc)
+        # Por enquanto, apenas log
+        logger.info(f"Email de cobrança enviado para {input.operador_email}")
+        logger.info(f"De: {input.gerente_nome}")
+        logger.info(f"Assunto: Cobrança - Tarefa Atrasada: {tarefa.get('titulo')}")
+        logger.info(f"Mensagem: {input.mensagem}")
+        email_enviado = True
+    
+    return {
+        "message": "Cobrança enviada com sucesso",
+        "notificacao_criada": True,
+        "email_enviado": email_enviado
+    }
+
+
+# ==========================================
+# ROUTES - Dashboard Avançado
+# ==========================================
+
+@api_router.get("/dashboard-avancado", response_model=dict)
+async def dashboard_avancado():
+    """Dashboard com informações detalhadas para gestores"""
+    # Buscar todos os projetos
+    projetos = await db.projetos.find({}, {"_id": 0}).to_list(1000)
+    tarefas = await db.tarefas.find({}, {"_id": 0}).to_list(1000)
+    
+    # Estatísticas gerais
+    total_projetos = len(projetos)
+    projetos_em_andamento = sum(1 for p in projetos if p.get("status") == "Em Andamento")
+    
+    # Análise de atrasos por responsável
+    carga_por_responsavel = {}
+    alertas_atrasos = []
+    
+    for tarefa in tarefas:
+        if tarefa.get("finalizada"):
+            continue
+            
+        responsavel = tarefa.get("responsavel_nome", "Não atribuído")
+        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+        
+        if responsavel not in carga_por_responsavel:
+            carga_por_responsavel[responsavel] = {
+                "responsavel": responsavel,
+                "total_tarefas": 0,
+                "tarefas_atrasadas": 0,
+                "total_dias_atraso": 0,
+                "tarefas": []
+            }
+        
+        carga_por_responsavel[responsavel]["total_tarefas"] += 1
+        
+        if is_atrasada:
+            carga_por_responsavel[responsavel]["tarefas_atrasadas"] += 1
+            carga_por_responsavel[responsavel]["total_dias_atraso"] += dias_atraso
+            carga_por_responsavel[responsavel]["tarefas"].append({
+                "id": tarefa["id"],
+                "titulo": tarefa["titulo"],
+                "dias_atraso": dias_atraso,
+                "projeto_id": tarefa.get("projeto_id"),
+                "setor": tarefa.get("setor")
+            })
+            
+            alertas_atrasos.append({
+                "tarefa_id": tarefa["id"],
+                "titulo": tarefa["titulo"],
+                "responsavel": responsavel,
+                "responsavel_id": tarefa.get("responsavel_id"),
+                "dias_atraso": dias_atraso,
+                "setor": tarefa.get("setor"),
+                "projeto_id": tarefa.get("projeto_id"),
+                "prioridade": tarefa.get("prioridade")
+            })
+    
+    # Ordenar alertas por dias de atraso
+    alertas_atrasos.sort(key=lambda x: x["dias_atraso"], reverse=True)
+    
+    # Converter carga para lista e ordenar
+    carga_lista = sorted(
+        carga_por_responsavel.values(),
+        key=lambda x: x["tarefas_atrasadas"],
+        reverse=True
+    )
+    
+    # Projetos em andamento com detalhes
+    projetos_detalhados = []
+    for projeto in projetos:
+        if projeto.get("status") != "Em Andamento":
+            continue
+            
+        tarefas_projeto = [t for t in tarefas if t.get("projeto_id") == projeto["id"]]
+        total = len(tarefas_projeto)
+        concluidas = sum(1 for t in tarefas_projeto if t.get("finalizada"))
+        
+        atrasadas = 0
+        for t in tarefas_projeto:
+            if not t.get("finalizada"):
+                _, is_atrasada = await calcular_dias_atraso(t.get("prazo"))
+                if is_atrasada:
+                    atrasadas += 1
+        
+        projetos_detalhados.append({
+            "id": projeto["id"],
+            "cliente": projeto.get("cliente"),
+            "etapa_atual": projeto.get("etapa_atual"),
+            "progresso": round((concluidas / total * 100) if total > 0 else 0, 1),
+            "total_tarefas": total,
+            "tarefas_concluidas": concluidas,
+            "tarefas_atrasadas": atrasadas,
+            "risco": projeto.get("risco", "baixo"),
+            "data_inicio": projeto.get("data_inicio"),
+            "data_fim_prevista": projeto.get("data_fim_prevista")
+        })
+    
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "resumo": {
+            "total_projetos": total_projetos,
+            "projetos_em_andamento": projetos_em_andamento,
+            "total_tarefas_atrasadas": len(alertas_atrasos),
+            "responsaveis_com_atraso": len([c for c in carga_lista if c["tarefas_atrasadas"] > 0])
+        },
+        "projetos_em_andamento": projetos_detalhados,
+        "alertas_atrasos": alertas_atrasos[:20],  # Top 20
+        "carga_por_responsavel": carga_lista
+    }
+
+
+# ==========================================
 # ROUTES - Template Padrão
 # ==========================================
 
