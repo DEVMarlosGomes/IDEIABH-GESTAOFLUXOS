@@ -36,6 +36,9 @@ class IDEIABHAPITester:
         self.session = requests.Session()
         self.created_status_ids = []
         self.created_task_ids = []
+        self.created_template_id = None
+        self.created_contract_id = None
+        self.created_project_id = None
         self.test_results = {
             "total": 0,
             "passed": 0,
