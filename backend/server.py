@@ -176,6 +176,107 @@ class TarefaAlterarStatus(BaseModel):
 # MODELS - Projetos e Contratos
 # ==========================================
 
+class Contrato(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    cliente: str
+    faculdade: str
+    numero_contrato: str
+    valor: float
+    data_inicio: str  # ISO date string
+    data_fim: Optional[str] = None
+    status: str = "Ativo"  # Ativo, Em Andamento, Em Produção, Finalizado, Entregue
+    template_id: Optional[str] = None
+    template_nome: Optional[str] = None
+    projeto_id: Optional[str] = None
+    criado_por: str
+    criado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    atualizado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ContratoCreate(BaseModel):
+    cliente: str
+    faculdade: str
+    numero_contrato: str
+    valor: float
+    data_inicio: str
+    data_fim: Optional[str] = None
+    template_id: str  # ID do template a ser usado
+    criado_por: str
+
+
+class ContratoUpdate(BaseModel):
+    cliente: Optional[str] = None
+    faculdade: Optional[str] = None
+    numero_contrato: Optional[str] = None
+    valor: Optional[float] = None
+    data_inicio: Optional[str] = None
+    data_fim: Optional[str] = None
+    status: Optional[str] = None
+
+
+class Projeto(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    contrato_id: str
+    cliente: str
+    etapa_atual: str = "Informar recebimento do contrato"
+    etapa_atual_ordem: int = 1
+    progresso: float = 0.0
+    risco: str = "baixo"  # baixo, medio, alto, critico
+    dias_restantes: int = 134
+    data_inicio: str
+    data_fim_prevista: str
+    template_id: str
+    template_nome: str
+    status: str = "Em Andamento"
+    criado_por: str
+    criado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    atualizado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class Notificacao(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    tipo: str  # "cobranca", "atraso", "finalizacao", "atribuicao"
+    titulo: str
+    mensagem: str
+    de_usuario_id: str
+    de_usuario_nome: str
+    para_usuario_id: str
+    para_usuario_nome: str
+    tarefa_id: Optional[str] = None
+    projeto_id: Optional[str] = None
+    lida: bool = False
+    criado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class NotificacaoCreate(BaseModel):
+    tipo: str
+    titulo: str
+    mensagem: str
+    de_usuario_id: str
+    de_usuario_nome: str
+    para_usuario_id: str
+    para_usuario_nome: str
+    tarefa_id: Optional[str] = None
+    projeto_id: Optional[str] = None
+
+
+class CobrancaOperador(BaseModel):
+    tarefa_id: str
+    operador_id: str
+    operador_nome: str
+    operador_email: str
+    mensagem: str
+    gerente_id: str
+    gerente_nome: str
+    enviar_email: bool = True
+
+
 class ProjetoAtraso(BaseModel):
     projeto_id: str
     cliente: str
