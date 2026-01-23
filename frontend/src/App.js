@@ -18,6 +18,7 @@ import ContratosListaNova from "./pages/ContratosListaNova";
 import DepartamentoView from "./pages/DepartamentoView";
 import DepartamentoViewNovo from "./pages/DepartamentoViewNovo";
 import AdminUsers from "./pages/AdminUsers";
+import AdminUsersNovo from "./pages/AdminUsersNovo";
 import Configuracoes from "./pages/Configuracoes";
 import Relatorios from "./pages/Relatorios";
 import RelatoriosCompleto from "./pages/RelatoriosCompleto";
