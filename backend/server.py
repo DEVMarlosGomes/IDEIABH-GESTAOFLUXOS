@@ -515,6 +515,217 @@ async def deletar_status_tarefa(status_id: str, user_role: str = Query(...)):
 
 
 # ==========================================
+# ROUTES - Users
+# ==========================================
+
+@api_router.post("/auth/register", response_model=dict)
+async def register_user(input: UserCreate):
+    """Registra novo usuário (aguarda aprovação do admin)"""
+    import bcrypt
+    
+    # Verificar se username já existe
+    existing = await db.users.find_one({"username": input.username})
+    if existing:
+        raise HTTPException(status_code=400, detail="Username já existe")
+    
+    # Verificar se email já existe
+    existing_email = await db.users.find_one({"email": input.email})
+    if existing_email:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    
+    # Validar setor para operadores
+    if input.role == "operador" and not input.setor:
+        raise HTTPException(status_code=400, detail="Operadores devem ter um setor definido")
+    
+    # Hash da senha
+    password_hash = bcrypt.hashpw(input.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    # Criar usuário
+    user_obj = User(
+        username=input.username,
+        email=input.email,
+        password_hash=password_hash,
+        nome=input.nome,
+        role=input.role,
+        setor=input.setor,
+        ativo=False,  # Precisa aprovação
+        aprovado=False
+    )
+    
+    user_doc = serialize_doc(user_obj.model_dump())
+    await db.users.insert_one(user_doc)
+    
+    logger.info(f"Novo usuário registrado: {input.username} (aguardando aprovação)")
+    
+    return {
+        "message": "Usuário registrado com sucesso! Aguarde aprovação do administrador.",
+        "username": input.username,
+        "aprovado": False
+    }
+
+
+@api_router.post("/auth/login", response_model=dict)
+async def login_user(input: UserLogin):
+    """Login de usuário"""
+    import bcrypt
+    
+    # Buscar usuário
+    user = await db.users.find_one({"username": input.username}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+    
+    # Verificar se está aprovado
+    if not user.get("aprovado"):
+        raise HTTPException(status_code=403, detail="Usuário ainda não foi aprovado pelo administrador")
+    
+    # Verificar se está ativo
+    if not user.get("ativo"):
+        raise HTTPException(status_code=403, detail="Usuário desativado")
+    
+    # Verificar senha
+    if not bcrypt.checkpw(input.password.encode('utf-8'), user["password_hash"].encode('utf-8')):
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+    
+    # Remover senha do retorno
+    user_data = deserialize_doc(user)
+    user_data.pop("password_hash", None)
+    
+    return {
+        "message": "Login realizado com sucesso",
+        "user": user_data
+    }
+
+
+@api_router.get("/users", response_model=List[dict])
+async def listar_usuarios(user_role: str = Query(...)):
+    """Lista todos os usuários (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem listar usuários")
+    
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    return [deserialize_doc(u) for u in users]
+
+
+@api_router.get("/users/pending", response_model=List[dict])
+async def listar_usuarios_pendentes(user_role: str = Query(...)):
+    """Lista usuários pendentes de aprovação (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores")
+    
+    users = await db.users.find({"aprovado": False}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    return [deserialize_doc(u) for u in users]
+
+
+@api_router.post("/users/{user_id}/approve", response_model=dict)
+async def aprovar_usuario(user_id: str, input: UserApprove, admin_role: str = Query(...)):
+    """Aprova ou rejeita usuário (apenas admin)"""
+    if admin_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem aprovar usuários")
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    update_data = {
+        "aprovado": input.aprovado,
+        "ativo": input.aprovado,  # Se aprovado, ativa automaticamente
+        "aprovado_por": input.aprovado_por,
+        "aprovado_em": datetime.now(timezone.utc).isoformat(),
+        "atualizado_em": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.users.update_one({"id": user_id}, {"$set": update_data})
+    
+    updated = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    
+    status = "aprovado" if input.aprovado else "rejeitado"
+    logger.info(f"Usuário {user['username']} {status} por {input.aprovado_por}")
+    
+    return {
+        "message": f"Usuário {status} com sucesso",
+        "user": deserialize_doc(updated)
+    }
+
+
+@api_router.post("/users", response_model=dict)
+async def criar_usuario(input: UserCreate, admin_role: str = Query(...)):
+    """Cria usuário diretamente (apenas admin) - já aprovado"""
+    import bcrypt
+    
+    if admin_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar usuários")
+    
+    # Verificar se username já existe
+    existing = await db.users.find_one({"username": input.username})
+    if existing:
+        raise HTTPException(status_code=400, detail="Username já existe")
+    
+    # Validar setor para operadores
+    if input.role == "operador" and not input.setor:
+        raise HTTPException(status_code=400, detail="Operadores devem ter um setor definido")
+    
+    # Hash da senha
+    password_hash = bcrypt.hashpw(input.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    # Criar usuário (já aprovado quando criado por admin)
+    user_obj = User(
+        username=input.username,
+        email=input.email,
+        password_hash=password_hash,
+        nome=input.nome,
+        role=input.role,
+        setor=input.setor,
+        ativo=True,
+        aprovado=True,
+        aprovado_por="admin",
+        aprovado_em=datetime.now(timezone.utc)
+    )
+    
+    user_doc = serialize_doc(user_obj.model_dump())
+    await db.users.insert_one(user_doc)
+    
+    user_data = deserialize_doc(user_doc)
+    user_data.pop("password_hash", None)
+    
+    return {
+        "message": "Usuário criado com sucesso",
+        "user": user_data
+    }
+
+
+@api_router.put("/users/{user_id}", response_model=dict)
+async def atualizar_usuario(user_id: str, input: UserUpdate, admin_role: str = Query(...)):
+    """Atualiza usuário (apenas admin)"""
+    if admin_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores")
+    
+    existing = await db.users.find_one({"id": user_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    if update_data:
+        update_data["atualizado_em"] = datetime.now(timezone.utc).isoformat()
+        await db.users.update_one({"id": user_id}, {"$set": update_data})
+    
+    updated = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    return deserialize_doc(updated)
+
+
+@api_router.delete("/users/{user_id}")
+async def deletar_usuario(user_id: str, admin_role: str = Query(...)):
+    """Deleta usuário (apenas admin)"""
+    if admin_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores")
+    
+    result = await db.users.delete_one({"id": user_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    return {"message": "Usuário deletado com sucesso"}
+
+
+# ==========================================
 # ROUTES - Tarefas
 # ==========================================
 
