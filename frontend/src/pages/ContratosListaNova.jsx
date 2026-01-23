@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Layout from '../components/Layout';
+import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -255,7 +255,7 @@ const ContratosListaNova = () => {
   }
 
   return (
-    <Layout>
+    <LayoutNovo>
       <div className="contratos-container">
         {/* Header */}
         <div className="contratos-header">
@@ -574,7 +574,7 @@ const ContratosListaNova = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
+    </LayoutNovo>
   );
 };
 
