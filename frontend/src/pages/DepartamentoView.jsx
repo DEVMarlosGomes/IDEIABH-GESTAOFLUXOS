@@ -35,6 +35,7 @@ import FinalizarTarefaModal from '../components/FinalizarTarefaModal';
 import StatusModal from '../components/StatusModal';
 import TarefaCard from '../components/TarefaCard';
 import HistoricoModal from '../components/HistoricoModal';
+import EditarTarefaModal from '../components/EditarTarefaModal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +51,7 @@ import './DepartamentoView.css';
 const DepartamentoView = ({ departamento }) => {
   const { user, hasPermission } = useAuth();
   const isAdmin = user?.role === 'admin' || hasPermission('admin');
+  const isGerente = user?.role === 'gerente' || hasPermission('gerente');
   
   const [projetos] = useState(mockProjetos);
   const [tarefas, setTarefas] = useState([]);
@@ -62,11 +64,13 @@ const DepartamentoView = ({ departamento }) => {
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
+  const [showEditarModal, setShowEditarModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   
   const [selectedTarefa, setSelectedTarefa] = useState(null);
   const [activeTab, setActiveTab] = useState('andamento');
+
 
   // Encontrar info do departamento
   const deptInfo = Object.values(DEPARTAMENTOS).find(d => d.id === departamento) || {
