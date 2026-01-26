@@ -215,17 +215,29 @@ const TarefaCard = ({
           </div>
         )}
 
-        {/* Botão Finalizar */}
-        {!tarefa.finalizada && onFinalizar && (
+        {/* Botões de Ação */}
+        {!tarefa.finalizada && (
           <div className="tarefa-actions">
-            <Button 
-              onClick={() => onFinalizar(tarefa)}
-              className="bg-green-600 hover:bg-green-700"
-              size="sm"
-            >
-              <CheckCircle2 size={16} className="mr-2" />
-              Finalizar com Observação
-            </Button>
+            {canEdit && onEditar && (
+              <Button 
+                onClick={() => onEditar(tarefa)}
+                variant="outline"
+                size="sm"
+              >
+                <Edit size={16} className="mr-2" />
+                Editar
+              </Button>
+            )}
+            {onFinalizar && (
+              <Button 
+                onClick={() => onFinalizar(tarefa)}
+                className="bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                <CheckCircle2 size={16} className="mr-2" />
+                Finalizar com Observação
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
