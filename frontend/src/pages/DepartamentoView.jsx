@@ -368,7 +368,9 @@ const DepartamentoView = ({ departamento }) => {
                         onFinalizar={handleFinalizar}
                         onDelete={handleDelete}
                         onVerHistorico={handleVerHistorico}
+                        onEditar={handleEditar}
                         isAdmin={isAdmin}
+                        isGerente={isGerente}
                       />
                     ))}
                   </div>
@@ -391,6 +393,7 @@ const DepartamentoView = ({ departamento }) => {
                         onVerHistorico={handleVerHistorico}
                         onDelete={handleDelete}
                         isAdmin={isAdmin}
+                        isGerente={isGerente}
                       />
                     ))}
                   </div>
@@ -413,7 +416,9 @@ const DepartamentoView = ({ departamento }) => {
                         onFinalizar={handleFinalizar}
                         onDelete={handleDelete}
                         onVerHistorico={handleVerHistorico}
+                        onEditar={handleEditar}
                         isAdmin={isAdmin}
+                        isGerente={isGerente}
                       />
                     ))}
                   </div>
