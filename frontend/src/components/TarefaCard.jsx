@@ -43,6 +43,9 @@ const TarefaCard = ({
   const prioridade = PRIORIDADE_CONFIG[tarefa.prioridade] || PRIORIDADE_CONFIG.media;
   const canEdit = isAdmin || isGerente;
   
+  // Debug - remover depois
+  console.log('TarefaCard - isAdmin:', isAdmin, 'isGerente:', isGerente, 'canEdit:', canEdit, 'onEditar:', !!onEditar);
+  
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('pt-BR');
