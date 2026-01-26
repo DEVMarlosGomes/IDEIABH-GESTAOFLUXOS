@@ -112,6 +112,11 @@ user_problem_statement: |
   6. Após criar tarefa, usuário não pode voltar atrás
   7. Setores com status "em andamento" e "concluído"
   8. Adicionar botão para criar novos status (admin only)
+  
+  NOVAS FUNCIONALIDADES (Iteração 2):
+  9. Criar tarefa durante projeto em andamento em cada setor
+  10. Editar tarefas/prazos (apenas admin/gerente)
+  11. Recálculo automático de prazos baseado na data de entrega anterior
 
 backend:
   - task: "API Status de Tarefas - CRUD"
