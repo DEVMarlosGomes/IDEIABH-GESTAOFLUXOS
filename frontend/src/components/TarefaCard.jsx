@@ -113,6 +113,12 @@ const TarefaCard = ({
                   Ver Histórico
                 </DropdownMenuItem>
               )}
+              {!tarefa.finalizada && canEdit && onEditar && (
+                <DropdownMenuItem onClick={() => onEditar(tarefa)}>
+                  <Edit size={14} className="mr-2" />
+                  Editar Tarefa
+                </DropdownMenuItem>
+              )}
               {!tarefa.finalizada && onFinalizar && (
                 <DropdownMenuItem onClick={() => onFinalizar(tarefa)}>
                   <CheckCircle2 size={14} className="mr-2" />
