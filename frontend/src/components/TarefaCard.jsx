@@ -11,7 +11,8 @@ import {
   CheckCircle2,
   MoreVertical,
   Trash2,
-  History
+  History,
+  Edit
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -34,10 +35,13 @@ const TarefaCard = ({
   onFinalizar, 
   onDelete, 
   onVerHistorico,
+  onEditar,
   isAdmin = false,
+  isGerente = false,
   compact = false 
 }) => {
   const prioridade = PRIORIDADE_CONFIG[tarefa.prioridade] || PRIORIDADE_CONFIG.media;
+  const canEdit = isAdmin || isGerente;
   
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
