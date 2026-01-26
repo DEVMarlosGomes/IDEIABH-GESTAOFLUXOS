@@ -201,13 +201,20 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockProjetos.map((projeto) => (
-                      <SelectItem key={projeto.id} value={projeto.id}>
-                        {projeto.cliente}
-                      </SelectItem>
-                    ))}
+                    {projetos.length > 0 ? (
+                      projetos.map((projeto) => (
+                        <SelectItem key={projeto.id} value={projeto.id}>
+                          {projeto.cliente}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>Nenhum projeto encontrado</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
+                {projetos.length === 0 && (
+                  <p className="text-xs text-amber-600">Crie um contrato primeiro para ter projetos disponíveis</p>
+                )}
               </div>
 
               <div className="grid gap-2">
