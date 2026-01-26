@@ -668,6 +668,276 @@ class IDEIABHAPITester:
         except Exception as e:
             self.record_result("GET /api/dashboard-stats - General statistics", False, f"Exception: {str(e)}")
 
+    def test_edicao_tarefas_permissao(self):
+        """Test task editing with permission control (NEW FUNCTIONALITY)"""
+        log_section("Edição de Tarefas com Permissão")
+        
+        # First create a task for testing
+        try:
+            tomorrow = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")
+            test_task = {
+                "titulo": "Tarefa para Teste de Edição",
+                "descricao": "Esta tarefa será editada para testar permissões",
+                "projeto_id": "projeto-edicao-001",
+                "contrato_id": "contrato-edicao-001",
+                "setor": "atendimento",
+                "responsavel_nome": "Ana Silva",
+                "prazo": tomorrow,
+                "prioridade": "media",
+                "criado_por_id": "user-admin-001",
+                "criado_por_nome": "Admin Teste",
+                "criado_por_setor": "Geral"
+            }
+            response = self.session.post(f"{self.base_url}/tarefas", json=test_task)
+            if response.status_code == 200:
+                created_task = response.json()
+                task_id = created_task["id"]
+                self.created_task_ids.append(task_id)
+                
+                # Test PUT /api/tarefas/{id} with operador role (should return 403)
+                update_data = {
+                    "titulo": "Título Alterado por Operador",
+                    "prioridade": "alta",
+                    "usuario_id": "operador-001",
+                    "usuario_nome": "Operador Teste",
+                    "usuario_setor": "Atendimento",
+                    "usuario_role": "operador"
+                }
+                response = self.session.put(f"{self.base_url}/tarefas/{task_id}", json=update_data)
+                if response.status_code == 403:
+                    self.record_result("PUT /api/tarefas/{id} - Operador forbidden", True)
+                else:
+                    self.record_result("PUT /api/tarefas/{id} - Operador forbidden", False, f"Expected 403, got {response.status_code}: {response.text}")
+                
+                # Test PUT /api/tarefas/{id} with gerente role (should work)
+                update_data_gerente = {
+                    "titulo": "Título Alterado por Gerente",
+                    "prioridade": "alta",
+                    "prazo": (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d"),
+                    "usuario_id": "gerente-001",
+                    "usuario_nome": "Gerente Teste",
+                    "usuario_setor": "Gestão",
+                    "usuario_role": "gerente"
+                }
+                response = self.session.put(f"{self.base_url}/tarefas/{task_id}", json=update_data_gerente)
+                if response.status_code == 200:
+                    updated_task = response.json()
+                    if updated_task.get("titulo") == "Título Alterado por Gerente":
+                        self.record_result("PUT /api/tarefas/{id} - Gerente allowed", True)
+                    else:
+                        self.record_result("PUT /api/tarefas/{id} - Gerente allowed", False, f"Title not updated correctly")
+                else:
+                    self.record_result("PUT /api/tarefas/{id} - Gerente allowed", False, f"Status {response.status_code}: {response.text}")
+                
+                # Test PUT /api/tarefas/{id} with admin role (should work)
+                update_data_admin = {
+                    "titulo": "Título Alterado por Admin",
+                    "prioridade": "critica",
+                    "usuario_id": "admin-001",
+                    "usuario_nome": "Admin Teste",
+                    "usuario_setor": "Administração",
+                    "usuario_role": "admin"
+                }
+                response = self.session.put(f"{self.base_url}/tarefas/{task_id}", json=update_data_admin)
+                if response.status_code == 200:
+                    updated_task = response.json()
+                    if updated_task.get("titulo") == "Título Alterado por Admin" and updated_task.get("prioridade") == "critica":
+                        self.record_result("PUT /api/tarefas/{id} - Admin allowed", True)
+                    else:
+                        self.record_result("PUT /api/tarefas/{id} - Admin allowed", False, f"Task not updated correctly")
+                else:
+                    self.record_result("PUT /api/tarefas/{id} - Admin allowed", False, f"Status {response.status_code}: {response.text}")
+                    
+            else:
+                self.record_result("Task editing setup", False, f"Failed to create test task: {response.status_code}")
+        except Exception as e:
+            self.record_result("Task editing with permissions", False, f"Exception: {str(e)}")
+
+    def test_recalculo_automatico_prazos(self):
+        """Test automatic deadline recalculation when finishing tasks (NEW FUNCTIONALITY)"""
+        log_section("Recálculo Automático de Prazos ao Finalizar")
+        
+        # First create a contract with template to generate multiple tasks
+        try:
+            # Get or create template
+            response = self.session.get(f"{self.base_url}/templates-prazos")
+            template_id = None
+            if response.status_code == 200:
+                templates = response.json()
+                if templates and len(templates) > 0:
+                    template_id = templates[0]["id"]
+                else:
+                    # Create template if none exists
+                    response = self.session.post(f"{self.base_url}/templates-prazos/criar-padrao?user_id=admin&user_role=admin")
+                    if response.status_code == 200:
+                        template_result = response.json()
+                        template_id = template_result["template"]["id"]
+            
+            if not template_id:
+                self.record_result("Recálculo de prazos - Template setup", False, "No template available")
+                return
+            
+            # Create contract with multiple tasks
+            contract_data = {
+                "cliente": "Universidade Teste Prazos",
+                "faculdade": "Administração",
+                "numero_contrato": "2025-PRAZOS-001",
+                "valor": 25000.00,
+                "data_inicio": "2025-02-01",
+                "template_id": template_id,
+                "criado_por": "admin"
+            }
+            
+            response = self.session.post(f"{self.base_url}/contratos", json=contract_data)
+            if response.status_code == 200:
+                contract_result = response.json()
+                projeto_id = contract_result["projeto"]["id"]
+                
+                # Get tasks created for this project
+                response = self.session.get(f"{self.base_url}/tarefas?projeto_id={projeto_id}")
+                if response.status_code == 200:
+                    project_tasks = response.json()
+                    if len(project_tasks) >= 2:
+                        # Sort tasks by original deadline to get the first one
+                        project_tasks.sort(key=lambda x: x.get("prazo_original", x.get("prazo", "")))
+                        
+                        first_task = project_tasks[0]
+                        second_task = project_tasks[1] if len(project_tasks) > 1 else None
+                        
+                        # Store original deadlines
+                        original_deadlines = {}
+                        for task in project_tasks:
+                            original_deadlines[task["id"]] = task.get("prazo")
+                        
+                        # Finalize the first task
+                        finalize_data = {
+                            "observacao": "Primeira tarefa finalizada para teste de recálculo de prazos",
+                            "usuario_id": "admin-001",
+                            "usuario_nome": "Admin Teste",
+                            "usuario_setor": "Administração"
+                        }
+                        
+                        response = self.session.post(f"{self.base_url}/tarefas/{first_task['id']}/finalizar", json=finalize_data)
+                        if response.status_code == 200:
+                            finalized_result = response.json()
+                            
+                            # Check if response contains "prazos_recalculados"
+                            if "prazos_recalculados" in finalized_result:
+                                prazos_recalculados = finalized_result["prazos_recalculados"]
+                                if isinstance(prazos_recalculados, list) and len(prazos_recalculados) > 0:
+                                    self.record_result("POST /api/tarefas/{id}/finalizar - Prazos recalculados returned", True)
+                                    print(f"    ✅ {len(prazos_recalculados)} tasks had their deadlines recalculated")
+                                    
+                                    # Verify that subsequent tasks had their deadlines updated
+                                    response = self.session.get(f"{self.base_url}/tarefas?projeto_id={projeto_id}")
+                                    if response.status_code == 200:
+                                        updated_tasks = response.json()
+                                        recalculated_count = 0
+                                        
+                                        for updated_task in updated_tasks:
+                                            if not updated_task.get("finalizada") and updated_task["id"] in original_deadlines:
+                                                original_deadline = original_deadlines[updated_task["id"]]
+                                                new_deadline = updated_task.get("prazo")
+                                                if original_deadline != new_deadline:
+                                                    recalculated_count += 1
+                                        
+                                        if recalculated_count > 0:
+                                            self.record_result("Recálculo automático - Deadlines actually updated", True)
+                                            print(f"    ✅ {recalculated_count} tasks had their actual deadlines updated")
+                                        else:
+                                            self.record_result("Recálculo automático - Deadlines actually updated", False, "No tasks had updated deadlines")
+                                    else:
+                                        self.record_result("Recálculo automático - Verification", False, f"Failed to get updated tasks: {response.status_code}")
+                                else:
+                                    self.record_result("POST /api/tarefas/{id}/finalizar - Prazos recalculados returned", False, "Empty prazos_recalculados array")
+                            else:
+                                self.record_result("POST /api/tarefas/{id}/finalizar - Prazos recalculados returned", False, "No prazos_recalculados in response")
+                        else:
+                            self.record_result("POST /api/tarefas/{id}/finalizar - Finalize task", False, f"Status {response.status_code}: {response.text}")
+                    else:
+                        self.record_result("Recálculo de prazos - Multiple tasks", False, f"Expected multiple tasks, got {len(project_tasks)}")
+                else:
+                    self.record_result("Recálculo de prazos - Get project tasks", False, f"Status {response.status_code}: {response.text}")
+            else:
+                self.record_result("Recálculo de prazos - Contract creation", False, f"Status {response.status_code}: {response.text}")
+                
+        except Exception as e:
+            self.record_result("Recálculo automático de prazos", False, f"Exception: {str(e)}")
+
+    def test_criar_tarefa_projeto_andamento(self):
+        """Test creating tasks during ongoing projects (NEW FUNCTIONALITY)"""
+        log_section("Criar Tarefa Durante Projeto em Andamento")
+        
+        try:
+            # Use existing project if available, or create one
+            projeto_id = None
+            if hasattr(self, 'created_project_id') and self.created_project_id:
+                projeto_id = self.created_project_id
+            else:
+                # Create a simple project for testing
+                contract_data = {
+                    "cliente": "Cliente Projeto Andamento",
+                    "faculdade": "Engenharia",
+                    "numero_contrato": "2025-ANDAMENTO-001",
+                    "valor": 15000.00,
+                    "data_inicio": "2025-02-01",
+                    "template_id": self.created_template_id or "template-default",
+                    "criado_por": "admin"
+                }
+                
+                response = self.session.post(f"{self.base_url}/contratos", json=contract_data)
+                if response.status_code == 200:
+                    contract_result = response.json()
+                    projeto_id = contract_result["projeto"]["id"]
+                    self.created_project_id = projeto_id
+            
+            if projeto_id:
+                # Create a new task for the existing project
+                new_task_data = {
+                    "titulo": "Nova Tarefa Criada Durante Projeto",
+                    "descricao": "Esta tarefa foi criada após o projeto já estar em andamento",
+                    "projeto_id": projeto_id,
+                    "contrato_id": self.created_contract_id or "contrato-andamento-001",
+                    "setor": "criacao",
+                    "responsavel_nome": "Designer Responsável",
+                    "prazo": (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d"),
+                    "prioridade": "media",
+                    "criado_por_id": "gerente-001",
+                    "criado_por_nome": "Gerente Projeto",
+                    "criado_por_setor": "Gestão"
+                }
+                
+                response = self.session.post(f"{self.base_url}/tarefas", json=new_task_data)
+                if response.status_code == 200:
+                    created_task = response.json()
+                    
+                    # Verify task was linked to the correct project
+                    if created_task.get("projeto_id") == projeto_id:
+                        self.record_result("POST /api/tarefas - Create task for existing project", True)
+                        self.created_task_ids.append(created_task["id"])
+                        
+                        # Verify task appears in project task list
+                        response = self.session.get(f"{self.base_url}/tarefas?projeto_id={projeto_id}")
+                        if response.status_code == 200:
+                            project_tasks = response.json()
+                            task_found = any(t.get("id") == created_task["id"] for t in project_tasks)
+                            if task_found:
+                                self.record_result("Criar tarefa - Task linked to project", True)
+                                print(f"    ✅ Task successfully linked to project {projeto_id}")
+                            else:
+                                self.record_result("Criar tarefa - Task linked to project", False, "Task not found in project task list")
+                        else:
+                            self.record_result("Criar tarefa - Verify project link", False, f"Failed to get project tasks: {response.status_code}")
+                    else:
+                        self.record_result("POST /api/tarefas - Create task for existing project", False, f"Task not linked to correct project")
+                else:
+                    self.record_result("POST /api/tarefas - Create task for existing project", False, f"Status {response.status_code}: {response.text}")
+            else:
+                self.record_result("Criar tarefa projeto andamento - Setup", False, "No project available for testing")
+                
+        except Exception as e:
+            self.record_result("Criar tarefa durante projeto em andamento", False, f"Exception: {str(e)}")
+
     def cleanup(self):
         """Clean up created test data"""
         log_section("Cleanup")
