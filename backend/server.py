@@ -204,6 +204,7 @@ class TarefaUpdate(BaseModel):
     usuario_id: str
     usuario_nome: str
     usuario_setor: str
+    usuario_role: str = "operador"  # Para verificar permissão de edição
 
 
 class TarefaFinalizar(BaseModel):
