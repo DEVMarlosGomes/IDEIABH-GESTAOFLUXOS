@@ -330,6 +330,18 @@ frontend:
         agent: "main"
         comment: "Modal para admin criar novos status"
 
+  - task: "Modal Editar Tarefa (admin/gerente)"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/EditarTarefaModal.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modal para editar tarefas, apenas admin/gerente. Altera título, descrição, setor, responsável, prazo, prioridade."
+
   - task: "Visualização de Tarefas por Setor"
     implemented: true
     working: "NA"
