@@ -6,13 +6,13 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import './Login.css';
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +24,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = await login(username, password);
       if (result.success) {
         navigate('/dashboard');
       } else {
@@ -74,15 +74,15 @@ const Login = () => {
               )}
 
               <div className="form-group">
-                <Label htmlFor="email">E-mail</Label>
+                <Label htmlFor="username">Usuário</Label>
                 <div className="input-wrapper">
-                  <Mail className="input-icon" size={18} />
+                  <User className="input-icon" size={18} />
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="username"
+                    type="text"
+                    placeholder="seu.usuario"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     className="input-with-icon"
                     required
                   />
@@ -131,7 +131,7 @@ const Login = () => {
             </form>
 
             <div className="demo-credentials">
-              <p><strong>Demo:</strong> admin@ideiabh.com / 123456</p>
+              <p><strong>Credenciais:</strong> admin / admin123</p>
             </div>
           </CardContent>
         </Card>
