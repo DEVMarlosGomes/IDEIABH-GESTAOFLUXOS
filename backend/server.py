@@ -1000,7 +1000,7 @@ async def atualizar_tarefa(tarefa_id: str, input: TarefaUpdate):
 
 @api_router.post("/tarefas/{tarefa_id}/finalizar", response_model=dict)
 async def finalizar_tarefa(tarefa_id: str, input: TarefaFinalizar):
-    """Finaliza uma tarefa com observação obrigatória"""
+    """Finaliza uma tarefa com observação obrigatória e recalcula prazos das próximas etapas"""
     tarefa = await db.tarefas.find_one({"id": tarefa_id})
     if not tarefa:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
@@ -1043,8 +1043,21 @@ async def finalizar_tarefa(tarefa_id: str, input: TarefaFinalizar):
     
     logger.info(f"Tarefa finalizada: {tarefa_id} por {input.usuario_nome} ({input.usuario_setor})")
     
+    # Recalcular prazos das próximas tarefas do projeto
+    prazos_recalculados = []
+    if tarefa.get("projeto_id"):
+        prazos_recalculados = await recalcular_prazos_projeto(
+            tarefa["projeto_id"], 
+            tarefa_id, 
+            now
+        )
+        if prazos_recalculados:
+            logger.info(f"Prazos recalculados para {len(prazos_recalculados)} tarefas do projeto {tarefa['projeto_id']}")
+    
     updated = await db.tarefas.find_one({"id": tarefa_id}, {"_id": 0})
-    return deserialize_doc(updated)
+    result = deserialize_doc(updated)
+    result["prazos_recalculados"] = prazos_recalculados
+    return result
 
 
 @api_router.post("/tarefas/{tarefa_id}/alterar-status", response_model=dict)
