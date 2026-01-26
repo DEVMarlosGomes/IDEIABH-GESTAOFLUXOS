@@ -9,8 +9,8 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # Get database URL from environment
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql+asyncpg://postgres:@Mgfj125256@localhost:5432/postgres')
-DATABASE_URL_SYNC = os.environ.get('DATABASE_URL_SYNC', 'postgresql://postgres:@Mgfj125256@localhost:5432/postgres')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql+asyncpg://postgres:%40Mgfj125256@db.kgzwiqxvtjnizcjsclnh.supabase.co:5432/postgres')
+DATABASE_URL_SYNC = os.environ.get('DATABASE_URL_SYNC', 'postgresql://postgres:%40Mgfj125256@db.kgzwiqxvtjnizcjsclnh.supabase.co:5432/postgres')
 
 # Create async engine
 engine = create_async_engine(
