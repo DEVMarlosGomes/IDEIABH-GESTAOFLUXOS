@@ -98,7 +98,7 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
     
     // Auto-fill contrato when projeto is selected
     if (field === 'projeto_id' && value) {
-      const projeto = mockProjetos.find(p => p.id === value);
+      const projeto = projetos.find(p => p.id === value);
       if (projeto) {
         setFormData(prev => ({ ...prev, contrato_id: projeto.contrato_id }));
       }
