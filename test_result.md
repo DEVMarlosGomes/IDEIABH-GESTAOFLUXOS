@@ -271,15 +271,18 @@ backend:
 
   - task: "Edição de Tarefas (admin/gerente)"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "PUT /api/tarefas/{id} com verificação de permissão admin/gerente. Operadores recebem 403."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Edição de tarefas funcionando perfeitamente: PUT /api/tarefas/{id} com usuario_role='operador' retorna 403 Forbidden conforme esperado, usuario_role='gerente' permite edição (título, prazo, prioridade), usuario_role='admin' permite edição completa. Permissões implementadas corretamente."
 
   - task: "Recálculo Automático de Prazos"
     implemented: true
