@@ -928,7 +928,11 @@ async def criar_tarefa(input: TarefaCreate):
 
 @api_router.put("/tarefas/{tarefa_id}", response_model=dict)
 async def atualizar_tarefa(tarefa_id: str, input: TarefaUpdate):
-    """Atualiza uma tarefa (não permite reverter finalização)"""
+    """Atualiza uma tarefa (apenas admin ou gerente podem editar)"""
+    # Verificar permissão - apenas admin e gerente podem editar
+    if input.usuario_role not in ["admin", "gerente"]:
+        raise HTTPException(status_code=403, detail="Apenas administradores e gerentes podem editar tarefas")
+    
     tarefa = await db.tarefas.find_one({"id": tarefa_id})
     if not tarefa:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
@@ -957,11 +961,12 @@ async def atualizar_tarefa(tarefa_id: str, input: TarefaUpdate):
             detalhes.append(f"Responsável alterado para: {input.responsavel_nome}")
     
     if input.prazo and input.prazo != tarefa.get("prazo"):
+        prazo_anterior = tarefa.get("prazo")
         update_data["prazo"] = input.prazo
         dias_atraso, atrasada = await calcular_dias_atraso(input.prazo)
         update_data["dias_atraso"] = dias_atraso
         update_data["atrasada"] = atrasada
-        detalhes.append(f"Prazo alterado para: {input.prazo}")
+        detalhes.append(f"Prazo alterado de {prazo_anterior} para: {input.prazo}")
     
     if input.prioridade and input.prioridade != tarefa.get("prioridade"):
         update_data["prioridade"] = input.prioridade
