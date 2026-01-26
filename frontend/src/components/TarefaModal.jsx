@@ -228,11 +228,15 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {mockContratos.map((contrato) => (
-                      <SelectItem key={contrato.id} value={contrato.id}>
-                        {contrato.numero_contrato}
-                      </SelectItem>
-                    ))}
+                    {contratos.length > 0 ? (
+                      contratos.map((contrato) => (
+                        <SelectItem key={contrato.id} value={contrato.id}>
+                          {contrato.numero_contrato} - {contrato.cliente}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>Nenhum contrato encontrado</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
