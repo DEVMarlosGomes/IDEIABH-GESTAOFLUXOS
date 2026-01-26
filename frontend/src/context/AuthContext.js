@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { mockUsers } from '../data/mock';
+import api from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -20,47 +20,38 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
-    // Mock login - in real app, this would call the API
-    const foundUser = mockUsers.find(u => u.email === email);
-    
-    if (foundUser && password === '123456') {
-      const mockToken = 'mock-jwt-token-' + Date.now();
-      setUser(foundUser);
+  const login = async (username, password) => {
+    try {
+      const response = await api.post('/api/auth/login', { username, password });
+      const userData = response.data.user;
+      
+      const mockToken = 'jwt-token-' + Date.now();
+      setUser(userData);
       setToken(mockToken);
       localStorage.setItem('token', mockToken);
-      localStorage.setItem('user', JSON.stringify(foundUser));
-      return { success: true, user: foundUser };
+      localStorage.setItem('user', JSON.stringify(userData));
+      return { success: true, user: userData };
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || 'Erro ao fazer login';
+      return { success: false, error: errorMsg };
     }
-    
-    return { success: false, error: 'Email ou senha incorretos' };
   };
 
-  const register = async (nome, email, password) => {
-    // Mock register
-    const newUser = {
-      id: 'user-' + Date.now(),
-      nome,
-      email,
-      role: 'operador',
-      ativo: true,
-      permissoes: {
-        dashboard: true,
-        contratos_visualizar: true,
-        projetos_visualizar: true,
-        tarefas_visualizar: true,
-        tarefas_concluir: true,
-        admin: false
-      }
-    };
-    
-    const mockToken = 'mock-jwt-token-' + Date.now();
-    setUser(newUser);
-    setToken(mockToken);
-    localStorage.setItem('token', mockToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
-    
-    return { success: true, user: newUser };
+  const register = async (nome, email, username, password, role = 'operador', setor = null) => {
+    try {
+      const response = await api.post('/api/auth/register', {
+        nome,
+        email,
+        username,
+        password,
+        role,
+        setor
+      });
+      return { success: true, message: response.data.message };
+    } catch (err) {
+      const errorMsg = err.response?.data?.detail || 'Erro ao registrar';
+      return { success: false, error: errorMsg };
+    }
   };
 
   const logout = () => {
@@ -72,6 +63,10 @@ export const AuthProvider = ({ children }) => {
 
   const hasPermission = (permission) => {
     if (!user) return false;
+    // Admin tem todas as permissões
+    if (user.role === 'admin') return true;
+    // Gerente tem permissões de gerente
+    if (permission === 'gerente' && user.role === 'gerente') return true;
     return user.permissoes?.[permission] === true;
   };
 
