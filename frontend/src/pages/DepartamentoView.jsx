@@ -571,6 +571,16 @@ const DepartamentoView = ({ departamento }) => {
         tarefa={selectedTarefa}
       />
 
+      <EditarTarefaModal
+        isOpen={showEditarModal}
+        onClose={() => {
+          setShowEditarModal(false);
+          setSelectedTarefa(null);
+        }}
+        tarefa={selectedTarefa}
+        onSuccess={loadData}
+      />
+
       {/* Delete Confirmation */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
