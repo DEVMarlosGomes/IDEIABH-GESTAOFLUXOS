@@ -299,6 +299,18 @@ backend:
         agent: "testing"
         comment: "✅ PASSED - Recálculo automático funcionando perfeitamente: Ao finalizar primeira tarefa de um projeto com POST /api/tarefas/{id}/finalizar, a resposta contém 'prazos_recalculados' com array de 31 tarefas atualizadas. Verificado que as próximas tarefas tiveram seus prazos recalculados baseado na data de finalização real. Sistema registra no histórico de cada tarefa."
 
+  - task: "Criar Tarefa Durante Projeto em Andamento"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Criação de tarefas durante projeto funcionando: POST /api/tarefas com projeto_id existente vincula corretamente a nova tarefa ao projeto. Verificado que a tarefa aparece na listagem do projeto GET /api/tarefas?projeto_id={id}. Funcionalidade permite adicionar tarefas extras durante execução do projeto."
+
 frontend:
   - task: "Modal Criar Tarefa"
     implemented: true
