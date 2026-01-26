@@ -19,8 +19,8 @@ import {
   SelectValue,
 } from './ui/select';
 import { useAuth } from '../context/AuthContext';
-import { criarTarefa, getStatusTarefas } from '../services/api';
-import { mockProjetos, mockContratos, DEPARTAMENTOS } from '../data/mockNovo';
+import { criarTarefa, getStatusTarefas, getProjetos, getContratos } from '../services/api';
+import { DEPARTAMENTOS } from '../data/mockNovo';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 const PRIORIDADES = [
@@ -35,6 +35,8 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [statusList, setStatusList] = useState([]);
+  const [projetos, setProjetos] = useState([]);
+  const [contratos, setContratos] = useState([]);
   
   const [formData, setFormData] = useState({
     titulo: '',
@@ -49,21 +51,39 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
   });
 
   useEffect(() => {
-    const fetchStatusList = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getStatusTarefas();
-        setStatusList(data);
-        // Set default status (first one - Pendente)
-        if (data.length > 0) {
-          setFormData(prev => ({ ...prev, status_id: prev.status_id || data[0].id }));
+        // Fetch status list
+        const statusData = await getStatusTarefas();
+        setStatusList(statusData);
+        if (statusData.length > 0) {
+          setFormData(prev => ({ ...prev, status_id: prev.status_id || statusData[0].id }));
+        }
+        
+        // Fetch projetos from API
+        try {
+          const projetosData = await getProjetos();
+          setProjetos(projetosData || []);
+        } catch (err) {
+          console.error('Error loading projetos:', err);
+          setProjetos([]);
+        }
+        
+        // Fetch contratos from API
+        try {
+          const contratosData = await getContratos();
+          setContratos(contratosData || []);
+        } catch (err) {
+          console.error('Error loading contratos:', err);
+          setContratos([]);
         }
       } catch (err) {
-        console.error('Error loading status list:', err);
+        console.error('Error loading data:', err);
       }
     };
 
     if (isOpen) {
-      fetchStatusList();
+      fetchData();
       setFormData(prev => ({
         ...prev,
         projeto_id: projetoId || '',
