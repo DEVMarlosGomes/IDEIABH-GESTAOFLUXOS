@@ -286,15 +286,18 @@ backend:
 
   - task: "Recálculo Automático de Prazos"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Ao finalizar tarefa, recalcula prazos das próximas baseado na data de entrega real. Registra no histórico."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASSED - Recálculo automático funcionando perfeitamente: Ao finalizar primeira tarefa de um projeto com POST /api/tarefas/{id}/finalizar, a resposta contém 'prazos_recalculados' com array de 31 tarefas atualizadas. Verificado que as próximas tarefas tiveram seus prazos recalculados baseado na data de finalização real. Sistema registra no histórico de cada tarefa."
 
 frontend:
   - task: "Modal Criar Tarefa"
