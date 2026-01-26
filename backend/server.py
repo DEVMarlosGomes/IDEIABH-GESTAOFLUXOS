@@ -423,6 +423,87 @@ async def get_status_padrao():
     return await db.status_tarefas.find({"ativo": True}, {"_id": 0}).sort("ordem", 1).to_list(100)
 
 
+async def recalcular_prazos_projeto(projeto_id: str, tarefa_finalizada_id: str, data_finalizacao: datetime):
+    """
+    Recalcula os prazos das tarefas seguintes baseado na data de finalização da tarefa anterior.
+    O prazo da próxima etapa será: data_finalizacao + diferença_dias_original
+    """
+    from datetime import timedelta
+    
+    # Buscar a tarefa finalizada para obter a ordem
+    tarefa_finalizada = await db.tarefas.find_one({"id": tarefa_finalizada_id}, {"_id": 0})
+    
+    if not tarefa_finalizada:
+        return []
+    
+    # Buscar todas as tarefas do projeto ordenadas por prazo original
+    tarefas_projeto = await db.tarefas.find(
+        {"projeto_id": projeto_id, "finalizada": False}
+    ).sort("prazo_original", 1).to_list(1000)
+    
+    if not tarefas_projeto:
+        return []
+    
+    # Data base é a data de finalização real
+    data_base = data_finalizacao.date() if isinstance(data_finalizacao, datetime) else datetime.fromisoformat(str(data_finalizacao)).date()
+    prazo_anterior = tarefa_finalizada.get("prazo_original") or tarefa_finalizada.get("prazo")
+    
+    tarefas_atualizadas = []
+    
+    for tarefa in tarefas_projeto:
+        # Calcular diferença de dias original entre esta tarefa e a anterior
+        if tarefa.get("prazo_original") and prazo_anterior:
+            try:
+                prazo_original_tarefa = datetime.fromisoformat(tarefa["prazo_original"]).date()
+                prazo_original_anterior = datetime.fromisoformat(prazo_anterior).date()
+                dias_diferenca = (prazo_original_tarefa - prazo_original_anterior).days
+                if dias_diferenca < 0:
+                    dias_diferenca = 1  # Mínimo 1 dia
+            except:
+                dias_diferenca = 1
+        else:
+            dias_diferenca = 1
+        
+        # Novo prazo baseado na data de finalização real + diferença
+        novo_prazo = data_base + timedelta(days=max(dias_diferenca, 1))
+        prazo_antigo = tarefa.get("prazo")
+        
+        # Atualizar tarefa
+        historico_entry = {
+            "id": str(uuid.uuid4()),
+            "acao": "prazo_recalculado",
+            "usuario_id": "sistema",
+            "usuario_nome": "Sistema",
+            "setor": "sistema",
+            "data": datetime.now(timezone.utc).isoformat(),
+            "detalhes": f"Prazo recalculado de {prazo_antigo} para {novo_prazo.isoformat()} (baseado na entrega anterior)"
+        }
+        
+        await db.tarefas.update_one(
+            {"id": tarefa["id"]},
+            {
+                "$set": {
+                    "prazo": novo_prazo.isoformat(),
+                    "atualizado_em": datetime.now(timezone.utc).isoformat()
+                },
+                "$push": {"historico": historico_entry}
+            }
+        )
+        
+        tarefas_atualizadas.append({
+            "id": tarefa["id"],
+            "titulo": tarefa["titulo"],
+            "prazo_anterior": prazo_antigo,
+            "novo_prazo": novo_prazo.isoformat()
+        })
+        
+        # Atualizar referências para próxima iteração
+        data_base = novo_prazo
+        prazo_anterior = tarefa.get("prazo_original")
+    
+    return tarefas_atualizadas
+
+
 # ==========================================
 # ROUTES - Health Check
 # ==========================================
