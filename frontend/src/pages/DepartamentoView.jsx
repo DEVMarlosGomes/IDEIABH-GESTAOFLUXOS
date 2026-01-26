@@ -169,6 +169,11 @@ const DepartamentoView = ({ departamento }) => {
     setShowHistoricoModal(true);
   };
 
+  const handleEditar = (tarefa) => {
+    setSelectedTarefa(tarefa);
+    setShowEditarModal(true);
+  };
+
   const handleDelete = (tarefa) => {
     setSelectedTarefa(tarefa);
     setShowDeleteDialog(true);
