@@ -53,6 +53,9 @@ const DepartamentoView = ({ departamento }) => {
   const isAdmin = user?.role === 'admin' || hasPermission('admin');
   const isGerente = user?.role === 'gerente' || hasPermission('gerente');
   
+  // Debug - remover depois
+  console.log('DepartamentoView - user:', user, 'isAdmin:', isAdmin, 'isGerente:', isGerente);
+  
   const [projetos] = useState(mockProjetos);
   const [tarefas, setTarefas] = useState([]);
   const [statusList, setStatusList] = useState([]);
