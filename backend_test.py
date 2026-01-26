@@ -966,7 +966,7 @@ class IDEIABHAPITester:
 
     def run_all_tests(self):
         """Run all test suites"""
-        print(f"{Colors.BOLD}IDEIABH Backend API Testing - Comprehensive Review{Colors.ENDC}")
+        print(f"{Colors.BOLD}IDEIABH Backend API Testing - Novas Funcionalidades{Colors.ENDC}")
         print(f"Testing against: {self.base_url}")
         print("=" * 60)
 
@@ -976,10 +976,15 @@ class IDEIABHAPITester:
             self.test_templates_prazos()
             self.test_contratos_creation()
             self.test_listar_dados_criados()
-            self.test_dashboard_avancado()
-            self.test_relatorios_atrasos()
+            
+            # NEW FUNCTIONALITY TESTS (as requested in review)
+            self.test_edicao_tarefas_permissao()
+            self.test_recalculo_automatico_prazos()
+            self.test_criar_tarefa_projeto_andamento()
             
             # Additional comprehensive tests
+            self.test_dashboard_avancado()
+            self.test_relatorios_atrasos()
             self.test_status_tarefas_crud()
             self.test_tarefas_crud()
             self.test_finalizar_tarefa()
