@@ -269,6 +269,30 @@ backend:
         agent: "testing"
         comment: "✅ PASSED - Listagem funcionando: GET /api/contratos, GET /api/projetos, GET /api/tarefas retornam dados corretos. Contratos e projetos criados aparecem nas listagens. Filtros funcionando."
 
+  - task: "Edição de Tarefas (admin/gerente)"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "PUT /api/tarefas/{id} com verificação de permissão admin/gerente. Operadores recebem 403."
+
+  - task: "Recálculo Automático de Prazos"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Ao finalizar tarefa, recalcula prazos das próximas baseado na data de entrega real. Registra no histórico."
+
 frontend:
   - task: "Modal Criar Tarefa"
     implemented: true
