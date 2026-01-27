@@ -46,7 +46,10 @@ const TarefaCard = ({
     return colors[status] || '#64748b';
   };
 
-  const handleClick = () => {
+  const handleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('TarefaCard clicado:', tarefa.titulo);
     onClick?.(tarefa);
   };
 
@@ -54,6 +57,7 @@ const TarefaCard = ({
     <Card 
       className={`tarefa-card clickable ${tarefa.finalizada ? 'finalizada' : ''} ${tarefa.atrasada ? 'atrasada' : ''} ${compact ? 'compact' : ''}`}
       onClick={handleClick}
+      style={{ cursor: 'pointer' }}
     >
       <CardContent className="tarefa-content">
         {/* Header */}
