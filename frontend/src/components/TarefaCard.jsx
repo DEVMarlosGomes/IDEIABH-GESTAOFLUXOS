@@ -9,19 +9,9 @@ import {
   User,
   Building2,
   CheckCircle2,
-  MoreVertical,
-  Trash2,
-  History,
-  Edit,
-  Pencil
+  ChevronRight,
+  Eye
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 import { useAuth } from '../context/AuthContext';
 import './TarefaCard.css';
 
@@ -34,18 +24,12 @@ const PRIORIDADE_CONFIG = {
 
 const TarefaCard = ({ 
   tarefa, 
-  onFinalizar, 
-  onDelete, 
-  onVerHistorico,
-  onEditar,
+  onClick,
   compact = false 
 }) => {
-  const { user, isAdminOrGerente } = useAuth();
+  const { isAdminOrGerente } = useAuth();
   const prioridade = PRIORIDADE_CONFIG[tarefa.prioridade] || PRIORIDADE_CONFIG.media;
-  
-  // Verificar permissão diretamente do contexto
-  const canEdit = isAdminOrGerente();
-  const isAdmin = user?.role === 'admin';
+  const canManage = isAdminOrGerente();
   
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -62,8 +46,15 @@ const TarefaCard = ({
     return colors[status] || '#64748b';
   };
 
+  const handleClick = () => {
+    onClick?.(tarefa);
+  };
+
   return (
-    <Card className={`tarefa-card ${tarefa.finalizada ? 'finalizada' : ''} ${tarefa.atrasada ? 'atrasada' : ''} ${compact ? 'compact' : ''}`}>
+    <Card 
+      className={`tarefa-card clickable ${tarefa.finalizada ? 'finalizada' : ''} ${tarefa.atrasada ? 'atrasada' : ''} ${compact ? 'compact' : ''}`}
+      onClick={handleClick}
+    >
       <CardContent className="tarefa-content">
         {/* Header */}
         <div className="tarefa-header">
@@ -91,141 +82,56 @@ const TarefaCard = ({
             </div>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="tarefa-menu-btn">
-                <MoreVertical size={16} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {onVerHistorico && (
-                <DropdownMenuItem onClick={() => onVerHistorico(tarefa)}>
-                  <History size={14} className="mr-2" />
-                  Ver Histórico
-                </DropdownMenuItem>
-              )}
-              {!tarefa.finalizada && canEdit && onEditar && (
-                <DropdownMenuItem onClick={() => onEditar(tarefa)}>
-                  <Edit size={14} className="mr-2" />
-                  Editar Tarefa
-                </DropdownMenuItem>
-              )}
-              {!tarefa.finalizada && onFinalizar && (
-                <DropdownMenuItem onClick={() => onFinalizar(tarefa)}>
-                  <CheckCircle2 size={14} className="mr-2" />
-                  Finalizar
-                </DropdownMenuItem>
-              )}
-              {isAdmin && onDelete && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => onDelete(tarefa)}
-                    className="text-red-600"
-                  >
-                    <Trash2 size={14} className="mr-2" />
-                    Excluir
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="tarefa-action-hint">
+            <Eye size={18} className="text-gray-400" />
+            <ChevronRight size={18} className="text-gray-400" />
+          </div>
         </div>
 
-        {/* Description */}
+        {/* Description Preview */}
         {tarefa.descricao && (
-          <p className="tarefa-descricao">{tarefa.descricao}</p>
+          <p className="tarefa-descricao line-clamp-2">{tarefa.descricao}</p>
         )}
 
-        {/* Info Grid */}
-        <div className="tarefa-info-grid">
-          <div className="tarefa-info-item">
+        {/* Info Grid - Compact */}
+        <div className="tarefa-info-compact">
+          <div className="info-item">
             <Building2 size={14} />
-            <div>
-              <span className="info-label">Setor</span>
-              <span className="info-value">{tarefa.setor || '-'}</span>
-            </div>
+            <span>{tarefa.setor || '-'}</span>
           </div>
 
           {tarefa.responsavel_nome && (
-            <div className="tarefa-info-item">
+            <div className="info-item">
               <User size={14} />
-              <div>
-                <span className="info-label">Responsável</span>
-                <span className="info-value">{tarefa.responsavel_nome}</span>
-              </div>
+              <span>{tarefa.responsavel_nome}</span>
             </div>
           )}
 
           {tarefa.prazo && (
-            <div className="tarefa-info-item">
+            <div className={`info-item ${tarefa.atrasada ? 'text-red-600' : ''}`}>
               <Calendar size={14} />
-              <div>
-                <span className="info-label">Prazo</span>
-                <span className={`info-value ${tarefa.atrasada ? 'text-red-600' : ''}`}>
-                  {formatDate(tarefa.prazo)}
-                </span>
-              </div>
+              <span>{formatDate(tarefa.prazo)}</span>
             </div>
           )}
-
-          <div className="tarefa-info-item">
-            <Clock size={14} />
-            <div>
-              <span className="info-label">Criado em</span>
-              <span className="info-value">{formatDate(tarefa.criado_em)}</span>
-            </div>
-          </div>
         </div>
 
-        {/* Criador Info */}
-        <div className="tarefa-criador">
-          <span className="text-xs text-gray-500">
-            Criado por: <strong>{tarefa.criado_por_nome}</strong> ({tarefa.criado_por_setor})
+        {/* Observação de Finalização Preview */}
+        {tarefa.finalizada && tarefa.observacao_finalizacao && (
+          <div className="tarefa-finalizacao-preview">
+            <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
+            <span className="line-clamp-1">{tarefa.observacao_finalizacao}</span>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="tarefa-footer">
+          <span className="criador-info">
+            Por: {tarefa.criado_por_nome}
+          </span>
+          <span className="click-hint">
+            Clique para {canManage ? 'ver/editar' : 'ver detalhes'}
           </span>
         </div>
-
-        {/* Observação de Finalização */}
-        {tarefa.finalizada && tarefa.observacao_finalizacao && (
-          <div className="tarefa-finalizacao">
-            <CheckCircle2 size={14} className="text-green-600" />
-            <div>
-              <span className="text-xs text-gray-500">
-                Finalizada em {formatDate(tarefa.data_finalizacao)}
-              </span>
-              <p className="text-sm text-gray-700 mt-1">
-                {tarefa.observacao_finalizacao}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Botões de Ação - SEMPRE VISÍVEIS PARA ADMIN/GERENTE */}
-        {!tarefa.finalizada && (
-          <div className="tarefa-actions">
-            {canEdit && onEditar && (
-              <Button 
-                onClick={() => onEditar(tarefa)}
-                variant="outline"
-                size="sm"
-                className="btn-editar"
-              >
-                <Pencil size={16} className="mr-2" />
-                Editar
-              </Button>
-            )}
-            {onFinalizar && (
-              <Button 
-                onClick={() => onFinalizar(tarefa)}
-                className="bg-green-600 hover:bg-green-700"
-                size="sm"
-              >
-                <CheckCircle2 size={16} className="mr-2" />
-                Finalizar com Observação
-              </Button>
-            )}
-          </div>
-        )}
       </CardContent>
     </Card>
   );
