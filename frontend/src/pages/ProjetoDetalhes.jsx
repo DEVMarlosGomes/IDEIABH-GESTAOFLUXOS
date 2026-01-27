@@ -17,16 +17,28 @@ import {
   FileText,
   Loader2,
   Target,
-  Activity
+  Activity,
+  Eye
 } from 'lucide-react';
-import { getProjeto } from '../services/api';
+import { getProjeto, deletarTarefa } from '../services/api';
 import { toast } from 'sonner';
+import { useAuth } from '../context/AuthContext';
+import TarefaDetalhesModal from '../components/TarefaDetalhesModal';
+import EditarTarefaModal from '../components/EditarTarefaModal';
+import FinalizarTarefaModal from '../components/FinalizarTarefaModal';
 
 const ProjetoDetalhes = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, isAdminOrGerente } = useAuth();
   const [projeto, setProjeto] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Modals
+  const [showDetalhesModal, setShowDetalhesModal] = useState(false);
+  const [showEditarModal, setShowEditarModal] = useState(false);
+  const [showFinalizarModal, setShowFinalizarModal] = useState(false);
+  const [selectedTarefa, setSelectedTarefa] = useState(null);
 
   useEffect(() => {
     loadProjeto();
@@ -42,6 +54,36 @@ const ProjetoDetalhes = () => {
       toast.error('Erro ao carregar detalhes do projeto');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTarefaClick = (tarefa) => {
+    setSelectedTarefa(tarefa);
+    setShowDetalhesModal(true);
+  };
+
+  const handleEditar = (tarefa) => {
+    setSelectedTarefa(tarefa);
+    setShowEditarModal(true);
+  };
+
+  const handleFinalizar = (tarefa) => {
+    setSelectedTarefa(tarefa);
+    setShowFinalizarModal(true);
+  };
+
+  const handleExcluir = async (tarefa) => {
+    const canManage = isAdminOrGerente ? isAdminOrGerente() : false;
+    if (!canManage) {
+      toast.error('Apenas administradores e gerentes podem excluir tarefas');
+      return;
+    }
+    try {
+      await deletarTarefa(tarefa.id, user?.role || 'admin', user?.id || 'unknown');
+      toast.success('Tarefa excluída com sucesso');
+      loadProjeto();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erro ao excluir tarefa');
     }
   };
 
