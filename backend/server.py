@@ -1105,17 +1105,17 @@ async def alterar_status_tarefa(tarefa_id: str, input: TarefaAlterarStatus):
 
 @api_router.delete("/tarefas/{tarefa_id}")
 async def deletar_tarefa(tarefa_id: str, user_role: str = Query(...), user_id: str = Query(...)):
-    """Deleta uma tarefa (apenas admin pode deletar qualquer tarefa)"""
+    """Deleta uma tarefa (apenas admin ou gerente podem deletar)"""
     tarefa = await db.tarefas.find_one({"id": tarefa_id})
     if not tarefa:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
     
-    # Only admin can delete any task
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem deletar tarefas")
+    # Admin e gerente podem deletar tarefas
+    if user_role not in ["admin", "gerente"]:
+        raise HTTPException(status_code=403, detail="Apenas administradores e gerentes podem deletar tarefas")
     
     await db.tarefas.delete_one({"id": tarefa_id})
-    logger.info(f"Tarefa deletada: {tarefa_id} por user {user_id}")
+    logger.info(f"Tarefa deletada: {tarefa_id} por user {user_id} (role: {user_role})")
     
     return {"message": "Tarefa deletada com sucesso"}
 
