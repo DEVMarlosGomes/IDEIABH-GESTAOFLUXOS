@@ -2268,59 +2268,86 @@ async def dashboard_avancado():
 
 @api_router.post("/templates-prazos/criar-padrao")
 async def criar_template_padrao(user_id: str = Query(...), user_role: str = Query(...)):
-    """Cria o template padrão de prazos baseado nas etapas do sistema"""
+    """Cria o template padrão de prazos baseado nas etapas do sistema - Versão 2026.01"""
     if user_role != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores podem criar templates")
     
-    # Template baseado nas etapas do mockNovo.js
+    # Template baseado no documento oficial IDEIABH - Versão 2026.01
     etapas_padrao = [
-        # ATENDIMENTO
-        {"etapa_id": 1, "etapa_nome": "Informar recebimento do contrato", "departamento": "atendimento", "prazo_dias": 1},
-        {"etapa_id": 2, "etapa_nome": "Ativar contrato no site", "departamento": "atendimento", "prazo_dias": 1},
-        {"etapa_id": 3, "etapa_nome": "1º contato com a comissão", "departamento": "atendimento", "prazo_dias": 2},
-        {"etapa_id": 4, "etapa_nome": "Reunião de atendimento", "departamento": "atendimento", "prazo_dias": 15},
-        {"etapa_id": 5, "etapa_nome": "Envio do questionário de criação", "departamento": "atendimento", "prazo_dias": 1},
-        {"etapa_id": 6, "etapa_nome": "Recebimento do questionário preenchido", "departamento": "atendimento", "prazo_dias": 30},
-        {"etapa_id": 7, "etapa_nome": "Envio do e-mail de layout de fotos", "departamento": "atendimento", "prazo_dias": 1},
-        {"etapa_id": 8, "etapa_nome": "Enviar layout para comissão", "departamento": "atendimento", "prazo_dias": 1},
-        {"etapa_id": 9, "etapa_nome": "Agendar reunião de criação", "departamento": "atendimento", "prazo_dias": 5},
-        {"etapa_id": 10, "etapa_nome": "Liberação das fotos", "departamento": "atendimento", "prazo_dias": 3},
-        {"etapa_id": 11, "etapa_nome": "Cadastro de textos/REV1", "departamento": "atendimento", "prazo_dias": 2},
-        {"etapa_id": 12, "etapa_nome": "Acompanhar aprovação", "departamento": "atendimento", "prazo_dias": 7},
+        # =====================================================
+        # 🟦 ATENDIMENTO - Ana, Larissa, Keyla, Mickaela
+        # =====================================================
+        {"etapa_id": 1, "etapa_nome": "Informar que recebeu o contrato", "departamento": "atendimento", "prazo_dias": 0, "descricao": "No mesmo dia que receber"},
+        {"etapa_id": 2, "etapa_nome": "Ativar contrato no site", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após receber o contrato"},
+        {"etapa_id": 3, "etapa_nome": "1º contato com a comissão", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após receber o contrato"},
+        {"etapa_id": 4, "etapa_nome": "Reunião de atendimento", "departamento": "atendimento", "prazo_dias": 15, "descricao": "15 dias após o primeiro contato"},
+        {"etapa_id": 5, "etapa_nome": "Envio do questionário de criação à comissão", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após a reunião"},
+        {"etapa_id": 6, "etapa_nome": "Recebimento do questionário preenchido", "departamento": "atendimento", "prazo_dias": 60, "descricao": "2 meses - Lembretes automáticos"},
+        {"etapa_id": 7, "etapa_nome": "Envio do e-mail de layout de fotos", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após reunião"},
+        {"etapa_id": 8, "etapa_nome": "Enviar layout para a comissão", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após receber da Criação"},
+        {"etapa_id": 9, "etapa_nome": "Agendar reunião de criação", "departamento": "atendimento", "prazo_dias": 10, "descricao": "10 dias antes da entrega de textos/fotos"},
+        {"etapa_id": 10, "etapa_nome": "Liberação das fotos para pré produção", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após recebimento"},
+        {"etapa_id": 11, "etapa_nome": "Cadastro de textos / REV1", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após cadastro"},
+        {"etapa_id": 12, "etapa_nome": "Acompanhar aprovação e fazer cobrança", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia antes do site fechar"},
+        {"etapa_id": 13, "etapa_nome": "Aditivo contratual (se prazo perdido)", "departamento": "atendimento", "prazo_dias": 0, "descricao": "No mesmo dia que vencer"},
+        {"etapa_id": 14, "etapa_nome": "Cobrança e direcionamento para diretoria", "departamento": "atendimento", "prazo_dias": 7, "descricao": "1 semana sem movimentação"},
+        {"etapa_id": 15, "etapa_nome": "Envio do e-mail de conferência de lista", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após apresentação"},
+        {"etapa_id": 16, "etapa_nome": "Liberação do envelope de saída", "departamento": "atendimento", "prazo_dias": 2, "descricao": "2 dias"},
+        {"etapa_id": 17, "etapa_nome": "Atualização da planilha geral e relatório", "departamento": "atendimento", "prazo_dias": 7, "descricao": "Semanal - Quinta até 17h"},
         
-        # CRIAÇÃO
-        {"etapa_id": 18, "etapa_nome": "RC - Reunião de criação", "departamento": "criacao", "prazo_dias": 2},
-        {"etapa_id": 19, "etapa_nome": "Envio do briefing", "departamento": "criacao", "prazo_dias": 2},
-        {"etapa_id": 20, "etapa_nome": "Layout de Fotos", "departamento": "criacao", "prazo_dias": 5},
-        {"etapa_id": 24, "etapa_nome": "Início da criação", "departamento": "criacao", "prazo_dias": 10},
-        {"etapa_id": 25, "etapa_nome": "Criação do convite", "departamento": "criacao", "prazo_dias": 5},
-        {"etapa_id": 26, "etapa_nome": "Correções", "departamento": "criacao", "prazo_dias": 3},
-        {"etapa_id": 28, "etapa_nome": "Miolo aprovado", "departamento": "criacao", "prazo_dias": 2},
-        {"etapa_id": 29, "etapa_nome": "Capa aprovada", "departamento": "criacao", "prazo_dias": 2},
-        {"etapa_id": 30, "etapa_nome": "Demais Peças", "departamento": "criacao", "prazo_dias": 5},
-        {"etapa_id": 33, "etapa_nome": "Saída/Finalização", "departamento": "criacao", "prazo_dias": 3},
+        # =====================================================
+        # 🟨 CRIAÇÃO - Taelsei, Juliana, Clara, Suelen, Marcus, Fagner, Ketlen, Gabi
+        # =====================================================
+        {"etapa_id": 18, "etapa_nome": "RC - Reunião de criação", "departamento": "criacao", "prazo_dias": 1, "descricao": "Confirmar 1 dia antes"},
+        {"etapa_id": 19, "etapa_nome": "Envio do briefing para atendimento", "departamento": "criacao", "prazo_dias": 2, "descricao": "2 dias"},
+        {"etapa_id": 20, "etapa_nome": "Layout de Fotos", "departamento": "criacao", "prazo_dias": 3, "descricao": "3 dias após e-mail"},
+        {"etapa_id": 21, "etapa_nome": "Arte da Camisa (quando aplicável)", "departamento": "criacao", "prazo_dias": 3, "descricao": "3 dias após e-mail"},
+        {"etapa_id": 22, "etapa_nome": "Textos cadastrados - ciente", "departamento": "criacao", "prazo_dias": 0, "descricao": "Campo de confirmação"},
+        {"etapa_id": 23, "etapa_nome": "Recebimento das fotos da pré-produção", "departamento": "criacao", "prazo_dias": 0, "descricao": "Campo de confirmação"},
+        {"etapa_id": 24, "etapa_nome": "Início da criação do convite", "departamento": "criacao", "prazo_dias": 10, "descricao": "10 dias após textos/fotos"},
+        {"etapa_id": 25, "etapa_nome": "Dias de criação do convite", "departamento": "criacao", "prazo_dias": 3, "descricao": "3 dias de criação"},
+        {"etapa_id": 26, "etapa_nome": "Correções (ajustes de layout)", "departamento": "criacao", "prazo_dias": 3, "descricao": "3 dias após liberar site"},
+        {"etapa_id": 27, "etapa_nome": "Liberar demais peças para aprovação", "departamento": "criacao", "prazo_dias": 0, "descricao": "No mesmo dia"},
+        {"etapa_id": 28, "etapa_nome": "Informar miolo aprovado", "departamento": "criacao", "prazo_dias": 1, "descricao": "1 dia"},
+        {"etapa_id": 29, "etapa_nome": "Informar capa aprovada", "departamento": "criacao", "prazo_dias": 1, "descricao": "1 dia"},
+        {"etapa_id": 30, "etapa_nome": "Demais Peças (caixas, tags, folders)", "departamento": "criacao", "prazo_dias": 3, "descricao": "3 dias"},
+        {"etapa_id": 31, "etapa_nome": "Aprovação das páginas individuais", "departamento": "criacao", "prazo_dias": 0, "descricao": "Depende da CDC"},
+        {"etapa_id": 32, "etapa_nome": "Revisão - REV (verificação final)", "departamento": "criacao", "prazo_dias": 1, "descricao": "1 dia após miolo aprovado"},
+        {"etapa_id": 33, "etapa_nome": "Saída - Finalização e envio", "departamento": "criacao", "prazo_dias": 3, "descricao": "3 dias após aprovação total"},
         
-        # PRÉ-PRODUÇÃO
-        {"etapa_id": 34, "etapa_nome": "Recorte e tratamento", "departamento": "pre-producao", "prazo_dias": 10},
-        {"etapa_id": 35, "etapa_nome": "Recebimento envelope", "departamento": "pre-producao", "prazo_dias": 1},
-        {"etapa_id": 36, "etapa_nome": "Conferir textos", "departamento": "pre-producao", "prazo_dias": 2},
-        {"etapa_id": 37, "etapa_nome": "Envio para gráfica", "departamento": "pre-producao", "prazo_dias": 1},
+        # =====================================================
+        # 🟩 PRÉ-PRODUÇÃO - Carlos, Emanuel, Julio
+        # =====================================================
+        {"etapa_id": 34, "etapa_nome": "Recorte e tratamento das fotos", "departamento": "pre-producao", "prazo_dias": 10, "descricao": "10 dias"},
+        {"etapa_id": 35, "etapa_nome": "Recebimento do envelope de saída", "departamento": "pre-producao", "prazo_dias": 5, "descricao": "5 dias para finalizar"},
+        {"etapa_id": 36, "etapa_nome": "Conferir textos e revisão ortográfica", "departamento": "pre-producao", "prazo_dias": 2, "descricao": "Após receber envelope"},
+        {"etapa_id": 37, "etapa_nome": "Envio dos arquivos para gráfica", "departamento": "pre-producao", "prazo_dias": 1, "descricao": "Campo de justificativa"},
+        {"etapa_id": 38, "etapa_nome": "Conferência de xerox", "departamento": "pre-producao", "prazo_dias": 2, "descricao": "Impressão externa"},
+        {"etapa_id": 39, "etapa_nome": "Controle de impressões internas", "departamento": "pre-producao", "prazo_dias": 1, "descricao": "Campo de justificativa"},
         
-        # PRODUÇÃO
-        {"etapa_id": 40, "etapa_nome": "Triagem materiais", "departamento": "producao", "prazo_dias": 1},
-        {"etapa_id": 41, "etapa_nome": "Envio à gráfica", "departamento": "producao", "prazo_dias": 1},
-        {"etapa_id": 42, "etapa_nome": "Ordem de produção", "departamento": "producao", "prazo_dias": 1},
-        {"etapa_id": 43, "etapa_nome": "Costura e acabamento", "departamento": "producao", "prazo_dias": 7},
-        {"etapa_id": 44, "etapa_nome": "Conferência qualidade", "departamento": "producao", "prazo_dias": 1},
-        {"etapa_id": 45, "etapa_nome": "Entrega convites", "departamento": "producao", "prazo_dias": 1},
+        # =====================================================
+        # 🟥 PRODUÇÃO / ENTREGA - Ricardo
+        # =====================================================
+        {"etapa_id": 40, "etapa_nome": "Triagem de materiais", "departamento": "producao", "prazo_dias": 3, "descricao": "3 dias"},
+        {"etapa_id": 41, "etapa_nome": "Orçamentos nos fornecedores", "departamento": "producao", "prazo_dias": 2, "descricao": "Campo de justificativa"},
+        {"etapa_id": 42, "etapa_nome": "Envio do arquivo à gráfica", "departamento": "producao", "prazo_dias": 1, "descricao": "Depende da Pré-produção"},
+        {"etapa_id": 43, "etapa_nome": "Ordem de produção", "departamento": "producao", "prazo_dias": 1, "descricao": "Gerar ordem"},
+        {"etapa_id": 44, "etapa_nome": "Alinhar prazos com prestadores", "departamento": "producao", "prazo_dias": 2, "descricao": "Alinhamento"},
+        {"etapa_id": 45, "etapa_nome": "Costura e acabamento interno", "departamento": "producao", "prazo_dias": 5, "descricao": "Processo de acabamento"},
+        {"etapa_id": 46, "etapa_nome": "Conferência final de qualidade", "departamento": "producao", "prazo_dias": 1, "descricao": "Verificação final"},
+        {"etapa_id": 47, "etapa_nome": "Solicitar liberação ao financeiro", "departamento": "producao", "prazo_dias": 1, "descricao": "Solicitar liberação"},
+        {"etapa_id": 48, "etapa_nome": "Cotar fretes", "departamento": "producao", "prazo_dias": 2, "descricao": "Custos e prazos"},
+        {"etapa_id": 49, "etapa_nome": "Enviar convites e informar rastreio", "departamento": "producao", "prazo_dias": 1, "descricao": "Informar diretoria/atendimento"},
+        {"etapa_id": 50, "etapa_nome": "Entrega dos convites à comissão", "departamento": "producao", "prazo_dias": 3, "descricao": "Entrega final"},
+        {"etapa_id": 51, "etapa_nome": "Pós entrega (correções/extras)", "departamento": "producao", "prazo_dias": 5, "descricao": "Campo de justificativa"},
     ]
     
     prazo_total = sum(e["prazo_dias"] for e in etapas_padrao)
     
     template = {
         "id": str(uuid.uuid4()),
-        "nome": "Template Padrão IDEIABH",
-        "descricao": "Template completo com todas as etapas do processo de formaturas",
+        "nome": "Template Padrão IDEIABH - v2026.01",
+        "descricao": "Template completo com todas as 51 etapas do processo de formaturas - Versão 2026.01",
         "etapas": etapas_padrao,
         "prazo_total_dias": prazo_total,
         "ativo": True,
@@ -2334,7 +2361,7 @@ async def criar_template_padrao(user_id: str = Query(...), user_role: str = Quer
     # Remove _id before returning
     template.pop("_id", None)
     
-    return {"message": f"Template padrão criado com sucesso ({prazo_total} dias)", "template": template}
+    return {"message": f"Template padrão criado com sucesso ({prazo_total} dias, {len(etapas_padrao)} etapas)", "template": template}
 
 class StatusCheck(BaseModel):
     model_config = ConfigDict(extra="ignore")
