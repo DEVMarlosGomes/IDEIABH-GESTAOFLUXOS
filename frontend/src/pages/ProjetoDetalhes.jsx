@@ -363,6 +363,39 @@ const ProjetoDetalhes = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modals */}
+      <TarefaDetalhesModal
+        isOpen={showDetalhesModal}
+        onClose={() => {
+          setShowDetalhesModal(false);
+          setSelectedTarefa(null);
+        }}
+        tarefa={selectedTarefa}
+        onEditar={handleEditar}
+        onExcluir={handleExcluir}
+        onFinalizar={handleFinalizar}
+      />
+
+      <EditarTarefaModal
+        isOpen={showEditarModal}
+        onClose={() => {
+          setShowEditarModal(false);
+          setSelectedTarefa(null);
+        }}
+        tarefa={selectedTarefa}
+        onSuccess={loadProjeto}
+      />
+
+      <FinalizarTarefaModal
+        isOpen={showFinalizarModal}
+        onClose={() => {
+          setShowFinalizarModal(false);
+          setSelectedTarefa(null);
+        }}
+        tarefa={selectedTarefa}
+        onSuccess={loadProjeto}
+      />
     </LayoutNovo>
   );
 };
