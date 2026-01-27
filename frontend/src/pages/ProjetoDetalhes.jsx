@@ -298,9 +298,12 @@ const ProjetoDetalhes = () => {
                       return (
                         <div
                           key={tarefa.id}
-                          className={`border rounded-lg p-4 ${
+                          className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md hover:border-blue-400 ${
                             tarefa.atrasada ? 'bg-red-50 border-red-200' : 'bg-white'
                           }`}
+                          onClick={() => handleTarefaClick(tarefa)}
+                          role="button"
+                          tabIndex={0}
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
@@ -316,9 +319,12 @@ const ProjetoDetalhes = () => {
                                 <p className="text-sm text-gray-600 mb-2">{tarefa.descricao}</p>
                               )}
                             </div>
-                            <Badge className={statusBadge.color}>
-                              {statusBadge.label}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge className={statusBadge.color}>
+                                {statusBadge.label}
+                              </Badge>
+                              <Eye size={18} className="text-gray-400" />
+                            </div>
                           </div>
 
                           <div className="flex flex-wrap gap-4 text-sm text-gray-600">
@@ -341,6 +347,12 @@ const ProjetoDetalhes = () => {
                               </div>
                             )}
                           </div>
+                          
+                          {tarefa.observacao_finalizacao && (
+                            <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
+                              <strong>Observação:</strong> {tarefa.observacao_finalizacao}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
