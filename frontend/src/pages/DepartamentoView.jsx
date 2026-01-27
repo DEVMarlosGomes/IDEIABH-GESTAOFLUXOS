@@ -34,7 +34,7 @@ import TarefaModal from '../components/TarefaModal';
 import FinalizarTarefaModal from '../components/FinalizarTarefaModal';
 import StatusModal from '../components/StatusModal';
 import TarefaCard from '../components/TarefaCard';
-import HistoricoModal from '../components/HistoricoModal';
+import TarefaDetalhesModal from '../components/TarefaDetalhesModal';
 import EditarTarefaModal from '../components/EditarTarefaModal';
 import {
   AlertDialog,
@@ -63,9 +63,8 @@ const DepartamentoView = ({ departamento }) => {
   const [showTarefaModal, setShowTarefaModal] = useState(false);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [showHistoricoModal, setShowHistoricoModal] = useState(false);
+  const [showDetalhesModal, setShowDetalhesModal] = useState(false);
   const [showEditarModal, setShowEditarModal] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   
   const [selectedTarefa, setSelectedTarefa] = useState(null);
@@ -127,14 +126,14 @@ const DepartamentoView = ({ departamento }) => {
   };
 
   // Handlers
+  const handleCardClick = (tarefa) => {
+    setSelectedTarefa(tarefa);
+    setShowDetalhesModal(true);
+  };
+
   const handleFinalizar = (tarefa) => {
     setSelectedTarefa(tarefa);
     setShowFinalizarModal(true);
-  };
-
-  const handleVerHistorico = (tarefa) => {
-    setSelectedTarefa(tarefa);
-    setShowHistoricoModal(true);
   };
 
   const handleEditar = (tarefa) => {
@@ -142,26 +141,18 @@ const DepartamentoView = ({ departamento }) => {
     setShowEditarModal(true);
   };
 
-  const handleDelete = (tarefa) => {
+  const handleExcluir = async (tarefa) => {
     if (!canManage) {
       alert('Apenas administradores e gerentes podem excluir tarefas');
       return;
     }
-    setSelectedTarefa(tarefa);
-    setShowDeleteDialog(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!selectedTarefa) return;
     try {
-      await deletarTarefa(selectedTarefa.id, user?.role || 'admin', user?.id || 'unknown');
+      await deletarTarefa(tarefa.id, user?.role || 'admin', user?.id || 'unknown');
       await loadData();
     } catch (err) {
       console.error('Error deleting task:', err);
       alert(err.response?.data?.detail || 'Erro ao excluir tarefa');
     }
-    setShowDeleteDialog(false);
-    setSelectedTarefa(null);
   };
 
   const confirmDeleteAll = async () => {
@@ -299,6 +290,12 @@ const DepartamentoView = ({ departamento }) => {
           </Card>
         )}
 
+        {/* Dica de uso */}
+        <div className="tip-banner">
+          <span className="tip-icon">💡</span>
+          <span>Clique em uma tarefa para ver detalhes, editar ou excluir</span>
+        </div>
+
         {/* Tabs de tarefas */}
         <Card className="tarefas-section">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -348,10 +345,7 @@ const DepartamentoView = ({ departamento }) => {
                     <TarefaCard
                       key={tarefa.id}
                       tarefa={tarefa}
-                      onFinalizar={handleFinalizar}
-                      onDelete={handleDelete}
-                      onVerHistorico={handleVerHistorico}
-                      onEditar={handleEditar}
+                      onClick={handleCardClick}
                     />
                   ))}
                 </div>
@@ -371,8 +365,7 @@ const DepartamentoView = ({ departamento }) => {
                     <TarefaCard
                       key={tarefa.id}
                       tarefa={tarefa}
-                      onVerHistorico={handleVerHistorico}
-                      onDelete={handleDelete}
+                      onClick={handleCardClick}
                     />
                   ))}
                 </div>
@@ -392,10 +385,7 @@ const DepartamentoView = ({ departamento }) => {
                     <TarefaCard
                       key={tarefa.id}
                       tarefa={tarefa}
-                      onFinalizar={handleFinalizar}
-                      onDelete={handleDelete}
-                      onVerHistorico={handleVerHistorico}
-                      onEditar={handleEditar}
+                      onClick={handleCardClick}
                     />
                   ))}
                 </div>
@@ -430,13 +420,17 @@ const DepartamentoView = ({ departamento }) => {
         statusList={statusList}
       />
 
-      <HistoricoModal
-        isOpen={showHistoricoModal}
+      {/* Modal de Detalhes - Abre ao clicar na tarefa */}
+      <TarefaDetalhesModal
+        isOpen={showDetalhesModal}
         onClose={() => {
-          setShowHistoricoModal(false);
+          setShowDetalhesModal(false);
           setSelectedTarefa(null);
         }}
         tarefa={selectedTarefa}
+        onEditar={handleEditar}
+        onExcluir={handleExcluir}
+        onFinalizar={handleFinalizar}
       />
 
       <EditarTarefaModal
@@ -448,25 +442,6 @@ const DepartamentoView = ({ departamento }) => {
         tarefa={selectedTarefa}
         onSuccess={loadData}
       />
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Tarefa</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir a tarefa "{selectedTarefa?.titulo}"?
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Delete All Confirmation */}
       <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
