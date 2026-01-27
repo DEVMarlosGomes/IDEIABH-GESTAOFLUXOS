@@ -12,7 +12,8 @@ import {
   MoreVertical,
   Trash2,
   History,
-  Edit
+  Edit,
+  Pencil
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -21,6 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { useAuth } from '../context/AuthContext';
 import './TarefaCard.css';
 
 const PRIORIDADE_CONFIG = {
@@ -36,76 +38,62 @@ const TarefaCard = ({
   onDelete, 
   onVerHistorico,
   onEditar,
-  isAdmin = false,
-  isGerente = false,
   compact = false 
 }) => {
+  const { user, isAdminOrGerente } = useAuth();
   const prioridade = PRIORIDADE_CONFIG[tarefa.prioridade] || PRIORIDADE_CONFIG.media;
-  const canEdit = isAdmin || isGerente;
   
-  // Debug - remover depois
-  console.log('TarefaCard - isAdmin:', isAdmin, 'isGerente:', isGerente, 'canEdit:', canEdit, 'onEditar:', !!onEditar);
+  // Verificar permissão diretamente do contexto
+  const canEdit = isAdminOrGerente();
+  const isAdmin = user?.role === 'admin';
   
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('pt-BR');
   };
 
-  if (compact) {
-    return (
-      <div className="tarefa-card-compact">
-        <div className="tarefa-compact-header">
-          <span 
-            className="tarefa-status-dot" 
-            style={{ backgroundColor: tarefa.status_nome === 'Concluído' ? '#10b981' : '#3b82f6' }}
-          />
-          <span className="tarefa-titulo-compact">{tarefa.titulo}</span>
-          {tarefa.atrasada && (
-            <Badge variant="destructive" className="tarefa-atraso-badge">
-              <AlertTriangle size={12} />
-              {tarefa.dias_atraso}d
-            </Badge>
-          )}
-        </div>
-        <div className="tarefa-compact-info">
-          <span className="text-xs text-gray-500">
-            {tarefa.criado_por_nome} • {tarefa.setor}
-          </span>
-        </div>
-      </div>
-    );
-  }
+  const getStatusColor = (status) => {
+    const colors = {
+      'Pendente': '#94a3b8',
+      'Em Andamento': '#3b82f6',
+      'Aguardando': '#f59e0b',
+      'Concluído': '#10b981',
+    };
+    return colors[status] || '#64748b';
+  };
 
   return (
-    <Card className={`tarefa-card ${tarefa.finalizada ? 'tarefa-finalizada' : ''} ${tarefa.atrasada ? 'tarefa-atrasada' : ''}`}>
-      <CardContent className="p-4">
+    <Card className={`tarefa-card ${tarefa.finalizada ? 'finalizada' : ''} ${tarefa.atrasada ? 'atrasada' : ''} ${compact ? 'compact' : ''}`}>
+      <CardContent className="tarefa-content">
         {/* Header */}
         <div className="tarefa-header">
-          <div className="tarefa-title-section">
-            <h4 className="tarefa-titulo">{tarefa.titulo}</h4>
+          <div className="tarefa-title-area">
+            <h3 className="tarefa-title">{tarefa.titulo}</h3>
             <div className="tarefa-badges">
               <Badge 
-                style={{ 
-                  backgroundColor: tarefa.finalizada ? '#dcfce7' : '#dbeafe',
-                  color: tarefa.finalizada ? '#15803d' : '#1d4ed8',
-                }}
+                style={{ backgroundColor: getStatusColor(tarefa.status_nome) }}
+                className="status-badge"
               >
-                {tarefa.status_nome}
+                {tarefa.status_nome || 'Pendente'}
               </Badge>
               <Badge 
-                style={{ 
-                  backgroundColor: prioridade.bg,
-                  color: prioridade.cor,
-                }}
+                style={{ backgroundColor: prioridade.bg, color: prioridade.cor }}
+                className="prioridade-badge"
               >
                 {prioridade.label}
               </Badge>
+              {tarefa.atrasada && (
+                <Badge className="atraso-badge" variant="destructive">
+                  <AlertTriangle size={12} className="mr-1" />
+                  {tarefa.dias_atraso} dias
+                </Badge>
+              )}
             </div>
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" size="sm" className="tarefa-menu-btn">
                 <MoreVertical size={16} />
               </Button>
             </DropdownMenuTrigger>
@@ -144,17 +132,9 @@ const TarefaCard = ({
           </DropdownMenu>
         </div>
 
-        {/* Descrição */}
+        {/* Description */}
         {tarefa.descricao && (
           <p className="tarefa-descricao">{tarefa.descricao}</p>
-        )}
-
-        {/* Atraso Alert */}
-        {tarefa.atrasada && !tarefa.finalizada && (
-          <div className="tarefa-atraso-alert">
-            <AlertTriangle size={16} />
-            <span>{tarefa.dias_atraso} dias de atraso</span>
-          </div>
         )}
 
         {/* Info Grid */}
@@ -163,17 +143,19 @@ const TarefaCard = ({
             <Building2 size={14} />
             <div>
               <span className="info-label">Setor</span>
-              <span className="info-value">{tarefa.setor}</span>
+              <span className="info-value">{tarefa.setor || '-'}</span>
             </div>
           </div>
-          
-          <div className="tarefa-info-item">
-            <User size={14} />
-            <div>
-              <span className="info-label">Responsável</span>
-              <span className="info-value">{tarefa.responsavel_nome || 'Não definido'}</span>
+
+          {tarefa.responsavel_nome && (
+            <div className="tarefa-info-item">
+              <User size={14} />
+              <div>
+                <span className="info-label">Responsável</span>
+                <span className="info-value">{tarefa.responsavel_nome}</span>
+              </div>
             </div>
-          </div>
+          )}
 
           {tarefa.prazo && (
             <div className="tarefa-info-item">
@@ -218,7 +200,7 @@ const TarefaCard = ({
           </div>
         )}
 
-        {/* Botões de Ação */}
+        {/* Botões de Ação - SEMPRE VISÍVEIS PARA ADMIN/GERENTE */}
         {!tarefa.finalizada && (
           <div className="tarefa-actions">
             {canEdit && onEditar && (
@@ -226,8 +208,9 @@ const TarefaCard = ({
                 onClick={() => onEditar(tarefa)}
                 variant="outline"
                 size="sm"
+                className="btn-editar"
               >
-                <Edit size={16} className="mr-2" />
+                <Pencil size={16} className="mr-2" />
                 Editar
               </Button>
             )}

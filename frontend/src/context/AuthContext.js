@@ -14,8 +14,16 @@ export const AuthProvider = ({ children }) => {
     const savedUser = localStorage.getItem('user');
     
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setToken(savedToken);
+        setUser(parsedUser);
+        console.log('AuthContext - User loaded from localStorage:', parsedUser);
+      } catch (e) {
+        console.error('Error parsing saved user:', e);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
@@ -25,6 +33,8 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/api/auth/login', { username, password });
       const userData = response.data.user;
       
+      console.log('AuthContext - Login successful, user:', userData);
+      
       const mockToken = 'jwt-token-' + Date.now();
       setUser(userData);
       setToken(mockToken);
@@ -32,6 +42,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
       return { success: true, user: userData };
     } catch (err) {
+      console.error('AuthContext - Login error:', err);
       const errorMsg = err.response?.data?.detail || 'Erro ao fazer login';
       return { success: false, error: errorMsg };
     }
@@ -55,6 +66,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    console.log('AuthContext - Logout');
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
@@ -70,6 +82,10 @@ export const AuthProvider = ({ children }) => {
     return user.permissoes?.[permission] === true;
   };
 
+  const isAdminOrGerente = () => {
+    return user?.role === 'admin' || user?.role === 'gerente';
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -79,6 +95,7 @@ export const AuthProvider = ({ children }) => {
       register, 
       logout,
       hasPermission,
+      isAdminOrGerente,
       isAuthenticated: !!user 
     }}>
       {children}
