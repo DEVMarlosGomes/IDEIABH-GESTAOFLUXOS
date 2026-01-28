@@ -105,6 +105,8 @@ export default function RelatoriosNovo() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState(30);
   const [activeTab, setActiveTab] = useState('overview');
+  const [exporting, setExporting] = useState(false);
+  const reportRef = useRef(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -116,6 +118,90 @@ export default function RelatoriosNovo() {
       toast.error('Erro ao carregar relatórios');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Função para exportar PDF
+  const exportToPDF = async () => {
+    if (!reportRef.current) return;
+    
+    setExporting(true);
+    toast.info('Gerando PDF... Aguarde um momento.');
+    
+    try {
+      const element = reportRef.current;
+      
+      // Configurações para melhor qualidade
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Calcular dimensões do PDF
+      const imgWidth = 210; // A4 width em mm
+      const pageHeight = 297; // A4 height em mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Adicionar header
+      pdf.setFillColor(59, 130, 246);
+      pdf.rect(0, 0, 210, 25, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('IDEIABH - Relatório de Gestão', 105, 12, { align: 'center' });
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`Gerado em: ${new Date().toLocaleString('pt-BR')} | Período: ${range} dias`, 105, 20, { align: 'center' });
+      
+      // Adicionar imagem do relatório
+      let heightLeft = imgHeight;
+      let position = 30;
+      
+      // Primeira página
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= (pageHeight - position);
+      
+      // Páginas adicionais se necessário
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      // Adicionar rodapé em todas as páginas
+      const pageCount = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(128, 128, 128);
+        pdf.text(
+          `Página ${i} de ${pageCount} | IDEIABH Sistema de Gestão Operacional`,
+          105,
+          290,
+          { align: 'center' }
+        );
+      }
+      
+      // Salvar o PDF
+      const fileName = `relatorio_ideiabh_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+      
+      toast.success('PDF exportado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+      toast.error('Erro ao exportar PDF. Tente novamente.');
+    } finally {
+      setExporting(false);
     }
   };
 
