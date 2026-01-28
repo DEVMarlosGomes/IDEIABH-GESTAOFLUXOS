@@ -222,6 +222,25 @@
   flex-direction: column;
 }
 
+/* Modal responsivo para todas as páginas */
+.editor-modal,
+.aplicar-modal,
+[class*="DialogContent"] {
+  max-width: min(900px, calc(100vw - 32px)) !important;
+}
+
+@media (max-width: 639px) {
+  .editor-modal,
+  .aplicar-modal,
+  [class*="DialogContent"] {
+    max-width: calc(100vw - 16px) !important;
+    width: calc(100vw - 16px) !important;
+    margin: 8px !important;
+    max-height: calc(100vh - 16px) !important;
+    border-radius: 12px !important;
+  }
+}
+
 .editor-content {
   flex: 1;
   overflow-y: auto;
