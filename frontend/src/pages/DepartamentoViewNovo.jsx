@@ -187,7 +187,8 @@ Data: ${new Date().toLocaleString('pt-BR')}
         observacao: observacaoCompleta,
         usuario_id: user?.id || 'sistema',
         usuario_nome: user?.nome || user?.username || 'Sistema',
-        usuario_setor: departamento
+        usuario_setor: user?.setor || departamento,
+        usuario_role: user?.role || 'operador'
       });
 
       // Buscar próxima tarefa do projeto
