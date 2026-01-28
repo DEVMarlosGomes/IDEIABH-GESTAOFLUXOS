@@ -212,6 +212,7 @@ class TarefaFinalizar(BaseModel):
     usuario_id: str
     usuario_nome: str
     usuario_setor: str
+    usuario_role: str = "operador"
 
 
 class TarefaAlterarStatus(BaseModel):
