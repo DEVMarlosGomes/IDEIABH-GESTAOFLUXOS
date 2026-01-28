@@ -36,7 +36,8 @@ const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
         observacao: observacao.trim(),
         usuario_id: user?.id || 'unknown',
         usuario_nome: user?.nome || 'Usuário',
-        usuario_setor: tarefa.setor || 'Geral',
+        usuario_setor: user?.setor || 'Geral',
+        usuario_role: user?.role || 'operador',
       });
       
       setObservacao('');
