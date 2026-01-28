@@ -556,19 +556,22 @@
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 479px) {
   .templates-header {
     flex-direction: column;
     align-items: stretch;
+    gap: 8px;
   }
 
   .header-left,
   .header-right {
     justify-content: center;
+    flex-wrap: wrap;
   }
 
   .templates-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .result-info {
@@ -592,5 +595,105 @@
 
   .etapa-editor-item {
     flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .etapa-drag {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dept-resumo {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dept-item {
+    width: 100%;
+  }
+
+  .template-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .template-actions {
+    flex-direction: column;
+  }
+
+  .template-actions button {
+    width: 100%;
+  }
+
+  /* Modal específico */
+  .editor-content {
+    padding: 8px 0;
+  }
+
+  .etapas-section {
+    padding: 12px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .section-header button {
+    width: 100%;
+  }
+
+  .etapas-editor-list {
+    max-height: 300px;
+  }
+
+  .prazo-total-display {
+    justify-content: center;
+  }
+}
+
+@media (min-width: 480px) and (max-width: 768px) {
+  .templates-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-left,
+  .header-right {
+    justify-content: center;
+  }
+
+  .templates-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .result-info {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .etapa-fields {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .etapa-field.dept-field,
+  .etapa-field.prazo-field {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .etapa-editor-item {
+    flex-wrap: wrap;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .templates-grid {
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   }
 }
