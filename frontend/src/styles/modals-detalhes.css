@@ -748,55 +748,151 @@
 @media (max-width: 479px) {
   .projeto-modal-detalhado,
   .contrato-modal-detalhado {
-    max-width: calc(100vw - 32px) !important;
-    margin: 16px !important;
+    max-width: calc(100vw - 16px) !important;
+    width: calc(100vw - 16px) !important;
+    margin: 8px !important;
+    max-height: calc(100vh - 16px) !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  .modal-content {
+    max-height: calc(100vh - 140px);
+    padding: var(--space-sm) 0;
   }
 
   .modal-title {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-xs);
+    font-size: var(--fs-body) !important;
+  }
+
+  .status-badge-modal {
+    font-size: 10px !important;
+    padding: 2px 8px !important;
   }
 
   .modal-resumo {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-xs);
+    padding: var(--space-sm);
+  }
+
+  .resumo-item {
+    padding: var(--space-xs);
+  }
+
+  .resumo-label {
+    font-size: 9px;
+  }
+
+  .resumo-value {
+    font-size: var(--fs-body-sm);
   }
 
   .progresso-legend {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  .legend-item {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .departamento-section {
+    padding: var(--space-sm);
+  }
+
+  .dept-header-full {
+    padding: var(--space-xs);
+    padding-left: var(--space-sm);
+  }
+
+  .dept-nome {
+    font-size: var(--fs-body-sm);
   }
 
   .dept-info {
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--space-2xs);
   }
 
   .etapa-row {
-    flex-direction: column;
-    align-items: flex-start;
+    padding: var(--space-xs);
+    gap: var(--space-xs);
   }
 
-  .etapa-meta-info {
-    flex-direction: column;
-    align-items: flex-start;
+  .etapa-row:hover {
+    transform: none;
   }
 
-  .etapa-acoes {
+  .etapa-numero-badge {
+    min-width: 20px;
+    height: 20px;
+    font-size: 10px;
+  }
+
+  .etapa-nome-full {
+    font-size: var(--fs-body-sm);
+  }
+
+  .etapa-details {
+    gap: var(--space-xs);
+  }
+
+  .detail-item {
+    font-size: 10px;
+  }
+
+  .etapa-actions {
     width: 100%;
-    justify-content: stretch;
-  }
-
-  .etapa-btn {
-    flex: 1;
+    justify-content: flex-end;
+    margin-top: var(--space-2xs);
   }
 
   .contrato-info-grid {
     grid-template-columns: 1fr;
+    gap: var(--space-sm);
+  }
+
+  .info-card {
+    padding: var(--space-sm);
+  }
+
+  .info-card-value {
+    font-size: var(--fs-body);
+  }
+
+  .info-card-value.highlight {
+    font-size: var(--fs-h5);
+  }
+
+  .etapas-list-full::before {
+    left: 6px;
+  }
+
+  .section-title {
+    font-size: var(--fs-body);
   }
 }
 
 /* Mobile (480px - 639px) */
 @media (min-width: 480px) and (max-width: 639px) {
+  .projeto-modal-detalhado,
+  .contrato-modal-detalhado {
+    max-width: calc(100vw - 32px) !important;
+    width: calc(100vw - 32px) !important;
+    margin: 16px !important;
+    max-height: calc(100vh - 32px) !important;
+  }
+
+  .modal-content {
+    max-height: calc(100vh - 160px);
+  }
+
   .modal-resumo {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -804,10 +900,21 @@
   .contrato-info-grid {
     grid-template-columns: 1fr;
   }
+
+  .dept-info {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
 }
 
 /* Tablet (640px - 1023px) */
 @media (min-width: 640px) and (max-width: 1023px) {
+  .projeto-modal-detalhado,
+  .contrato-modal-detalhado {
+    max-width: min(800px, calc(100vw - 48px)) !important;
+    max-height: calc(100vh - 48px) !important;
+  }
+
   .modal-resumo {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -821,16 +928,17 @@
 @media (hover: none) {
   .resumo-item:hover,
   .etapa-row:hover,
-  .projeto-vinculado-card:hover {
+  .projeto-vinculado-card:hover,
+  .departamento-section:hover,
+  .info-card:hover {
     transform: none;
+    box-shadow: none;
   }
 
-  .resumo-item:active {
-    transform: scale(0.98);
-  }
-
+  .resumo-item:active,
   .etapa-row:active {
-    transform: translateX(4px);
+    transform: scale(0.98);
+    opacity: 0.9;
   }
 }
 
