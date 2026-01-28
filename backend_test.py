@@ -689,14 +689,21 @@ class IDEIABHAPITester:
         """Test task editing with permission control (NEW FUNCTIONALITY)"""
         log_section("Edição de Tarefas com Permissão")
         
-        # First create a task for testing
+        # First create a task for testing (use existing project/contract)
         try:
+            projeto_id = getattr(self, 'created_project_id', None)
+            contrato_id = getattr(self, 'created_contract_id', None)
+            
+            if not projeto_id or not contrato_id:
+                self.record_result("Task editing with permissions", False, "No existing project/contract for testing - skipped due to FK constraints")
+                return
+            
             tomorrow = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")
             test_task = {
                 "titulo": "Tarefa para Teste de Edição",
                 "descricao": "Esta tarefa será editada para testar permissões",
-                "projeto_id": "projeto-edicao-001",
-                "contrato_id": "contrato-edicao-001",
+                "projeto_id": projeto_id,
+                "contrato_id": contrato_id,
                 "setor": "atendimento",
                 "responsavel_nome": "Ana Silva",
                 "prazo": tomorrow,
