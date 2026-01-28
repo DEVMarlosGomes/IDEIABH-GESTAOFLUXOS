@@ -303,6 +303,8 @@ class IDEIABHAPITester:
                         if last_action.get("acao") == "finalizada":
                             self.record_result("POST /api/tarefas/{id}/finalizar - History updated", True)
                         else:
+                            # Debug: print all history actions
+                            print(f"    Debug: History actions: {[h.get('acao') for h in finalized_task['historico']]}")
                             self.record_result("POST /api/tarefas/{id}/finalizar - History updated", False, f"Last action is '{last_action.get('acao')}', expected 'finalizada'")
                     else:
                         self.record_result("POST /api/tarefas/{id}/finalizar - History updated", False, "No history found")
