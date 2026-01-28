@@ -335,14 +335,21 @@ class IDEIABHAPITester:
         """Test permission controls"""
         log_section("Permissions Testing")
         
-        # Create a task for deletion testing
+        # Create a task for deletion testing (use existing project/contract)
         try:
+            projeto_id = getattr(self, 'created_project_id', None)
+            contrato_id = getattr(self, 'created_contract_id', None)
+            
+            if not projeto_id or not contrato_id:
+                self.record_result("DELETE /api/tarefas - Permission testing", False, "No existing project/contract for testing - skipped due to FK constraints")
+                return
+            
             tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
             test_task = {
                 "titulo": "Tarefa para Teste de Permissão",
                 "descricao": "Esta tarefa será usada para testar permissões de deleção",
-                "projeto_id": "projeto-permissao-001",
-                "contrato_id": "contrato-permissao-001",
+                "projeto_id": projeto_id,
+                "contrato_id": contrato_id,
                 "setor": "atendimento",
                 "responsavel_nome": "Maria Santos",
                 "prazo": tomorrow,
