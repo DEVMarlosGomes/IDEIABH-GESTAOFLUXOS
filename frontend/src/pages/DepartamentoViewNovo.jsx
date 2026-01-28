@@ -103,8 +103,33 @@ const DepartamentoViewNovo = ({ departamento }) => {
   };
 
   const handleAbrirFinalizar = (tarefa) => {
-    // Verificar se é o responsável ou admin
-    if (tarefa.responsavel_id && tarefa.responsavel_id !== user?.id && user?.role !== 'admin') {
+    // Verificar se operador pode finalizar esta tarefa (apenas seu próprio setor)
+    if (user?.role === 'operador') {
+      const userSetor = user?.setor?.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+      const tarefaSetor = tarefa.setor?.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+      
+      // Normalizar nomes de setores
+      const setorMap = {
+        'atendimento': 'atendimento',
+        'criacao': 'criacao',
+        'criação': 'criacao',
+        'preproducao': 'pre-producao',
+        'préproducao': 'pre-producao',
+        'producao': 'producao',
+        'produção': 'producao',
+      };
+      
+      const userSetorNorm = setorMap[userSetor] || userSetor;
+      const tarefaSetorNorm = setorMap[tarefaSetor] || tarefaSetor;
+      
+      if (userSetorNorm !== tarefaSetorNorm) {
+        toast.error(`Você só pode finalizar tarefas do seu setor (${user?.setor}). Esta tarefa é do setor ${tarefa.setor}.`);
+        return;
+      }
+    }
+    
+    // Verificar se é o responsável ou admin/gerente
+    if (tarefa.responsavel_id && tarefa.responsavel_id !== user?.id && !['admin', 'gerente'].includes(user?.role)) {
       toast.error('Apenas o responsável pode finalizar esta tarefa');
       return;
     }
