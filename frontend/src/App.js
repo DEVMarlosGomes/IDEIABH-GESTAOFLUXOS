@@ -22,6 +22,7 @@ import AdminUsersNovo from "./pages/AdminUsersNovo";
 import Configuracoes from "./pages/Configuracoes";
 import Relatorios from "./pages/Relatorios";
 import RelatoriosCompleto from "./pages/RelatoriosCompleto";
+import RelatoriosNovo from "./pages/RelatoriosNovo";
 import TemplatesPrazos from "./pages/TemplatesPrazos";
 import { Toaster } from "./components/ui/sonner";
 
