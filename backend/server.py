@@ -2823,6 +2823,559 @@ async def get_status_checks(db: AsyncSession = Depends(get_db)):
 # Include the router in the main app
 app.include_router(api_router)
 
+
+# ==========================================
+# ROUTES - Relatórios Avançados
+# ==========================================
+
+class KPIItem(BaseModel):
+    label: str
+    value: float | int | str
+    delta: Optional[float] = None
+    hint: Optional[str] = None
+    color: Optional[str] = None
+    icon: Optional[str] = None
+
+
+class SeriesPoint(BaseModel):
+    date: str
+    value: int
+    label: Optional[str] = None
+
+
+class DepartmentOverdue(BaseModel):
+    department: str
+    department_label: str
+    overdue: int
+    total: int
+    percentage: float
+
+
+class RiskItem(BaseModel):
+    risk: str
+    risk_label: str
+    count: int
+    color: str
+
+
+class AssigneeOverdue(BaseModel):
+    assignee_id: Optional[str]
+    name: str
+    setor: Optional[str]
+    overdue: int
+    total_tasks: int
+    avg_delay_days: float
+
+
+class ProjectBottleneck(BaseModel):
+    project_id: str
+    project_name: str
+    cliente: str
+    overdue: int
+    total_tasks: int
+    progress: float
+    risk: str
+
+
+class SectorPerformance(BaseModel):
+    setor: str
+    setor_label: str
+    total_tasks: int
+    completed: int
+    overdue: int
+    on_time: int
+    completion_rate: float
+    on_time_rate: float
+    avg_completion_days: float
+
+
+class ReportsOverviewResponse(BaseModel):
+    as_of: str
+    periodo: dict
+    kpis: List[KPIItem]
+    overdue_by_department: List[DepartmentOverdue]
+    risk_distribution: List[RiskItem]
+    throughput_7d: List[SeriesPoint]
+    throughput_30d: List[SeriesPoint]
+    top_overdue_assignees: List[AssigneeOverdue]
+    bottlenecks: List[ProjectBottleneck]
+    sector_performance: List[SectorPerformance]
+    weekly_comparison: dict
+    monthly_trend: List[dict]
+
+
+# Router separado para relatórios
+reports_router = APIRouter(prefix="/api/reports", tags=["Reports"])
+
+
+def get_setor_label(setor: str) -> str:
+    """Retorna label amigável para o setor"""
+    labels = {
+        "atendimento": "Atendimento",
+        "criacao": "Criação",
+        "pre-producao": "Pré-Produção",
+        "producao": "Produção",
+    }
+    return labels.get(setor, setor.title() if setor else "Sem setor")
+
+
+def get_risk_color(risk: str) -> str:
+    """Retorna cor para o nível de risco"""
+    colors = {
+        "baixo": "#10b981",
+        "medio": "#f59e0b",
+        "alto": "#f97316",
+        "critico": "#ef4444",
+    }
+    return colors.get(risk, "#6b7280")
+
+
+def get_risk_label(risk: str) -> str:
+    """Retorna label para o nível de risco"""
+    labels = {
+        "baixo": "Baixo",
+        "medio": "Médio",
+        "alto": "Alto",
+        "critico": "Crítico",
+    }
+    return labels.get(risk, risk.title() if risk else "Desconhecido")
+
+
+@reports_router.get("/overview", response_model=ReportsOverviewResponse)
+async def reports_overview(
+    days_lookback: int = Query(default=30, ge=7, le=180),
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Endpoint principal de relatórios - Visão geral completa para gestores.
+    Retorna KPIs, gráficos e tabelas prontos para o frontend.
+    """
+    # Verificar permissão
+    if user_role not in ["admin", "gerente"]:
+        raise HTTPException(status_code=403, detail="Acesso restrito a Admin/Gerente")
+    
+    now = datetime.now(timezone.utc)
+    start_lookback = now - timedelta(days=days_lookback)
+    start_7d = now - timedelta(days=7)
+    start_30d = now - timedelta(days=30)
+    
+    # ===== BUSCAR DADOS BASE =====
+    
+    # Projetos
+    projetos_result = await db.execute(select(ProjetoModel))
+    projetos = projetos_result.scalars().all()
+    
+    # Tarefas
+    tarefas_result = await db.execute(select(TarefaModel))
+    tarefas = tarefas_result.scalars().all()
+    
+    # Contratos
+    contratos_result = await db.execute(select(ContratoModel))
+    contratos = contratos_result.scalars().all()
+    
+    # Usuários
+    users_result = await db.execute(select(UserModel))
+    users = users_result.scalars().all()
+    users_dict = {u.id: u for u in users}
+    
+    # ===== CALCULAR MÉTRICAS =====
+    
+    total_projetos = len(projetos)
+    projetos_em_andamento = sum(1 for p in projetos if p.status == "Em Andamento")
+    projetos_finalizados = sum(1 for p in projetos if p.status in ["Finalizado", "Entregue"])
+    
+    total_tarefas = len(tarefas)
+    tarefas_finalizadas = sum(1 for t in tarefas if t.finalizada)
+    tarefas_em_andamento = total_tarefas - tarefas_finalizadas
+    
+    # Calcular atrasos
+    tarefas_atrasadas = []
+    for tarefa in tarefas:
+        if not tarefa.finalizada and tarefa.prazo:
+            try:
+                prazo = datetime.fromisoformat(tarefa.prazo).date()
+                if now.date() > prazo:
+                    dias_atraso = (now.date() - prazo).days
+                    tarefas_atrasadas.append({
+                        "tarefa": tarefa,
+                        "dias_atraso": dias_atraso
+                    })
+            except:
+                pass
+    
+    total_atrasadas = len(tarefas_atrasadas)
+    
+    # SLA - Tarefas concluídas no prazo (últimos 30 dias)
+    tarefas_concluidas_30d = [t for t in tarefas if t.finalizada and t.data_finalizacao and t.data_finalizacao >= start_30d]
+    tarefas_no_prazo_30d = 0
+    for t in tarefas_concluidas_30d:
+        if t.prazo_original:
+            try:
+                prazo_original = datetime.fromisoformat(t.prazo_original).date()
+                data_fin = t.data_finalizacao.date() if isinstance(t.data_finalizacao, datetime) else datetime.fromisoformat(str(t.data_finalizacao)).date()
+                if data_fin <= prazo_original:
+                    tarefas_no_prazo_30d += 1
+            except:
+                pass
+    
+    sla_30d = (tarefas_no_prazo_30d / len(tarefas_concluidas_30d) * 100) if tarefas_concluidas_30d else 0
+    
+    # Tempo médio de conclusão
+    tempos_conclusao = []
+    for t in tarefas:
+        if t.finalizada and t.data_finalizacao and t.criado_em:
+            try:
+                inicio = t.criado_em if isinstance(t.criado_em, datetime) else datetime.fromisoformat(str(t.criado_em))
+                fim = t.data_finalizacao if isinstance(t.data_finalizacao, datetime) else datetime.fromisoformat(str(t.data_finalizacao))
+                dias = (fim - inicio).days
+                if dias >= 0:
+                    tempos_conclusao.append(dias)
+            except:
+                pass
+    
+    tempo_medio_conclusao = sum(tempos_conclusao) / len(tempos_conclusao) if tempos_conclusao else 0
+    
+    # ===== KPIs =====
+    
+    kpis = [
+        KPIItem(
+            label="Total de Projetos",
+            value=total_projetos,
+            icon="folder",
+            color="#3b82f6"
+        ),
+        KPIItem(
+            label="Projetos em Andamento",
+            value=projetos_em_andamento,
+            icon="play",
+            color="#8b5cf6"
+        ),
+        KPIItem(
+            label="Tarefas Atrasadas",
+            value=total_atrasadas,
+            hint=f"De {tarefas_em_andamento} em andamento",
+            icon="alert-triangle",
+            color="#ef4444"
+        ),
+        KPIItem(
+            label="SLA (30d)",
+            value=f"{round(sla_30d, 1)}%",
+            hint="Tarefas concluídas no prazo",
+            icon="check-circle",
+            color="#10b981"
+        ),
+        KPIItem(
+            label="Tempo Médio",
+            value=f"{round(tempo_medio_conclusao, 1)} dias",
+            hint="Média de conclusão de tarefas",
+            icon="clock",
+            color="#f59e0b"
+        ),
+    ]
+    
+    # ===== ATRASOS POR DEPARTAMENTO =====
+    
+    setores = ["atendimento", "criacao", "pre-producao", "producao"]
+    overdue_by_department = []
+    
+    for setor in setores:
+        tarefas_setor = [t for t in tarefas if t.setor == setor and not t.finalizada]
+        atrasadas_setor = [a for a in tarefas_atrasadas if a["tarefa"].setor == setor]
+        
+        total_setor = len(tarefas_setor)
+        overdue_setor = len(atrasadas_setor)
+        percentage = (overdue_setor / total_setor * 100) if total_setor > 0 else 0
+        
+        overdue_by_department.append(DepartmentOverdue(
+            department=setor,
+            department_label=get_setor_label(setor),
+            overdue=overdue_setor,
+            total=total_setor,
+            percentage=round(percentage, 1)
+        ))
+    
+    # ===== DISTRIBUIÇÃO DE RISCO =====
+    
+    risk_counts = {"baixo": 0, "medio": 0, "alto": 0, "critico": 0}
+    for projeto in projetos:
+        risk = projeto.risco or "baixo"
+        if risk in risk_counts:
+            risk_counts[risk] += 1
+    
+    risk_distribution = [
+        RiskItem(
+            risk=risk,
+            risk_label=get_risk_label(risk),
+            count=count,
+            color=get_risk_color(risk)
+        )
+        for risk, count in risk_counts.items()
+    ]
+    
+    # ===== THROUGHPUT (Produtividade) =====
+    
+    def calculate_throughput(days: int) -> List[SeriesPoint]:
+        start = now - timedelta(days=days)
+        throughput_data = {}
+        
+        for t in tarefas:
+            if t.finalizada and t.data_finalizacao:
+                try:
+                    data_fin = t.data_finalizacao if isinstance(t.data_finalizacao, datetime) else datetime.fromisoformat(str(t.data_finalizacao))
+                    if data_fin >= start:
+                        date_str = data_fin.date().isoformat()
+                        throughput_data[date_str] = throughput_data.get(date_str, 0) + 1
+                except:
+                    pass
+        
+        # Preencher dias faltantes
+        result = []
+        for i in range(days):
+            d = (start + timedelta(days=i)).date().isoformat()
+            result.append(SeriesPoint(
+                date=d,
+                value=throughput_data.get(d, 0),
+                label=datetime.fromisoformat(d).strftime("%d/%m")
+            ))
+        
+        return result
+    
+    throughput_7d = calculate_throughput(7)
+    throughput_30d = calculate_throughput(30)
+    
+    # ===== TOP RESPONSÁVEIS COM ATRASO =====
+    
+    assignee_overdue = {}
+    for item in tarefas_atrasadas:
+        tarefa = item["tarefa"]
+        dias = item["dias_atraso"]
+        resp_id = tarefa.responsavel_id or "sem_responsavel"
+        resp_nome = tarefa.responsavel_nome or "Não atribuído"
+        
+        if resp_id not in assignee_overdue:
+            user = users_dict.get(resp_id)
+            assignee_overdue[resp_id] = {
+                "name": resp_nome,
+                "setor": user.setor if user else tarefa.setor,
+                "overdue": 0,
+                "total_delay_days": 0,
+                "total_tasks": 0
+            }
+        
+        assignee_overdue[resp_id]["overdue"] += 1
+        assignee_overdue[resp_id]["total_delay_days"] += dias
+    
+    # Contar total de tarefas por responsável
+    for tarefa in tarefas:
+        if not tarefa.finalizada:
+            resp_id = tarefa.responsavel_id or "sem_responsavel"
+            if resp_id in assignee_overdue:
+                assignee_overdue[resp_id]["total_tasks"] += 1
+    
+    top_overdue_assignees = []
+    for resp_id, data in sorted(assignee_overdue.items(), key=lambda x: x[1]["overdue"], reverse=True)[:10]:
+        avg_delay = data["total_delay_days"] / data["overdue"] if data["overdue"] > 0 else 0
+        top_overdue_assignees.append(AssigneeOverdue(
+            assignee_id=resp_id if resp_id != "sem_responsavel" else None,
+            name=data["name"],
+            setor=data["setor"],
+            overdue=data["overdue"],
+            total_tasks=max(data["total_tasks"], data["overdue"]),
+            avg_delay_days=round(avg_delay, 1)
+        ))
+    
+    # ===== GARGALOS (Projetos mais travados) =====
+    
+    project_overdue = {}
+    for item in tarefas_atrasadas:
+        tarefa = item["tarefa"]
+        proj_id = tarefa.projeto_id
+        if proj_id:
+            if proj_id not in project_overdue:
+                projeto = next((p for p in projetos if p.id == proj_id), None)
+                if projeto:
+                    project_overdue[proj_id] = {
+                        "project_name": projeto.etapa_atual or "Projeto",
+                        "cliente": projeto.cliente,
+                        "overdue": 0,
+                        "total_tasks": 0,
+                        "progress": projeto.progresso or 0,
+                        "risk": projeto.risco or "baixo"
+                    }
+            if proj_id in project_overdue:
+                project_overdue[proj_id]["overdue"] += 1
+    
+    # Contar total de tarefas por projeto
+    for tarefa in tarefas:
+        if tarefa.projeto_id in project_overdue:
+            project_overdue[tarefa.projeto_id]["total_tasks"] += 1
+    
+    bottlenecks = []
+    for proj_id, data in sorted(project_overdue.items(), key=lambda x: x[1]["overdue"], reverse=True)[:10]:
+        bottlenecks.append(ProjectBottleneck(
+            project_id=proj_id,
+            project_name=data["project_name"],
+            cliente=data["cliente"],
+            overdue=data["overdue"],
+            total_tasks=data["total_tasks"],
+            progress=data["progress"],
+            risk=data["risk"]
+        ))
+    
+    # ===== PERFORMANCE POR SETOR =====
+    
+    sector_performance = []
+    for setor in setores:
+        tarefas_setor = [t for t in tarefas if t.setor == setor]
+        total = len(tarefas_setor)
+        completed = sum(1 for t in tarefas_setor if t.finalizada)
+        overdue = len([a for a in tarefas_atrasadas if a["tarefa"].setor == setor])
+        
+        # Calcular no prazo (concluídas antes do prazo)
+        on_time = 0
+        completion_days = []
+        for t in tarefas_setor:
+            if t.finalizada and t.prazo_original and t.data_finalizacao:
+                try:
+                    prazo = datetime.fromisoformat(t.prazo_original).date()
+                    data_fin = t.data_finalizacao.date() if isinstance(t.data_finalizacao, datetime) else datetime.fromisoformat(str(t.data_finalizacao)).date()
+                    if data_fin <= prazo:
+                        on_time += 1
+                    if t.criado_em:
+                        inicio = t.criado_em if isinstance(t.criado_em, datetime) else datetime.fromisoformat(str(t.criado_em))
+                        fim = t.data_finalizacao if isinstance(t.data_finalizacao, datetime) else datetime.fromisoformat(str(t.data_finalizacao))
+                        completion_days.append((fim - inicio).days)
+                except:
+                    pass
+        
+        avg_days = sum(completion_days) / len(completion_days) if completion_days else 0
+        
+        sector_performance.append(SectorPerformance(
+            setor=setor,
+            setor_label=get_setor_label(setor),
+            total_tasks=total,
+            completed=completed,
+            overdue=overdue,
+            on_time=on_time,
+            completion_rate=round((completed / total * 100) if total > 0 else 0, 1),
+            on_time_rate=round((on_time / completed * 100) if completed > 0 else 0, 1),
+            avg_completion_days=round(avg_days, 1)
+        ))
+    
+    # ===== COMPARAÇÃO SEMANAL =====
+    
+    start_this_week = now - timedelta(days=7)
+    start_last_week = now - timedelta(days=14)
+    
+    criadas_this_week = sum(1 for t in tarefas if t.criado_em and t.criado_em >= start_this_week)
+    criadas_last_week = sum(1 for t in tarefas if t.criado_em and start_last_week <= t.criado_em < start_this_week)
+    
+    finalizadas_this_week = sum(1 for t in tarefas if t.finalizada and t.data_finalizacao and t.data_finalizacao >= start_this_week)
+    finalizadas_last_week = sum(1 for t in tarefas if t.finalizada and t.data_finalizacao and start_last_week <= t.data_finalizacao < start_this_week)
+    
+    weekly_comparison = {
+        "this_week": {
+            "criadas": criadas_this_week,
+            "finalizadas": finalizadas_this_week,
+            "atrasadas": total_atrasadas
+        },
+        "last_week": {
+            "criadas": criadas_last_week,
+            "finalizadas": finalizadas_last_week
+        },
+        "delta_criadas": criadas_this_week - criadas_last_week,
+        "delta_finalizadas": finalizadas_this_week - finalizadas_last_week
+    }
+    
+    # ===== TENDÊNCIA MENSAL (últimos 6 meses) =====
+    
+    monthly_trend = []
+    for i in range(6):
+        month_start = now - timedelta(days=30 * (i + 1))
+        month_end = now - timedelta(days=30 * i)
+        
+        criadas = sum(1 for t in tarefas if t.criado_em and month_start <= t.criado_em < month_end)
+        finalizadas = sum(1 for t in tarefas if t.finalizada and t.data_finalizacao and month_start <= t.data_finalizacao < month_end)
+        
+        monthly_trend.insert(0, {
+            "month": month_start.strftime("%b/%y"),
+            "criadas": criadas,
+            "finalizadas": finalizadas
+        })
+    
+    return ReportsOverviewResponse(
+        as_of=now.isoformat(),
+        periodo={
+            "inicio": start_lookback.isoformat(),
+            "fim": now.isoformat(),
+            "dias": days_lookback
+        },
+        kpis=kpis,
+        overdue_by_department=overdue_by_department,
+        risk_distribution=risk_distribution,
+        throughput_7d=throughput_7d,
+        throughput_30d=throughput_30d,
+        top_overdue_assignees=top_overdue_assignees,
+        bottlenecks=bottlenecks,
+        sector_performance=sector_performance,
+        weekly_comparison=weekly_comparison,
+        monthly_trend=monthly_trend
+    )
+
+
+@reports_router.get("/export/csv")
+async def export_reports_csv(
+    report_type: str = Query(..., description="Tipo: tarefas_atrasadas, performance_setor, gargalos"),
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Exporta relatórios em formato CSV"""
+    if user_role not in ["admin", "gerente"]:
+        raise HTTPException(status_code=403, detail="Acesso restrito")
+    
+    import csv
+    from io import StringIO
+    from fastapi.responses import StreamingResponse
+    
+    now = datetime.now(timezone.utc)
+    
+    if report_type == "tarefas_atrasadas":
+        tarefas_result = await db.execute(
+            select(TarefaModel).where(TarefaModel.finalizada == False)
+        )
+        tarefas = tarefas_result.scalars().all()
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["ID", "Título", "Setor", "Responsável", "Prazo", "Dias Atraso", "Prioridade", "Status"])
+        
+        for t in tarefas:
+            if t.prazo:
+                try:
+                    prazo = datetime.fromisoformat(t.prazo).date()
+                    if now.date() > prazo:
+                        dias = (now.date() - prazo).days
+                        writer.writerow([
+                            t.id, t.titulo, t.setor, t.responsavel_nome or "N/A",
+                            t.prazo, dias, t.prioridade, t.status_nome
+                        ])
+                except:
+                    pass
+        
+        output.seek(0)
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=tarefas_atrasadas_{now.strftime('%Y%m%d')}.csv"}
+        )
+    
+    raise HTTPException(status_code=400, detail="Tipo de relatório inválido")
+
+
+# Registrar router de relatórios
+app.include_router(reports_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
