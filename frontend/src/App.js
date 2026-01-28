@@ -210,7 +210,7 @@ function AppRoutes() {
         path="/relatorios"
         element={
           <ProtectedRoute>
-            <RelatoriosCompleto />
+            <RelatoriosNovo />
           </ProtectedRoute>
         }
       />
@@ -218,7 +218,7 @@ function AppRoutes() {
         path="/relatorios-old"
         element={
           <ProtectedRoute>
-            <Relatorios />
+            <RelatoriosCompleto />
           </ProtectedRoute>
         }
       />
