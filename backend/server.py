@@ -380,6 +380,92 @@ class TemplatePrazosUpdate(BaseModel):
 # HELPER FUNCTIONS
 # ==========================================
 
+# Ordem dos setores no fluxo de trabalho
+SETORES_ORDEM = {
+    "atendimento": 1,
+    "criacao": 2,
+    "pre-producao": 3,
+    "producao": 4
+}
+
+def verificar_acesso_setor(usuario_role: str, usuario_setor: str, setor_tarefa: str) -> bool:
+    """
+    Verifica se o operador tem acesso ao setor da tarefa.
+    - Admin e gerente têm acesso a todos os setores
+    - Operador só pode acessar seu setor ou o setor anterior no fluxo
+    """
+    if usuario_role in ["admin", "gerente"]:
+        return True
+    
+    if usuario_role == "operador":
+        # Normalizar nomes de setores
+        usuario_setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
+        setor_tarefa_norm = setor_tarefa.lower().replace("-", "").replace("_", "").replace(" ", "")
+        
+        # Mapear para nomes padronizados
+        setor_map = {
+            "atendimento": "atendimento",
+            "criacao": "criacao",
+            "criação": "criacao",
+            "preproducao": "pre-producao",
+            "préproducao": "pre-producao",
+            "pre-producao": "pre-producao",
+            "pré-produção": "pre-producao",
+            "producao": "producao",
+            "produção": "producao",
+        }
+        
+        usuario_setor_padrao = setor_map.get(usuario_setor_norm, usuario_setor.lower())
+        setor_tarefa_padrao = setor_map.get(setor_tarefa_norm, setor_tarefa.lower())
+        
+        ordem_usuario = SETORES_ORDEM.get(usuario_setor_padrao, 0)
+        ordem_tarefa = SETORES_ORDEM.get(setor_tarefa_padrao, 0)
+        
+        # Operador pode acessar seu setor ou o setor anterior
+        if ordem_usuario == ordem_tarefa or ordem_usuario == ordem_tarefa + 1:
+            return True
+        
+        return False
+    
+    return False
+
+
+def verificar_pode_finalizar_tarefa(usuario_role: str, usuario_setor: str, setor_tarefa: str) -> bool:
+    """
+    Verifica se o operador pode finalizar a tarefa.
+    - Admin e gerente podem finalizar qualquer tarefa
+    - Operador só pode finalizar tarefas do seu próprio setor
+    """
+    if usuario_role in ["admin", "gerente"]:
+        return True
+    
+    if usuario_role == "operador":
+        # Normalizar nomes de setores
+        usuario_setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
+        setor_tarefa_norm = setor_tarefa.lower().replace("-", "").replace("_", "").replace(" ", "")
+        
+        # Mapear para nomes padronizados
+        setor_map = {
+            "atendimento": "atendimento",
+            "criacao": "criacao",
+            "criação": "criacao",
+            "preproducao": "pre-producao",
+            "préproducao": "pre-producao",
+            "pre-producao": "pre-producao",
+            "pré-produção": "pre-producao",
+            "producao": "producao",
+            "produção": "producao",
+        }
+        
+        usuario_setor_padrao = setor_map.get(usuario_setor_norm, usuario_setor.lower())
+        setor_tarefa_padrao = setor_map.get(setor_tarefa_norm, setor_tarefa.lower())
+        
+        # Operador só pode finalizar tarefas do seu setor
+        return usuario_setor_padrao == setor_tarefa_padrao
+    
+    return False
+
+
 def model_to_dict(obj) -> dict:
     """Convert SQLAlchemy model to dictionary"""
     if obj is None:
