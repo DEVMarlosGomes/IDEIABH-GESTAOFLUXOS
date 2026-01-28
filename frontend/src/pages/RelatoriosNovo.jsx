@@ -304,14 +304,28 @@ export default function RelatoriosNovo() {
               </SelectContent>
             </Select>
             
-            <Button variant="outline" onClick={loadData} className="refresh-btn">
+            <Button variant="outline" onClick={loadData} className="refresh-btn" disabled={exporting}>
               <RefreshCw size={16} />
               Atualizar
             </Button>
             
-            <Button variant="outline" className="export-btn">
-              <Download size={16} />
-              Exportar
+            <Button 
+              variant="outline" 
+              className="export-btn"
+              onClick={exportToPDF}
+              disabled={exporting}
+            >
+              {exporting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <FileText size={16} />
+                  Exportar PDF
+                </>
+              )}
             </Button>
           </div>
         </div>
