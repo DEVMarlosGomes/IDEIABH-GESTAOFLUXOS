@@ -1053,6 +1053,115 @@ async def listar_tarefas(
     return result_list
 
 
+@api_router.get("/tarefas-por-acesso", response_model=List[dict])
+async def listar_tarefas_por_acesso(
+    usuario_role: str = Query(...),
+    usuario_setor: str = Query(...),
+    projeto_id: Optional[str] = None,
+    contrato_id: Optional[str] = None,
+    status_id: Optional[str] = None,
+    responsavel_id: Optional[str] = None,
+    finalizada: Optional[bool] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Lista tarefas filtradas pelo acesso do usuário.
+    - Admin e gerente veem todas as tarefas
+    - Operador vê apenas tarefas do seu setor ou do setor anterior no fluxo
+    """
+    query = select(TarefaModel)
+    
+    conditions = []
+    if projeto_id:
+        conditions.append(TarefaModel.projeto_id == projeto_id)
+    if contrato_id:
+        conditions.append(TarefaModel.contrato_id == contrato_id)
+    if status_id:
+        conditions.append(TarefaModel.status_id == status_id)
+    if responsavel_id:
+        conditions.append(TarefaModel.responsavel_id == responsavel_id)
+    if finalizada is not None:
+        conditions.append(TarefaModel.finalizada == finalizada)
+    
+    if conditions:
+        query = query.where(and_(*conditions))
+    
+    query = query.order_by(TarefaModel.criado_em.desc())
+    
+    result = await db.execute(query)
+    tarefas = result.scalars().all()
+    
+    # Filtrar por acesso do usuário
+    result_list = []
+    for tarefa in tarefas:
+        # Verificar se o usuário tem acesso a esta tarefa
+        if verificar_acesso_setor(usuario_role, usuario_setor, tarefa.setor):
+            tarefa_dict = model_to_dict(tarefa)
+            if not tarefa.finalizada:
+                dias_atraso, atrasada_calc = await calcular_dias_atraso(tarefa.prazo)
+                tarefa_dict["dias_atraso"] = dias_atraso
+                tarefa_dict["atrasada"] = atrasada_calc
+            
+            # Adicionar flag se pode finalizar
+            tarefa_dict["pode_finalizar"] = verificar_pode_finalizar_tarefa(
+                usuario_role, usuario_setor, tarefa.setor
+            )
+            result_list.append(tarefa_dict)
+    
+    return result_list
+
+
+@api_router.get("/setores-acessiveis", response_model=dict)
+async def obter_setores_acessiveis(
+    usuario_role: str = Query(...),
+    usuario_setor: str = Query(...)
+):
+    """
+    Retorna os setores que o usuário pode acessar.
+    - Admin e gerente: todos os setores
+    - Operador: seu setor e o anterior no fluxo
+    """
+    todos_setores = ["atendimento", "criacao", "pre-producao", "producao"]
+    
+    if usuario_role in ["admin", "gerente"]:
+        return {
+            "setores_acessiveis": todos_setores,
+            "setor_principal": usuario_setor,
+            "pode_acessar_todos": True
+        }
+    
+    # Para operador, calcular setores acessíveis
+    setor_map = {
+        "atendimento": "atendimento",
+        "criacao": "criacao",
+        "criação": "criacao",
+        "preproducao": "pre-producao",
+        "préproducao": "pre-producao",
+        "pre-producao": "pre-producao",
+        "pré-produção": "pre-producao",
+        "producao": "producao",
+        "produção": "producao",
+    }
+    
+    usuario_setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
+    usuario_setor_padrao = setor_map.get(usuario_setor_norm, usuario_setor.lower())
+    
+    ordem_usuario = SETORES_ORDEM.get(usuario_setor_padrao, 0)
+    
+    setores_acessiveis = []
+    for setor in todos_setores:
+        ordem_setor = SETORES_ORDEM.get(setor, 0)
+        # Pode acessar seu setor ou o anterior
+        if ordem_usuario == ordem_setor or ordem_usuario == ordem_setor + 1:
+            setores_acessiveis.append(setor)
+    
+    return {
+        "setores_acessiveis": setores_acessiveis,
+        "setor_principal": usuario_setor_padrao,
+        "pode_acessar_todos": False
+    }
+
+
 @api_router.get("/tarefas/{tarefa_id}", response_model=dict)
 async def obter_tarefa(tarefa_id: str, db: AsyncSession = Depends(get_db)):
     """Obtém uma tarefa específica"""
