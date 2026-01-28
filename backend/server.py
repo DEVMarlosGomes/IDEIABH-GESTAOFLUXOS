@@ -1224,6 +1224,13 @@ async def finalizar_tarefa(
     if tarefa.finalizada:
         raise HTTPException(status_code=400, detail="Tarefa já está finalizada")
     
+    # Verificar se operador pode finalizar esta tarefa (apenas seu próprio setor)
+    if not verificar_pode_finalizar_tarefa(input.usuario_role, input.usuario_setor, tarefa.setor):
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Operadores só podem finalizar tarefas do seu próprio setor ({input.usuario_setor}). Esta tarefa pertence ao setor {tarefa.setor}."
+        )
+    
     # Get "Concluído" status
     result = await db.execute(
         select(StatusTarefaModel).where(StatusTarefaModel.nome == "Concluído")
