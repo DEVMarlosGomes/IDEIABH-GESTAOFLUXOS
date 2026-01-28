@@ -277,7 +277,7 @@ export default function RelatoriosNovo() {
 
   return (
     <LayoutNovo>
-      <div className="relatorios-container">
+      <div className="relatorios-container" ref={reportRef}>
         {/* Header */}
         <div className="relatorios-header">
           <div className="header-info">
