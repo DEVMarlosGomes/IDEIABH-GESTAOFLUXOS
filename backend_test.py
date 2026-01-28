@@ -173,14 +173,24 @@ class IDEIABHAPITester:
         """Test Tarefas CRUD operations"""
         log_section("Tarefas CRUD")
         
-        # Test POST /api/tarefas - Create task
+        # Test POST /api/tarefas - Create task (use existing project if available)
         try:
             tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+            
+            # Use existing project/contract if available, otherwise skip this test
+            projeto_id = getattr(self, 'created_project_id', None)
+            contrato_id = getattr(self, 'created_contract_id', None)
+            
+            if not projeto_id or not contrato_id:
+                self.record_result("POST /api/tarefas - Create task", False, "No existing project/contract for testing - skipped due to FK constraints")
+                self.record_result("POST /api/tarefas - History created", False, "Skipped - no task created")
+                return
+            
             new_task = {
                 "titulo": "Tarefa de Teste Automatizado",
                 "descricao": "Descrição detalhada da tarefa de teste",
-                "projeto_id": "projeto-teste-001",
-                "contrato_id": "contrato-teste-001", 
+                "projeto_id": projeto_id,
+                "contrato_id": contrato_id, 
                 "setor": "atendimento",
                 "responsavel_nome": "João Silva",
                 "prazo": tomorrow,
