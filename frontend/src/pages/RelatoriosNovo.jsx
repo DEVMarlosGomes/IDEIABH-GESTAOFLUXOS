@@ -43,7 +43,6 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import './RelatoriosNovo.css';
 
 // Cores do tema
