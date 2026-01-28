@@ -11,13 +11,18 @@ load_dotenv(ROOT_DIR / '.env')
 # Get PostgreSQL URL from environment (already in asyncpg format)
 ASYNC_POSTGRES_URL = os.environ.get('POSTGRES_URL', 'postgresql+asyncpg://localhost:5432/postgres')
 
-# Create async engine
+# Create async engine with pgBouncer-compatible settings
 engine = create_async_engine(
     ASYNC_POSTGRES_URL,
     echo=False,
     pool_pre_ping=True,
     pool_size=10,
-    max_overflow=20
+    max_overflow=20,
+    # Disable prepared statements for pgBouncer compatibility (Supabase)
+    connect_args={
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0,
+    }
 )
 
 # Create async session factory
