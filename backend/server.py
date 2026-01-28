@@ -1,23 +1,33 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update, delete, func, and_, or_
+from sqlalchemy.orm import selectinload
 import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
+
+from database import get_db, init_db, close_db, async_session
+from models import (
+    StatusTarefa as StatusTarefaModel,
+    User as UserModel,
+    Tarefa as TarefaModel,
+    Contrato as ContratoModel,
+    Projeto as ProjetoModel,
+    Notificacao as NotificacaoModel,
+    TemplatePrazos as TemplatePrazosModel,
+    PrazoContrato as PrazoContratoModel,
+    StatusCheck as StatusCheckModel
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
-
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get('DB_NAME', 'ideiabh')]
 
 # Create the main app without a prefix
 app = FastAPI()
@@ -44,7 +54,7 @@ class UserRole(str, Enum):
 
 
 # ==========================================
-# MODELS - Status Personalizados
+# PYDANTIC MODELS - Status Personalizados
 # ==========================================
 
 class StatusTarefa(BaseModel):
@@ -54,7 +64,7 @@ class StatusTarefa(BaseModel):
     nome: str
     cor: str = "#64748b"
     ordem: int = 0
-    tipo: str = "custom"  # "sistema" ou "custom"
+    tipo: str = "custom"
     ativo: bool = True
     criado_por: str
     criado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -74,7 +84,7 @@ class StatusTarefaUpdate(BaseModel):
 
 
 # ==========================================
-# MODELS - User Management
+# PYDANTIC MODELS - User Management
 # ==========================================
 
 class User(BaseModel):
@@ -85,9 +95,9 @@ class User(BaseModel):
     email: str
     password_hash: str
     nome: str
-    role: str = "operador"  # admin, gerente, operador
-    setor: Optional[str] = None  # Para operadores: atendimento, criacao, pre-producao, producao
-    ativo: bool = False  # Novo usuário precisa aprovação do admin
+    role: str = "operador"
+    setor: Optional[str] = None
+    ativo: bool = False
     aprovado: bool = False
     aprovado_por: Optional[str] = None
     aprovado_em: Optional[datetime] = None
@@ -123,12 +133,12 @@ class UserLogin(BaseModel):
 
 
 # ==========================================
-# MODELS - Tarefas
+# PYDANTIC MODELS - Tarefas
 # ==========================================
 
 class HistoricoAcao(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    acao: str  # "criada", "atualizada", "finalizada", "status_alterado"
+    acao: str
     usuario_id: str
     usuario_nome: str
     setor: str
@@ -150,29 +160,19 @@ class Tarefa(BaseModel):
     responsavel_nome: Optional[str] = None
     status_id: str
     status_nome: str
-    prazo: Optional[str] = None  # ISO date string
+    prazo: Optional[str] = None
     prazo_original: Optional[str] = None
-    prioridade: str = "media"  # baixa, media, alta, critica
-    
-    # Controle de atraso
+    prioridade: str = "media"
     dias_atraso: int = 0
     atrasada: bool = False
-    
-    # Controle de finalização
     finalizada: bool = False
     data_finalizacao: Optional[datetime] = None
     observacao_finalizacao: Optional[str] = None
-    
-    # Controle de criação
     criado_por_id: str
     criado_por_nome: str
     criado_por_setor: str
     criado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
-    # Histórico de ações
     historico: List[HistoricoAcao] = []
-    
-    # Metadados
     atualizado_em: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -204,7 +204,7 @@ class TarefaUpdate(BaseModel):
     usuario_id: str
     usuario_nome: str
     usuario_setor: str
-    usuario_role: str = "operador"  # Para verificar permissão de edição
+    usuario_role: str = "operador"
 
 
 class TarefaFinalizar(BaseModel):
@@ -223,7 +223,7 @@ class TarefaAlterarStatus(BaseModel):
 
 
 # ==========================================
-# MODELS - Projetos e Contratos
+# PYDANTIC MODELS - Projetos e Contratos
 # ==========================================
 
 class Contrato(BaseModel):
@@ -234,9 +234,9 @@ class Contrato(BaseModel):
     faculdade: str
     numero_contrato: str
     valor: float
-    data_inicio: str  # ISO date string
+    data_inicio: str
     data_fim: Optional[str] = None
-    status: str = "Ativo"  # Ativo, Em Andamento, Em Produção, Finalizado, Entregue
+    status: str = "Ativo"
     template_id: Optional[str] = None
     template_nome: Optional[str] = None
     projeto_id: Optional[str] = None
@@ -252,7 +252,7 @@ class ContratoCreate(BaseModel):
     valor: float
     data_inicio: str
     data_fim: Optional[str] = None
-    template_id: str  # ID do template a ser usado
+    template_id: str
     criado_por: str
 
 
@@ -275,7 +275,7 @@ class Projeto(BaseModel):
     etapa_atual: str = "Informar recebimento do contrato"
     etapa_atual_ordem: int = 1
     progresso: float = 0.0
-    risco: str = "baixo"  # baixo, medio, alto, critico
+    risco: str = "baixo"
     dias_restantes: int = 134
     data_inicio: str
     data_fim_prevista: str
@@ -291,7 +291,7 @@ class Notificacao(BaseModel):
     model_config = ConfigDict(extra="ignore")
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    tipo: str  # "cobranca", "atraso", "finalizacao", "atribuicao"
+    tipo: str
     titulo: str
     mensagem: str
     de_usuario_id: str
@@ -337,963 +337,7 @@ class ProjetoAtraso(BaseModel):
 
 
 # ==========================================
-# HELPER FUNCTIONS
-# ==========================================
-
-def serialize_datetime(obj):
-    """Convert datetime objects to ISO string for MongoDB"""
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    return obj
-
-
-def serialize_doc(doc: dict) -> dict:
-    """Serialize a document for MongoDB storage"""
-    result = {}
-    for key, value in doc.items():
-        if isinstance(value, datetime):
-            result[key] = value.isoformat()
-        elif isinstance(value, list):
-            result[key] = [serialize_doc(item) if isinstance(item, dict) else serialize_datetime(item) for item in value]
-        elif isinstance(value, dict):
-            result[key] = serialize_doc(value)
-        else:
-            result[key] = value
-    return result
-
-
-def deserialize_datetime(value):
-    """Convert ISO string back to datetime"""
-    if isinstance(value, str):
-        try:
-            return datetime.fromisoformat(value.replace('Z', '+00:00'))
-        except:
-            return value
-    return value
-
-
-def deserialize_doc(doc: dict) -> dict:
-    """Deserialize a document from MongoDB"""
-    if not doc:
-        return doc
-    result = {}
-    for key, value in doc.items():
-        if key == '_id':
-            continue
-        if key in ['criado_em', 'atualizado_em', 'data_finalizacao', 'data', 'timestamp']:
-            result[key] = deserialize_datetime(value)
-        elif isinstance(value, list):
-            result[key] = [deserialize_doc(item) if isinstance(item, dict) else item for item in value]
-        elif isinstance(value, dict):
-            result[key] = deserialize_doc(value)
-        else:
-            result[key] = value
-    return result
-
-
-async def calcular_dias_atraso(prazo_str: Optional[str]) -> tuple:
-    """Calculate days of delay for a task"""
-    if not prazo_str:
-        return 0, False
-    try:
-        prazo = datetime.fromisoformat(prazo_str).date()
-        hoje = datetime.now(timezone.utc).date()
-        if hoje > prazo:
-            dias = (hoje - prazo).days
-            return dias, True
-        return 0, False
-    except:
-        return 0, False
-
-
-async def get_status_padrao():
-    """Get or create default statuses"""
-    status_count = await db.status_tarefas.count_documents({})
-    
-    if status_count == 0:
-        # Create default statuses
-        default_statuses = [
-            {"id": str(uuid.uuid4()), "nome": "Pendente", "cor": "#94a3b8", "ordem": 1, "tipo": "sistema", "ativo": True, "criado_por": "sistema", "criado_em": datetime.now(timezone.utc).isoformat()},
-            {"id": str(uuid.uuid4()), "nome": "Em Andamento", "cor": "#3b82f6", "ordem": 2, "tipo": "sistema", "ativo": True, "criado_por": "sistema", "criado_em": datetime.now(timezone.utc).isoformat()},
-            {"id": str(uuid.uuid4()), "nome": "Aguardando", "cor": "#f59e0b", "ordem": 3, "tipo": "sistema", "ativo": True, "criado_por": "sistema", "criado_em": datetime.now(timezone.utc).isoformat()},
-            {"id": str(uuid.uuid4()), "nome": "Concluído", "cor": "#10b981", "ordem": 4, "tipo": "sistema", "ativo": True, "criado_por": "sistema", "criado_em": datetime.now(timezone.utc).isoformat()},
-        ]
-        await db.status_tarefas.insert_many(default_statuses)
-        return default_statuses
-    
-    return await db.status_tarefas.find({"ativo": True}, {"_id": 0}).sort("ordem", 1).to_list(100)
-
-
-async def recalcular_prazos_projeto(projeto_id: str, tarefa_finalizada_id: str, data_finalizacao: datetime):
-    """
-    Recalcula os prazos das tarefas seguintes baseado na data de finalização da tarefa anterior.
-    O prazo da próxima etapa será: data_finalizacao + diferença_dias_original
-    """
-    from datetime import timedelta
-    
-    # Buscar a tarefa finalizada para obter a ordem
-    tarefa_finalizada = await db.tarefas.find_one({"id": tarefa_finalizada_id}, {"_id": 0})
-    
-    if not tarefa_finalizada:
-        return []
-    
-    # Buscar todas as tarefas do projeto ordenadas por prazo original
-    tarefas_projeto = await db.tarefas.find(
-        {"projeto_id": projeto_id, "finalizada": False}
-    ).sort("prazo_original", 1).to_list(1000)
-    
-    if not tarefas_projeto:
-        return []
-    
-    # Data base é a data de finalização real
-    data_base = data_finalizacao.date() if isinstance(data_finalizacao, datetime) else datetime.fromisoformat(str(data_finalizacao)).date()
-    prazo_anterior = tarefa_finalizada.get("prazo_original") or tarefa_finalizada.get("prazo")
-    
-    tarefas_atualizadas = []
-    
-    for tarefa in tarefas_projeto:
-        # Calcular diferença de dias original entre esta tarefa e a anterior
-        if tarefa.get("prazo_original") and prazo_anterior:
-            try:
-                prazo_original_tarefa = datetime.fromisoformat(tarefa["prazo_original"]).date()
-                prazo_original_anterior = datetime.fromisoformat(prazo_anterior).date()
-                dias_diferenca = (prazo_original_tarefa - prazo_original_anterior).days
-                if dias_diferenca < 0:
-                    dias_diferenca = 1  # Mínimo 1 dia
-            except:
-                dias_diferenca = 1
-        else:
-            dias_diferenca = 1
-        
-        # Novo prazo baseado na data de finalização real + diferença
-        novo_prazo = data_base + timedelta(days=max(dias_diferenca, 1))
-        prazo_antigo = tarefa.get("prazo")
-        
-        # Atualizar tarefa
-        historico_entry = {
-            "id": str(uuid.uuid4()),
-            "acao": "prazo_recalculado",
-            "usuario_id": "sistema",
-            "usuario_nome": "Sistema",
-            "setor": "sistema",
-            "data": datetime.now(timezone.utc).isoformat(),
-            "detalhes": f"Prazo recalculado de {prazo_antigo} para {novo_prazo.isoformat()} (baseado na entrega anterior)"
-        }
-        
-        await db.tarefas.update_one(
-            {"id": tarefa["id"]},
-            {
-                "$set": {
-                    "prazo": novo_prazo.isoformat(),
-                    "atualizado_em": datetime.now(timezone.utc).isoformat()
-                },
-                "$push": {"historico": historico_entry}
-            }
-        )
-        
-        tarefas_atualizadas.append({
-            "id": tarefa["id"],
-            "titulo": tarefa["titulo"],
-            "prazo_anterior": prazo_antigo,
-            "novo_prazo": novo_prazo.isoformat()
-        })
-        
-        # Atualizar referências para próxima iteração
-        data_base = novo_prazo
-        prazo_anterior = tarefa.get("prazo_original")
-    
-    return tarefas_atualizadas
-
-
-# ==========================================
-# ROUTES - Health Check
-# ==========================================
-
-@api_router.get("/")
-async def root():
-    return {"message": "IDEIABH API - Sistema de Gestão Operacional"}
-
-
-@api_router.get("/health")
-async def health_check():
-    return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
-
-
-# ==========================================
-# ROUTES - Status de Tarefas
-# ==========================================
-
-@api_router.get("/status-tarefas", response_model=List[dict])
-async def listar_status_tarefas():
-    """Lista todos os status de tarefas ativos"""
-    await get_status_padrao()  # Ensure default statuses exist
-    status_list = await db.status_tarefas.find({"ativo": True}, {"_id": 0}).sort("ordem", 1).to_list(100)
-    return [deserialize_doc(s) for s in status_list]
-
-
-@api_router.post("/status-tarefas", response_model=dict)
-async def criar_status_tarefa(input: StatusTarefaCreate, user_role: str = Query(...), user_id: str = Query(...)):
-    """Cria um novo status de tarefa (apenas admin)"""
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem criar status")
-    
-    # Check if status with same name exists
-    existing = await db.status_tarefas.find_one({"nome": input.nome})
-    if existing:
-        raise HTTPException(status_code=400, detail="Já existe um status com este nome")
-    
-    status_obj = StatusTarefa(
-        nome=input.nome,
-        cor=input.cor,
-        ordem=input.ordem,
-        tipo="custom",
-        criado_por=user_id
-    )
-    
-    doc = serialize_doc(status_obj.model_dump())
-    await db.status_tarefas.insert_one(doc)
-    
-    return deserialize_doc(doc)
-
-
-@api_router.put("/status-tarefas/{status_id}", response_model=dict)
-async def atualizar_status_tarefa(status_id: str, input: StatusTarefaUpdate, user_role: str = Query(...)):
-    """Atualiza um status de tarefa (apenas admin)"""
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem atualizar status")
-    
-    existing = await db.status_tarefas.find_one({"id": status_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Status não encontrado")
-    
-    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
-    if update_data:
-        await db.status_tarefas.update_one({"id": status_id}, {"$set": update_data})
-    
-    updated = await db.status_tarefas.find_one({"id": status_id}, {"_id": 0})
-    return deserialize_doc(updated)
-
-
-@api_router.delete("/status-tarefas/{status_id}")
-async def deletar_status_tarefa(status_id: str, user_role: str = Query(...)):
-    """Deleta um status de tarefa (apenas admin, apenas status custom)"""
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem deletar status")
-    
-    existing = await db.status_tarefas.find_one({"id": status_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Status não encontrado")
-    
-    if existing.get("tipo") == "sistema":
-        raise HTTPException(status_code=400, detail="Não é possível deletar status do sistema")
-    
-    # Check if any task uses this status
-    tasks_with_status = await db.tarefas.count_documents({"status_id": status_id})
-    if tasks_with_status > 0:
-        raise HTTPException(status_code=400, detail=f"Existem {tasks_with_status} tarefas usando este status")
-    
-    await db.status_tarefas.delete_one({"id": status_id})
-    return {"message": "Status deletado com sucesso"}
-
-
-# ==========================================
-# ROUTES - Users
-# ==========================================
-
-@api_router.post("/auth/register", response_model=dict)
-async def register_user(input: UserCreate):
-    """Registra novo usuário (aguarda aprovação do admin)"""
-    import bcrypt
-    
-    # Verificar se username já existe
-    existing = await db.users.find_one({"username": input.username})
-    if existing:
-        raise HTTPException(status_code=400, detail="Username já existe")
-    
-    # Verificar se email já existe
-    existing_email = await db.users.find_one({"email": input.email})
-    if existing_email:
-        raise HTTPException(status_code=400, detail="Email já cadastrado")
-    
-    # Validar setor para operadores
-    if input.role == "operador" and not input.setor:
-        raise HTTPException(status_code=400, detail="Operadores devem ter um setor definido")
-    
-    # Hash da senha
-    password_hash = bcrypt.hashpw(input.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    
-    # Criar usuário
-    user_obj = User(
-        username=input.username,
-        email=input.email,
-        password_hash=password_hash,
-        nome=input.nome,
-        role=input.role,
-        setor=input.setor,
-        ativo=False,  # Precisa aprovação
-        aprovado=False
-    )
-    
-    user_doc = serialize_doc(user_obj.model_dump())
-    await db.users.insert_one(user_doc)
-    
-    logger.info(f"Novo usuário registrado: {input.username} (aguardando aprovação)")
-    
-    return {
-        "message": "Usuário registrado com sucesso! Aguarde aprovação do administrador.",
-        "username": input.username,
-        "aprovado": False
-    }
-
-
-@api_router.post("/auth/login", response_model=dict)
-async def login_user(input: UserLogin):
-    """Login de usuário"""
-    import bcrypt
-    
-    # Buscar usuário
-    user = await db.users.find_one({"username": input.username}, {"_id": 0})
-    if not user:
-        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
-    
-    # Verificar se está aprovado
-    if not user.get("aprovado"):
-        raise HTTPException(status_code=403, detail="Usuário ainda não foi aprovado pelo administrador")
-    
-    # Verificar se está ativo
-    if not user.get("ativo"):
-        raise HTTPException(status_code=403, detail="Usuário desativado")
-    
-    # Verificar senha
-    if not bcrypt.checkpw(input.password.encode('utf-8'), user["password_hash"].encode('utf-8')):
-        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
-    
-    # Remover senha do retorno
-    user_data = deserialize_doc(user)
-    user_data.pop("password_hash", None)
-    
-    return {
-        "message": "Login realizado com sucesso",
-        "user": user_data
-    }
-
-
-@api_router.get("/users", response_model=List[dict])
-async def listar_usuarios(user_role: str = Query(...)):
-    """Lista todos os usuários (apenas admin)"""
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem listar usuários")
-    
-    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
-    return [deserialize_doc(u) for u in users]
-
-
-@api_router.get("/users/pending", response_model=List[dict])
-async def listar_usuarios_pendentes(user_role: str = Query(...)):
-    """Lista usuários pendentes de aprovação (apenas admin)"""
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores")
-    
-    users = await db.users.find({"aprovado": False}, {"_id": 0, "password_hash": 0}).to_list(1000)
-    return [deserialize_doc(u) for u in users]
-
-
-@api_router.post("/users/{user_id}/approve", response_model=dict)
-async def aprovar_usuario(user_id: str, input: UserApprove, admin_role: str = Query(...)):
-    """Aprova ou rejeita usuário (apenas admin)"""
-    if admin_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem aprovar usuários")
-    
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    
-    update_data = {
-        "aprovado": input.aprovado,
-        "ativo": input.aprovado,  # Se aprovado, ativa automaticamente
-        "aprovado_por": input.aprovado_por,
-        "aprovado_em": datetime.now(timezone.utc).isoformat(),
-        "atualizado_em": datetime.now(timezone.utc).isoformat()
-    }
-    
-    await db.users.update_one({"id": user_id}, {"$set": update_data})
-    
-    updated = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
-    
-    status = "aprovado" if input.aprovado else "rejeitado"
-    logger.info(f"Usuário {user['username']} {status} por {input.aprovado_por}")
-    
-    return {
-        "message": f"Usuário {status} com sucesso",
-        "user": deserialize_doc(updated)
-    }
-
-
-@api_router.post("/users", response_model=dict)
-async def criar_usuario(input: UserCreate, admin_role: str = Query(...)):
-    """Cria usuário diretamente (apenas admin) - já aprovado"""
-    import bcrypt
-    
-    if admin_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem criar usuários")
-    
-    # Verificar se username já existe
-    existing = await db.users.find_one({"username": input.username})
-    if existing:
-        raise HTTPException(status_code=400, detail="Username já existe")
-    
-    # Validar setor para operadores
-    if input.role == "operador" and not input.setor:
-        raise HTTPException(status_code=400, detail="Operadores devem ter um setor definido")
-    
-    # Hash da senha
-    password_hash = bcrypt.hashpw(input.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    
-    # Criar usuário (já aprovado quando criado por admin)
-    user_obj = User(
-        username=input.username,
-        email=input.email,
-        password_hash=password_hash,
-        nome=input.nome,
-        role=input.role,
-        setor=input.setor,
-        ativo=True,
-        aprovado=True,
-        aprovado_por="admin",
-        aprovado_em=datetime.now(timezone.utc)
-    )
-    
-    user_doc = serialize_doc(user_obj.model_dump())
-    await db.users.insert_one(user_doc)
-    
-    user_data = deserialize_doc(user_doc)
-    user_data.pop("password_hash", None)
-    
-    return {
-        "message": "Usuário criado com sucesso",
-        "user": user_data
-    }
-
-
-@api_router.put("/users/{user_id}", response_model=dict)
-async def atualizar_usuario(user_id: str, input: UserUpdate, admin_role: str = Query(...)):
-    """Atualiza usuário (apenas admin)"""
-    if admin_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores")
-    
-    existing = await db.users.find_one({"id": user_id})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    
-    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
-    if update_data:
-        update_data["atualizado_em"] = datetime.now(timezone.utc).isoformat()
-        await db.users.update_one({"id": user_id}, {"$set": update_data})
-    
-    updated = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
-    return deserialize_doc(updated)
-
-
-@api_router.delete("/users/{user_id}")
-async def deletar_usuario(user_id: str, admin_role: str = Query(...)):
-    """Deleta usuário (apenas admin)"""
-    if admin_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores")
-    
-    result = await db.users.delete_one({"id": user_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    
-    return {"message": "Usuário deletado com sucesso"}
-
-
-# ==========================================
-# ROUTES - Tarefas
-# ==========================================
-
-@api_router.get("/tarefas", response_model=List[dict])
-async def listar_tarefas(
-    projeto_id: Optional[str] = None,
-    contrato_id: Optional[str] = None,
-    setor: Optional[str] = None,
-    status_id: Optional[str] = None,
-    responsavel_id: Optional[str] = None,
-    finalizada: Optional[bool] = None,
-    atrasada: Optional[bool] = None
-):
-    """Lista tarefas com filtros opcionais"""
-    query = {}
-    
-    if projeto_id:
-        query["projeto_id"] = projeto_id
-    if contrato_id:
-        query["contrato_id"] = contrato_id
-    if setor:
-        query["setor"] = setor
-    if status_id:
-        query["status_id"] = status_id
-    if responsavel_id:
-        query["responsavel_id"] = responsavel_id
-    if finalizada is not None:
-        query["finalizada"] = finalizada
-    if atrasada is not None:
-        query["atrasada"] = atrasada
-    
-    tarefas = await db.tarefas.find(query, {"_id": 0}).sort("criado_em", -1).to_list(1000)
-    
-    # Update delay status for each task
-    result = []
-    for tarefa in tarefas:
-        tarefa = deserialize_doc(tarefa)
-        if not tarefa.get("finalizada"):
-            dias_atraso, atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
-            tarefa["dias_atraso"] = dias_atraso
-            tarefa["atrasada"] = atrasada
-        result.append(tarefa)
-    
-    return result
-
-
-@api_router.get("/tarefas/{tarefa_id}", response_model=dict)
-async def obter_tarefa(tarefa_id: str):
-    """Obtém uma tarefa específica"""
-    tarefa = await db.tarefas.find_one({"id": tarefa_id}, {"_id": 0})
-    if not tarefa:
-        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    
-    tarefa = deserialize_doc(tarefa)
-    if not tarefa.get("finalizada"):
-        dias_atraso, atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
-        tarefa["dias_atraso"] = dias_atraso
-        tarefa["atrasada"] = atrasada
-    
-    return tarefa
-
-
-@api_router.post("/tarefas", response_model=dict)
-async def criar_tarefa(input: TarefaCreate):
-    """Cria uma nova tarefa"""
-    # Get default status if not provided
-    status_list = await get_status_padrao()
-    
-    if input.status_id:
-        status = await db.status_tarefas.find_one({"id": input.status_id})
-        if not status:
-            raise HTTPException(status_code=400, detail="Status não encontrado")
-        status_nome = status["nome"]
-    else:
-        # Use first status (Pendente)
-        input.status_id = status_list[0]["id"]
-        status_nome = status_list[0]["nome"]
-    
-    # Calculate initial delay
-    dias_atraso, atrasada = await calcular_dias_atraso(input.prazo)
-    
-    tarefa_obj = Tarefa(
-        titulo=input.titulo,
-        descricao=input.descricao,
-        projeto_id=input.projeto_id,
-        contrato_id=input.contrato_id,
-        setor=input.setor,
-        responsavel_id=input.responsavel_id,
-        responsavel_nome=input.responsavel_nome,
-        status_id=input.status_id,
-        status_nome=status_nome,
-        prazo=input.prazo,
-        prazo_original=input.prazo,
-        prioridade=input.prioridade,
-        dias_atraso=dias_atraso,
-        atrasada=atrasada,
-        criado_por_id=input.criado_por_id,
-        criado_por_nome=input.criado_por_nome,
-        criado_por_setor=input.criado_por_setor,
-        historico=[
-            HistoricoAcao(
-                acao="criada",
-                usuario_id=input.criado_por_id,
-                usuario_nome=input.criado_por_nome,
-                setor=input.criado_por_setor,
-                detalhes=f"Tarefa criada: {input.titulo}"
-            )
-        ]
-    )
-    
-    doc = serialize_doc(tarefa_obj.model_dump())
-    await db.tarefas.insert_one(doc)
-    
-    logger.info(f"Tarefa criada: {tarefa_obj.id} por {input.criado_por_nome} ({input.criado_por_setor})")
-    
-    return deserialize_doc(doc)
-
-
-@api_router.put("/tarefas/{tarefa_id}", response_model=dict)
-async def atualizar_tarefa(tarefa_id: str, input: TarefaUpdate):
-    """Atualiza uma tarefa (apenas admin ou gerente podem editar)"""
-    # Verificar permissão - apenas admin e gerente podem editar
-    if input.usuario_role not in ["admin", "gerente"]:
-        raise HTTPException(status_code=403, detail="Apenas administradores e gerentes podem editar tarefas")
-    
-    tarefa = await db.tarefas.find_one({"id": tarefa_id})
-    if not tarefa:
-        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    
-    if tarefa.get("finalizada"):
-        raise HTTPException(status_code=400, detail="Não é possível editar uma tarefa finalizada")
-    
-    update_data = {}
-    detalhes = []
-    
-    if input.titulo and input.titulo != tarefa.get("titulo"):
-        update_data["titulo"] = input.titulo
-        detalhes.append(f"Título alterado para: {input.titulo}")
-    
-    if input.descricao is not None:
-        update_data["descricao"] = input.descricao
-    
-    if input.setor and input.setor != tarefa.get("setor"):
-        update_data["setor"] = input.setor
-        detalhes.append(f"Setor alterado para: {input.setor}")
-    
-    if input.responsavel_id is not None:
-        update_data["responsavel_id"] = input.responsavel_id
-        update_data["responsavel_nome"] = input.responsavel_nome
-        if input.responsavel_nome:
-            detalhes.append(f"Responsável alterado para: {input.responsavel_nome}")
-    
-    if input.prazo and input.prazo != tarefa.get("prazo"):
-        prazo_anterior = tarefa.get("prazo")
-        update_data["prazo"] = input.prazo
-        dias_atraso, atrasada = await calcular_dias_atraso(input.prazo)
-        update_data["dias_atraso"] = dias_atraso
-        update_data["atrasada"] = atrasada
-        detalhes.append(f"Prazo alterado de {prazo_anterior} para: {input.prazo}")
-    
-    if input.prioridade and input.prioridade != tarefa.get("prioridade"):
-        update_data["prioridade"] = input.prioridade
-        detalhes.append(f"Prioridade alterada para: {input.prioridade}")
-    
-    if update_data:
-        update_data["atualizado_em"] = datetime.now(timezone.utc).isoformat()
-        
-        # Add to history
-        historico_entry = {
-            "id": str(uuid.uuid4()),
-            "acao": "atualizada",
-            "usuario_id": input.usuario_id,
-            "usuario_nome": input.usuario_nome,
-            "setor": input.usuario_setor,
-            "data": datetime.now(timezone.utc).isoformat(),
-            "detalhes": "; ".join(detalhes) if detalhes else "Tarefa atualizada"
-        }
-        
-        await db.tarefas.update_one(
-            {"id": tarefa_id},
-            {
-                "$set": update_data,
-                "$push": {"historico": historico_entry}
-            }
-        )
-    
-    updated = await db.tarefas.find_one({"id": tarefa_id}, {"_id": 0})
-    return deserialize_doc(updated)
-
-
-@api_router.post("/tarefas/{tarefa_id}/finalizar", response_model=dict)
-async def finalizar_tarefa(tarefa_id: str, input: TarefaFinalizar):
-    """Finaliza uma tarefa com observação obrigatória e recalcula prazos das próximas etapas"""
-    tarefa = await db.tarefas.find_one({"id": tarefa_id})
-    if not tarefa:
-        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    
-    if tarefa.get("finalizada"):
-        raise HTTPException(status_code=400, detail="Tarefa já está finalizada")
-    
-    # Get "Concluído" status
-    status_concluido = await db.status_tarefas.find_one({"nome": "Concluído"})
-    if not status_concluido:
-        raise HTTPException(status_code=500, detail="Status 'Concluído' não encontrado")
-    
-    now = datetime.now(timezone.utc)
-    
-    historico_entry = {
-        "id": str(uuid.uuid4()),
-        "acao": "finalizada",
-        "usuario_id": input.usuario_id,
-        "usuario_nome": input.usuario_nome,
-        "setor": input.usuario_setor,
-        "data": now.isoformat(),
-        "observacao": input.observacao,
-        "detalhes": f"Tarefa finalizada por {input.usuario_nome} ({input.usuario_setor})"
-    }
-    
-    await db.tarefas.update_one(
-        {"id": tarefa_id},
-        {
-            "$set": {
-                "finalizada": True,
-                "data_finalizacao": now.isoformat(),
-                "observacao_finalizacao": input.observacao,
-                "status_id": status_concluido["id"],
-                "status_nome": "Concluído",
-                "atualizado_em": now.isoformat()
-            },
-            "$push": {"historico": historico_entry}
-        }
-    )
-    
-    logger.info(f"Tarefa finalizada: {tarefa_id} por {input.usuario_nome} ({input.usuario_setor})")
-    
-    # Recalcular prazos das próximas tarefas do projeto
-    prazos_recalculados = []
-    if tarefa.get("projeto_id"):
-        prazos_recalculados = await recalcular_prazos_projeto(
-            tarefa["projeto_id"], 
-            tarefa_id, 
-            now
-        )
-        if prazos_recalculados:
-            logger.info(f"Prazos recalculados para {len(prazos_recalculados)} tarefas do projeto {tarefa['projeto_id']}")
-    
-    updated = await db.tarefas.find_one({"id": tarefa_id}, {"_id": 0})
-    result = deserialize_doc(updated)
-    result["prazos_recalculados"] = prazos_recalculados
-    return result
-
-
-@api_router.post("/tarefas/{tarefa_id}/alterar-status", response_model=dict)
-async def alterar_status_tarefa(tarefa_id: str, input: TarefaAlterarStatus):
-    """Altera o status de uma tarefa"""
-    tarefa = await db.tarefas.find_one({"id": tarefa_id})
-    if not tarefa:
-        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    
-    if tarefa.get("finalizada"):
-        raise HTTPException(status_code=400, detail="Não é possível alterar status de tarefa finalizada")
-    
-    status = await db.status_tarefas.find_one({"id": input.status_id})
-    if not status:
-        raise HTTPException(status_code=400, detail="Status não encontrado")
-    
-    now = datetime.now(timezone.utc)
-    
-    historico_entry = {
-        "id": str(uuid.uuid4()),
-        "acao": "status_alterado",
-        "usuario_id": input.usuario_id,
-        "usuario_nome": input.usuario_nome,
-        "setor": input.usuario_setor,
-        "data": now.isoformat(),
-        "observacao": input.observacao,
-        "detalhes": f"Status alterado de '{tarefa.get('status_nome')}' para '{status['nome']}'"
-    }
-    
-    await db.tarefas.update_one(
-        {"id": tarefa_id},
-        {
-            "$set": {
-                "status_id": input.status_id,
-                "status_nome": status["nome"],
-                "atualizado_em": now.isoformat()
-            },
-            "$push": {"historico": historico_entry}
-        }
-    )
-    
-    updated = await db.tarefas.find_one({"id": tarefa_id}, {"_id": 0})
-    return deserialize_doc(updated)
-
-
-@api_router.delete("/tarefas/{tarefa_id}")
-async def deletar_tarefa(tarefa_id: str, user_role: str = Query(...), user_id: str = Query(...)):
-    """Deleta uma tarefa (apenas admin ou gerente podem deletar)"""
-    tarefa = await db.tarefas.find_one({"id": tarefa_id})
-    if not tarefa:
-        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    
-    # Admin e gerente podem deletar tarefas
-    if user_role not in ["admin", "gerente"]:
-        raise HTTPException(status_code=403, detail="Apenas administradores e gerentes podem deletar tarefas")
-    
-    await db.tarefas.delete_one({"id": tarefa_id})
-    logger.info(f"Tarefa deletada: {tarefa_id} por user {user_id} (role: {user_role})")
-    
-    return {"message": "Tarefa deletada com sucesso"}
-
-
-@api_router.delete("/tarefas")
-async def deletar_todas_tarefas(user_role: str = Query(...), user_id: str = Query(...)):
-    """Deleta todas as tarefas (apenas admin)"""
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem deletar todas as tarefas")
-    
-    result = await db.tarefas.delete_many({})
-    logger.info(f"Todas as tarefas deletadas ({result.deleted_count}) por user {user_id}")
-    
-    return {"message": f"{result.deleted_count} tarefas deletadas com sucesso"}
-
-
-# ==========================================
-# ROUTES - Atrasos e Relatórios
-# ==========================================
-
-@api_router.get("/tarefas-atrasadas", response_model=List[dict])
-async def listar_tarefas_atrasadas(
-    projeto_id: Optional[str] = None,
-    setor: Optional[str] = None
-):
-    """Lista todas as tarefas atrasadas"""
-    query = {"finalizada": False}
-    
-    if projeto_id:
-        query["projeto_id"] = projeto_id
-    if setor:
-        query["setor"] = setor
-    
-    tarefas = await db.tarefas.find(query, {"_id": 0}).to_list(1000)
-    
-    atrasadas = []
-    for tarefa in tarefas:
-        tarefa = deserialize_doc(tarefa)
-        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
-        if is_atrasada:
-            tarefa["dias_atraso"] = dias_atraso
-            tarefa["atrasada"] = True
-            atrasadas.append(tarefa)
-    
-    # Sort by days of delay (descending)
-    atrasadas.sort(key=lambda x: x.get("dias_atraso", 0), reverse=True)
-    
-    return atrasadas
-
-
-@api_router.get("/atrasos-por-setor", response_model=List[dict])
-async def atrasos_por_setor():
-    """Retorna resumo de atrasos agrupados por setor"""
-    tarefas = await db.tarefas.find({"finalizada": False}, {"_id": 0}).to_list(1000)
-    
-    setores = {}
-    for tarefa in tarefas:
-        tarefa = deserialize_doc(tarefa)
-        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
-        
-        setor = tarefa.get("setor", "Sem setor")
-        if setor not in setores:
-            setores[setor] = {
-                "setor": setor,
-                "total_tarefas": 0,
-                "tarefas_atrasadas": 0,
-                "total_dias_atraso": 0,
-                "tarefas": []
-            }
-        
-        setores[setor]["total_tarefas"] += 1
-        if is_atrasada:
-            setores[setor]["tarefas_atrasadas"] += 1
-            setores[setor]["total_dias_atraso"] += dias_atraso
-            setores[setor]["tarefas"].append({
-                "id": tarefa["id"],
-                "titulo": tarefa["titulo"],
-                "dias_atraso": dias_atraso,
-                "responsavel": tarefa.get("responsavel_nome"),
-                "criado_por": tarefa.get("criado_por_nome")
-            })
-    
-    result = list(setores.values())
-    result.sort(key=lambda x: x["tarefas_atrasadas"], reverse=True)
-    
-    return result
-
-
-@api_router.get("/atrasos-por-projeto/{projeto_id}", response_model=dict)
-async def atrasos_por_projeto(projeto_id: str):
-    """Retorna detalhes de atrasos de um projeto específico"""
-    tarefas = await db.tarefas.find({"projeto_id": projeto_id, "finalizada": False}, {"_id": 0}).to_list(1000)
-    
-    resultado = {
-        "projeto_id": projeto_id,
-        "total_tarefas": len(tarefas),
-        "tarefas_atrasadas": 0,
-        "tarefas_em_dia": 0,
-        "total_dias_atraso": 0,
-        "atrasos_por_setor": {},
-        "detalhes_atrasos": []
-    }
-    
-    for tarefa in tarefas:
-        tarefa = deserialize_doc(tarefa)
-        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
-        
-        if is_atrasada:
-            resultado["tarefas_atrasadas"] += 1
-            resultado["total_dias_atraso"] += dias_atraso
-            
-            setor = tarefa.get("setor", "Sem setor")
-            if setor not in resultado["atrasos_por_setor"]:
-                resultado["atrasos_por_setor"][setor] = 0
-            resultado["atrasos_por_setor"][setor] += 1
-            
-            resultado["detalhes_atrasos"].append({
-                "tarefa_id": tarefa["id"],
-                "titulo": tarefa["titulo"],
-                "setor": setor,
-                "dias_atraso": dias_atraso,
-                "responsavel": tarefa.get("responsavel_nome"),
-                "criado_por": tarefa.get("criado_por_nome"),
-                "criado_por_setor": tarefa.get("criado_por_setor")
-            })
-        else:
-            resultado["tarefas_em_dia"] += 1
-    
-    resultado["detalhes_atrasos"].sort(key=lambda x: x["dias_atraso"], reverse=True)
-    
-    return resultado
-
-
-# ==========================================
-# ROUTES - Dashboard Stats
-# ==========================================
-
-@api_router.get("/dashboard-stats", response_model=dict)
-async def dashboard_stats():
-    """Retorna estatísticas gerais para o dashboard"""
-    tarefas = await db.tarefas.find({}, {"_id": 0}).to_list(1000)
-    
-    total = len(tarefas)
-    finalizadas = sum(1 for t in tarefas if t.get("finalizada"))
-    em_andamento = total - finalizadas
-    
-    atrasadas = 0
-    for tarefa in tarefas:
-        if not tarefa.get("finalizada"):
-            _, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
-            if is_atrasada:
-                atrasadas += 1
-    
-    # Group by sector
-    por_setor = {}
-    for tarefa in tarefas:
-        setor = tarefa.get("setor", "Sem setor")
-        if setor not in por_setor:
-            por_setor[setor] = {"total": 0, "finalizadas": 0, "em_andamento": 0}
-        por_setor[setor]["total"] += 1
-        if tarefa.get("finalizada"):
-            por_setor[setor]["finalizadas"] += 1
-        else:
-            por_setor[setor]["em_andamento"] += 1
-    
-    return {
-        "total_tarefas": total,
-        "tarefas_finalizadas": finalizadas,
-        "tarefas_em_andamento": em_andamento,
-        "tarefas_atrasadas": atrasadas,
-        "percentual_conclusao": round((finalizadas / total * 100) if total > 0 else 0, 1),
-        "por_setor": por_setor,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
-
-
-# ==========================================
-# MODELS - Template de Prazos
+# PYDANTIC MODELS - Template de Prazos
 # ==========================================
 
 class EtapaPrazo(BaseModel):
@@ -1332,35 +376,1125 @@ class TemplatePrazosUpdate(BaseModel):
 
 
 # ==========================================
+# HELPER FUNCTIONS
+# ==========================================
+
+def model_to_dict(obj) -> dict:
+    """Convert SQLAlchemy model to dictionary"""
+    if obj is None:
+        return None
+    
+    result = {}
+    for column in obj.__table__.columns:
+        value = getattr(obj, column.name)
+        if isinstance(value, datetime):
+            result[column.name] = value.isoformat()
+        else:
+            result[column.name] = value
+    return result
+
+
+async def calcular_dias_atraso(prazo_str: Optional[str]) -> tuple:
+    """Calculate days of delay for a task"""
+    if not prazo_str:
+        return 0, False
+    try:
+        prazo = datetime.fromisoformat(prazo_str).date()
+        hoje = datetime.now(timezone.utc).date()
+        if hoje > prazo:
+            dias = (hoje - prazo).days
+            return dias, True
+        return 0, False
+    except:
+        return 0, False
+
+
+async def get_status_padrao(db: AsyncSession):
+    """Get or create default statuses"""
+    result = await db.execute(select(func.count(StatusTarefaModel.id)))
+    status_count = result.scalar()
+    
+    if status_count == 0:
+        # Create default statuses
+        default_statuses = [
+            StatusTarefaModel(id=str(uuid.uuid4()), nome="Pendente", cor="#94a3b8", ordem=1, tipo="sistema", ativo=True, criado_por="sistema"),
+            StatusTarefaModel(id=str(uuid.uuid4()), nome="Em Andamento", cor="#3b82f6", ordem=2, tipo="sistema", ativo=True, criado_por="sistema"),
+            StatusTarefaModel(id=str(uuid.uuid4()), nome="Aguardando", cor="#f59e0b", ordem=3, tipo="sistema", ativo=True, criado_por="sistema"),
+            StatusTarefaModel(id=str(uuid.uuid4()), nome="Concluído", cor="#10b981", ordem=4, tipo="sistema", ativo=True, criado_por="sistema"),
+        ]
+        for status in default_statuses:
+            db.add(status)
+        await db.commit()
+        return [model_to_dict(s) for s in default_statuses]
+    
+    result = await db.execute(
+        select(StatusTarefaModel)
+        .where(StatusTarefaModel.ativo == True)
+        .order_by(StatusTarefaModel.ordem)
+    )
+    return [model_to_dict(s) for s in result.scalars().all()]
+
+
+async def recalcular_prazos_projeto(db: AsyncSession, projeto_id: str, tarefa_finalizada_id: str, data_finalizacao: datetime):
+    """Recalcula os prazos das tarefas seguintes baseado na data de finalização da tarefa anterior."""
+    # Buscar a tarefa finalizada
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == tarefa_finalizada_id)
+    )
+    tarefa_finalizada = result.scalar_one_or_none()
+    
+    if not tarefa_finalizada:
+        return []
+    
+    # Buscar todas as tarefas do projeto não finalizadas
+    result = await db.execute(
+        select(TarefaModel)
+        .where(and_(
+            TarefaModel.projeto_id == projeto_id,
+            TarefaModel.finalizada == False
+        ))
+        .order_by(TarefaModel.prazo_original)
+    )
+    tarefas_projeto = result.scalars().all()
+    
+    if not tarefas_projeto:
+        return []
+    
+    # Data base é a data de finalização real
+    data_base = data_finalizacao.date() if isinstance(data_finalizacao, datetime) else datetime.fromisoformat(str(data_finalizacao)).date()
+    prazo_anterior = tarefa_finalizada.prazo_original or tarefa_finalizada.prazo
+    
+    tarefas_atualizadas = []
+    
+    for tarefa in tarefas_projeto:
+        # Calcular diferença de dias original
+        if tarefa.prazo_original and prazo_anterior:
+            try:
+                prazo_original_tarefa = datetime.fromisoformat(tarefa.prazo_original).date()
+                prazo_original_anterior = datetime.fromisoformat(prazo_anterior).date()
+                dias_diferenca = (prazo_original_tarefa - prazo_original_anterior).days
+                if dias_diferenca < 0:
+                    dias_diferenca = 1
+            except:
+                dias_diferenca = 1
+        else:
+            dias_diferenca = 1
+        
+        # Novo prazo baseado na data de finalização real + diferença
+        novo_prazo = data_base + timedelta(days=max(dias_diferenca, 1))
+        prazo_antigo = tarefa.prazo
+        
+        # Atualizar histórico
+        historico = tarefa.historico or []
+        historico.append({
+            "id": str(uuid.uuid4()),
+            "acao": "prazo_recalculado",
+            "usuario_id": "sistema",
+            "usuario_nome": "Sistema",
+            "setor": "sistema",
+            "data": datetime.now(timezone.utc).isoformat(),
+            "detalhes": f"Prazo recalculado de {prazo_antigo} para {novo_prazo.isoformat()} (baseado na entrega anterior)"
+        })
+        
+        tarefa.prazo = novo_prazo.isoformat()
+        tarefa.historico = historico
+        tarefa.atualizado_em = datetime.now(timezone.utc)
+        
+        tarefas_atualizadas.append({
+            "id": tarefa.id,
+            "titulo": tarefa.titulo,
+            "prazo_anterior": prazo_antigo,
+            "novo_prazo": novo_prazo.isoformat()
+        })
+        
+        # Atualizar referências para próxima iteração
+        data_base = novo_prazo
+        prazo_anterior = tarefa.prazo_original
+    
+    await db.commit()
+    return tarefas_atualizadas
+
+
+# ==========================================
+# ROUTES - Health Check
+# ==========================================
+
+@api_router.get("/")
+async def root():
+    return {"message": "IDEIABH API - Sistema de Gestão Operacional (PostgreSQL)"}
+
+
+@api_router.get("/health")
+async def health_check():
+    return {"status": "healthy", "database": "postgresql", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
+# ==========================================
+# ROUTES - Status de Tarefas
+# ==========================================
+
+@api_router.get("/status-tarefas", response_model=List[dict])
+async def listar_status_tarefas(db: AsyncSession = Depends(get_db)):
+    """Lista todos os status de tarefas ativos"""
+    await get_status_padrao(db)
+    result = await db.execute(
+        select(StatusTarefaModel)
+        .where(StatusTarefaModel.ativo == True)
+        .order_by(StatusTarefaModel.ordem)
+    )
+    return [model_to_dict(s) for s in result.scalars().all()]
+
+
+@api_router.post("/status-tarefas", response_model=dict)
+async def criar_status_tarefa(
+    input: StatusTarefaCreate,
+    user_role: str = Query(...),
+    user_id: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Cria um novo status de tarefa (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar status")
+    
+    # Check if status with same name exists
+    result = await db.execute(
+        select(StatusTarefaModel).where(StatusTarefaModel.nome == input.nome)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Já existe um status com este nome")
+    
+    status_obj = StatusTarefaModel(
+        id=str(uuid.uuid4()),
+        nome=input.nome,
+        cor=input.cor,
+        ordem=input.ordem,
+        tipo="custom",
+        criado_por=user_id
+    )
+    
+    db.add(status_obj)
+    await db.commit()
+    await db.refresh(status_obj)
+    
+    return model_to_dict(status_obj)
+
+
+@api_router.put("/status-tarefas/{status_id}", response_model=dict)
+async def atualizar_status_tarefa(
+    status_id: str,
+    input: StatusTarefaUpdate,
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Atualiza um status de tarefa (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem atualizar status")
+    
+    result = await db.execute(
+        select(StatusTarefaModel).where(StatusTarefaModel.id == status_id)
+    )
+    existing = result.scalar_one_or_none()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Status não encontrado")
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    for key, value in update_data.items():
+        setattr(existing, key, value)
+    
+    await db.commit()
+    await db.refresh(existing)
+    
+    return model_to_dict(existing)
+
+
+@api_router.delete("/status-tarefas/{status_id}")
+async def deletar_status_tarefa(
+    status_id: str,
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Deleta um status de tarefa (apenas admin, apenas status custom)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem deletar status")
+    
+    result = await db.execute(
+        select(StatusTarefaModel).where(StatusTarefaModel.id == status_id)
+    )
+    existing = result.scalar_one_or_none()
+    if not existing:
+        raise HTTPException(status_code=404, detail="Status não encontrado")
+    
+    if existing.tipo == "sistema":
+        raise HTTPException(status_code=400, detail="Não é possível deletar status do sistema")
+    
+    # Check if any task uses this status
+    result = await db.execute(
+        select(func.count(TarefaModel.id)).where(TarefaModel.status_id == status_id)
+    )
+    tasks_count = result.scalar()
+    if tasks_count > 0:
+        raise HTTPException(status_code=400, detail=f"Existem {tasks_count} tarefas usando este status")
+    
+    await db.delete(existing)
+    await db.commit()
+    return {"message": "Status deletado com sucesso"}
+
+
+# ==========================================
+# ROUTES - Users
+# ==========================================
+
+@api_router.post("/auth/register", response_model=dict)
+async def register_user(input: UserCreate, db: AsyncSession = Depends(get_db)):
+    """Registra novo usuário (aguarda aprovação do admin)"""
+    import bcrypt
+    
+    # Verificar se username já existe
+    result = await db.execute(
+        select(UserModel).where(UserModel.username == input.username)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Username já existe")
+    
+    # Verificar se email já existe
+    result = await db.execute(
+        select(UserModel).where(UserModel.email == input.email)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    
+    # Validar setor para operadores
+    if input.role == "operador" and not input.setor:
+        raise HTTPException(status_code=400, detail="Operadores devem ter um setor definido")
+    
+    # Hash da senha
+    password_hash = bcrypt.hashpw(input.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    # Criar usuário
+    user_obj = UserModel(
+        id=str(uuid.uuid4()),
+        username=input.username,
+        email=input.email,
+        password_hash=password_hash,
+        nome=input.nome,
+        role=input.role,
+        setor=input.setor,
+        ativo=False,
+        aprovado=False
+    )
+    
+    db.add(user_obj)
+    await db.commit()
+    
+    logger.info(f"Novo usuário registrado: {input.username} (aguardando aprovação)")
+    
+    return {
+        "message": "Usuário registrado com sucesso! Aguarde aprovação do administrador.",
+        "username": input.username,
+        "aprovado": False
+    }
+
+
+@api_router.post("/auth/login", response_model=dict)
+async def login_user(input: UserLogin, db: AsyncSession = Depends(get_db)):
+    """Login de usuário"""
+    import bcrypt
+    
+    result = await db.execute(
+        select(UserModel).where(UserModel.username == input.username)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+    
+    if not user.aprovado:
+        raise HTTPException(status_code=403, detail="Usuário ainda não foi aprovado pelo administrador")
+    
+    if not user.ativo:
+        raise HTTPException(status_code=403, detail="Usuário desativado")
+    
+    if not bcrypt.checkpw(input.password.encode('utf-8'), user.password_hash.encode('utf-8')):
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+    
+    user_data = model_to_dict(user)
+    user_data.pop("password_hash", None)
+    
+    return {
+        "message": "Login realizado com sucesso",
+        "user": user_data
+    }
+
+
+@api_router.get("/users", response_model=List[dict])
+async def listar_usuarios(user_role: str = Query(...), db: AsyncSession = Depends(get_db)):
+    """Lista todos os usuários (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem listar usuários")
+    
+    result = await db.execute(select(UserModel))
+    users = result.scalars().all()
+    
+    user_list = []
+    for u in users:
+        user_dict = model_to_dict(u)
+        user_dict.pop("password_hash", None)
+        user_list.append(user_dict)
+    
+    return user_list
+
+
+@api_router.get("/users/pending", response_model=List[dict])
+async def listar_usuarios_pendentes(user_role: str = Query(...), db: AsyncSession = Depends(get_db)):
+    """Lista usuários pendentes de aprovação (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores")
+    
+    result = await db.execute(
+        select(UserModel).where(UserModel.aprovado == False)
+    )
+    users = result.scalars().all()
+    
+    user_list = []
+    for u in users:
+        user_dict = model_to_dict(u)
+        user_dict.pop("password_hash", None)
+        user_list.append(user_dict)
+    
+    return user_list
+
+
+@api_router.post("/users/{user_id}/approve", response_model=dict)
+async def aprovar_usuario(
+    user_id: str,
+    input: UserApprove,
+    admin_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Aprova ou rejeita usuário (apenas admin)"""
+    if admin_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem aprovar usuários")
+    
+    result = await db.execute(
+        select(UserModel).where(UserModel.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    user.aprovado = input.aprovado
+    user.ativo = input.aprovado
+    user.aprovado_por = input.aprovado_por
+    user.aprovado_em = datetime.now(timezone.utc)
+    user.atualizado_em = datetime.now(timezone.utc)
+    
+    await db.commit()
+    await db.refresh(user)
+    
+    user_data = model_to_dict(user)
+    user_data.pop("password_hash", None)
+    
+    status = "aprovado" if input.aprovado else "rejeitado"
+    logger.info(f"Usuário {user.username} {status} por {input.aprovado_por}")
+    
+    return {
+        "message": f"Usuário {status} com sucesso",
+        "user": user_data
+    }
+
+
+@api_router.post("/users", response_model=dict)
+async def criar_usuario(
+    input: UserCreate,
+    admin_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Cria usuário diretamente (apenas admin) - já aprovado"""
+    import bcrypt
+    
+    if admin_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar usuários")
+    
+    result = await db.execute(
+        select(UserModel).where(UserModel.username == input.username)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Username já existe")
+    
+    if input.role == "operador" and not input.setor:
+        raise HTTPException(status_code=400, detail="Operadores devem ter um setor definido")
+    
+    password_hash = bcrypt.hashpw(input.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    user_obj = UserModel(
+        id=str(uuid.uuid4()),
+        username=input.username,
+        email=input.email,
+        password_hash=password_hash,
+        nome=input.nome,
+        role=input.role,
+        setor=input.setor,
+        ativo=True,
+        aprovado=True,
+        aprovado_por="admin",
+        aprovado_em=datetime.now(timezone.utc)
+    )
+    
+    db.add(user_obj)
+    await db.commit()
+    await db.refresh(user_obj)
+    
+    user_data = model_to_dict(user_obj)
+    user_data.pop("password_hash", None)
+    
+    return {
+        "message": "Usuário criado com sucesso",
+        "user": user_data
+    }
+
+
+@api_router.put("/users/{user_id}", response_model=dict)
+async def atualizar_usuario(
+    user_id: str,
+    input: UserUpdate,
+    admin_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Atualiza usuário (apenas admin)"""
+    if admin_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores")
+    
+    result = await db.execute(
+        select(UserModel).where(UserModel.id == user_id)
+    )
+    existing = result.scalar_one_or_none()
+    
+    if not existing:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    for key, value in update_data.items():
+        setattr(existing, key, value)
+    existing.atualizado_em = datetime.now(timezone.utc)
+    
+    await db.commit()
+    await db.refresh(existing)
+    
+    user_data = model_to_dict(existing)
+    user_data.pop("password_hash", None)
+    
+    return user_data
+
+
+@api_router.delete("/users/{user_id}")
+async def deletar_usuario(
+    user_id: str,
+    admin_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Deleta usuário (apenas admin)"""
+    if admin_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores")
+    
+    result = await db.execute(
+        select(UserModel).where(UserModel.id == user_id)
+    )
+    existing = result.scalar_one_or_none()
+    
+    if not existing:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    await db.delete(existing)
+    await db.commit()
+    
+    return {"message": "Usuário deletado com sucesso"}
+
+
+# ==========================================
+# ROUTES - Tarefas
+# ==========================================
+
+@api_router.get("/tarefas", response_model=List[dict])
+async def listar_tarefas(
+    projeto_id: Optional[str] = None,
+    contrato_id: Optional[str] = None,
+    setor: Optional[str] = None,
+    status_id: Optional[str] = None,
+    responsavel_id: Optional[str] = None,
+    finalizada: Optional[bool] = None,
+    atrasada: Optional[bool] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Lista tarefas com filtros opcionais"""
+    query = select(TarefaModel)
+    
+    conditions = []
+    if projeto_id:
+        conditions.append(TarefaModel.projeto_id == projeto_id)
+    if contrato_id:
+        conditions.append(TarefaModel.contrato_id == contrato_id)
+    if setor:
+        conditions.append(TarefaModel.setor == setor)
+    if status_id:
+        conditions.append(TarefaModel.status_id == status_id)
+    if responsavel_id:
+        conditions.append(TarefaModel.responsavel_id == responsavel_id)
+    if finalizada is not None:
+        conditions.append(TarefaModel.finalizada == finalizada)
+    if atrasada is not None:
+        conditions.append(TarefaModel.atrasada == atrasada)
+    
+    if conditions:
+        query = query.where(and_(*conditions))
+    
+    query = query.order_by(TarefaModel.criado_em.desc())
+    
+    result = await db.execute(query)
+    tarefas = result.scalars().all()
+    
+    # Update delay status for each task
+    result_list = []
+    for tarefa in tarefas:
+        tarefa_dict = model_to_dict(tarefa)
+        if not tarefa.finalizada:
+            dias_atraso, atrasada_calc = await calcular_dias_atraso(tarefa.prazo)
+            tarefa_dict["dias_atraso"] = dias_atraso
+            tarefa_dict["atrasada"] = atrasada_calc
+        result_list.append(tarefa_dict)
+    
+    return result_list
+
+
+@api_router.get("/tarefas/{tarefa_id}", response_model=dict)
+async def obter_tarefa(tarefa_id: str, db: AsyncSession = Depends(get_db)):
+    """Obtém uma tarefa específica"""
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == tarefa_id)
+    )
+    tarefa = result.scalar_one_or_none()
+    
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    
+    tarefa_dict = model_to_dict(tarefa)
+    if not tarefa.finalizada:
+        dias_atraso, atrasada = await calcular_dias_atraso(tarefa.prazo)
+        tarefa_dict["dias_atraso"] = dias_atraso
+        tarefa_dict["atrasada"] = atrasada
+    
+    return tarefa_dict
+
+
+@api_router.post("/tarefas", response_model=dict)
+async def criar_tarefa(input: TarefaCreate, db: AsyncSession = Depends(get_db)):
+    """Cria uma nova tarefa"""
+    status_list = await get_status_padrao(db)
+    
+    if input.status_id:
+        result = await db.execute(
+            select(StatusTarefaModel).where(StatusTarefaModel.id == input.status_id)
+        )
+        status = result.scalar_one_or_none()
+        if not status:
+            raise HTTPException(status_code=400, detail="Status não encontrado")
+        status_nome = status.nome
+    else:
+        input.status_id = status_list[0]["id"]
+        status_nome = status_list[0]["nome"]
+    
+    dias_atraso, atrasada = await calcular_dias_atraso(input.prazo)
+    
+    historico = [{
+        "id": str(uuid.uuid4()),
+        "acao": "criada",
+        "usuario_id": input.criado_por_id,
+        "usuario_nome": input.criado_por_nome,
+        "setor": input.criado_por_setor,
+        "data": datetime.now(timezone.utc).isoformat(),
+        "detalhes": f"Tarefa criada: {input.titulo}"
+    }]
+    
+    tarefa_obj = TarefaModel(
+        id=str(uuid.uuid4()),
+        titulo=input.titulo,
+        descricao=input.descricao,
+        projeto_id=input.projeto_id,
+        contrato_id=input.contrato_id,
+        setor=input.setor,
+        responsavel_id=input.responsavel_id,
+        responsavel_nome=input.responsavel_nome,
+        status_id=input.status_id,
+        status_nome=status_nome,
+        prazo=input.prazo,
+        prazo_original=input.prazo,
+        prioridade=input.prioridade,
+        dias_atraso=dias_atraso,
+        atrasada=atrasada,
+        criado_por_id=input.criado_por_id,
+        criado_por_nome=input.criado_por_nome,
+        criado_por_setor=input.criado_por_setor,
+        historico=historico
+    )
+    
+    db.add(tarefa_obj)
+    await db.commit()
+    await db.refresh(tarefa_obj)
+    
+    logger.info(f"Tarefa criada: {tarefa_obj.id} por {input.criado_por_nome} ({input.criado_por_setor})")
+    
+    return model_to_dict(tarefa_obj)
+
+
+@api_router.put("/tarefas/{tarefa_id}", response_model=dict)
+async def atualizar_tarefa(
+    tarefa_id: str,
+    input: TarefaUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Atualiza uma tarefa (apenas admin ou gerente podem editar)"""
+    if input.usuario_role not in ["admin", "gerente"]:
+        raise HTTPException(status_code=403, detail="Apenas administradores e gerentes podem editar tarefas")
+    
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == tarefa_id)
+    )
+    tarefa = result.scalar_one_or_none()
+    
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    
+    if tarefa.finalizada:
+        raise HTTPException(status_code=400, detail="Não é possível editar uma tarefa finalizada")
+    
+    detalhes = []
+    
+    if input.titulo and input.titulo != tarefa.titulo:
+        tarefa.titulo = input.titulo
+        detalhes.append(f"Título alterado para: {input.titulo}")
+    
+    if input.descricao is not None:
+        tarefa.descricao = input.descricao
+    
+    if input.setor and input.setor != tarefa.setor:
+        tarefa.setor = input.setor
+        detalhes.append(f"Setor alterado para: {input.setor}")
+    
+    if input.responsavel_id is not None:
+        tarefa.responsavel_id = input.responsavel_id
+        tarefa.responsavel_nome = input.responsavel_nome
+        if input.responsavel_nome:
+            detalhes.append(f"Responsável alterado para: {input.responsavel_nome}")
+    
+    if input.prazo and input.prazo != tarefa.prazo:
+        prazo_anterior = tarefa.prazo
+        tarefa.prazo = input.prazo
+        dias_atraso, atrasada = await calcular_dias_atraso(input.prazo)
+        tarefa.dias_atraso = dias_atraso
+        tarefa.atrasada = atrasada
+        detalhes.append(f"Prazo alterado de {prazo_anterior} para: {input.prazo}")
+    
+    if input.prioridade and input.prioridade != tarefa.prioridade:
+        tarefa.prioridade = input.prioridade
+        detalhes.append(f"Prioridade alterada para: {input.prioridade}")
+    
+    if detalhes:
+        tarefa.atualizado_em = datetime.now(timezone.utc)
+        
+        historico = tarefa.historico or []
+        historico.append({
+            "id": str(uuid.uuid4()),
+            "acao": "atualizada",
+            "usuario_id": input.usuario_id,
+            "usuario_nome": input.usuario_nome,
+            "setor": input.usuario_setor,
+            "data": datetime.now(timezone.utc).isoformat(),
+            "detalhes": "; ".join(detalhes) if detalhes else "Tarefa atualizada"
+        })
+        tarefa.historico = historico
+    
+    await db.commit()
+    await db.refresh(tarefa)
+    
+    return model_to_dict(tarefa)
+
+
+@api_router.post("/tarefas/{tarefa_id}/finalizar", response_model=dict)
+async def finalizar_tarefa(
+    tarefa_id: str,
+    input: TarefaFinalizar,
+    db: AsyncSession = Depends(get_db)
+):
+    """Finaliza uma tarefa com observação obrigatória e recalcula prazos das próximas etapas"""
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == tarefa_id)
+    )
+    tarefa = result.scalar_one_or_none()
+    
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    
+    if tarefa.finalizada:
+        raise HTTPException(status_code=400, detail="Tarefa já está finalizada")
+    
+    # Get "Concluído" status
+    result = await db.execute(
+        select(StatusTarefaModel).where(StatusTarefaModel.nome == "Concluído")
+    )
+    status_concluido = result.scalar_one_or_none()
+    
+    if not status_concluido:
+        raise HTTPException(status_code=500, detail="Status 'Concluído' não encontrado")
+    
+    now = datetime.now(timezone.utc)
+    
+    historico = tarefa.historico or []
+    historico.append({
+        "id": str(uuid.uuid4()),
+        "acao": "finalizada",
+        "usuario_id": input.usuario_id,
+        "usuario_nome": input.usuario_nome,
+        "setor": input.usuario_setor,
+        "data": now.isoformat(),
+        "observacao": input.observacao,
+        "detalhes": f"Tarefa finalizada por {input.usuario_nome} ({input.usuario_setor})"
+    })
+    
+    tarefa.finalizada = True
+    tarefa.data_finalizacao = now
+    tarefa.observacao_finalizacao = input.observacao
+    tarefa.status_id = status_concluido.id
+    tarefa.status_nome = "Concluído"
+    tarefa.atualizado_em = now
+    tarefa.historico = historico
+    
+    await db.commit()
+    
+    logger.info(f"Tarefa finalizada: {tarefa_id} por {input.usuario_nome} ({input.usuario_setor})")
+    
+    # Recalcular prazos das próximas tarefas do projeto
+    prazos_recalculados = []
+    if tarefa.projeto_id:
+        prazos_recalculados = await recalcular_prazos_projeto(
+            db, tarefa.projeto_id, tarefa_id, now
+        )
+        if prazos_recalculados:
+            logger.info(f"Prazos recalculados para {len(prazos_recalculados)} tarefas do projeto {tarefa.projeto_id}")
+    
+    await db.refresh(tarefa)
+    result_dict = model_to_dict(tarefa)
+    result_dict["prazos_recalculados"] = prazos_recalculados
+    
+    return result_dict
+
+
+@api_router.post("/tarefas/{tarefa_id}/alterar-status", response_model=dict)
+async def alterar_status_tarefa(
+    tarefa_id: str,
+    input: TarefaAlterarStatus,
+    db: AsyncSession = Depends(get_db)
+):
+    """Altera o status de uma tarefa"""
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == tarefa_id)
+    )
+    tarefa = result.scalar_one_or_none()
+    
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    
+    if tarefa.finalizada:
+        raise HTTPException(status_code=400, detail="Não é possível alterar status de tarefa finalizada")
+    
+    result = await db.execute(
+        select(StatusTarefaModel).where(StatusTarefaModel.id == input.status_id)
+    )
+    status = result.scalar_one_or_none()
+    
+    if not status:
+        raise HTTPException(status_code=400, detail="Status não encontrado")
+    
+    now = datetime.now(timezone.utc)
+    
+    historico = tarefa.historico or []
+    historico.append({
+        "id": str(uuid.uuid4()),
+        "acao": "status_alterado",
+        "usuario_id": input.usuario_id,
+        "usuario_nome": input.usuario_nome,
+        "setor": input.usuario_setor,
+        "data": now.isoformat(),
+        "observacao": input.observacao,
+        "detalhes": f"Status alterado de '{tarefa.status_nome}' para '{status.nome}'"
+    })
+    
+    tarefa.status_id = input.status_id
+    tarefa.status_nome = status.nome
+    tarefa.atualizado_em = now
+    tarefa.historico = historico
+    
+    await db.commit()
+    await db.refresh(tarefa)
+    
+    return model_to_dict(tarefa)
+
+
+@api_router.delete("/tarefas/{tarefa_id}")
+async def deletar_tarefa(
+    tarefa_id: str,
+    user_role: str = Query(...),
+    user_id: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Deleta uma tarefa (apenas admin ou gerente podem deletar)"""
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == tarefa_id)
+    )
+    tarefa = result.scalar_one_or_none()
+    
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    
+    if user_role not in ["admin", "gerente"]:
+        raise HTTPException(status_code=403, detail="Apenas administradores e gerentes podem deletar tarefas")
+    
+    await db.delete(tarefa)
+    await db.commit()
+    
+    logger.info(f"Tarefa deletada: {tarefa_id} por user {user_id} (role: {user_role})")
+    
+    return {"message": "Tarefa deletada com sucesso"}
+
+
+@api_router.delete("/tarefas")
+async def deletar_todas_tarefas(
+    user_role: str = Query(...),
+    user_id: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Deleta todas as tarefas (apenas admin)"""
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem deletar todas as tarefas")
+    
+    result = await db.execute(delete(TarefaModel))
+    await db.commit()
+    
+    logger.info(f"Todas as tarefas deletadas por user {user_id}")
+    
+    return {"message": "Tarefas deletadas com sucesso"}
+
+
+# ==========================================
+# ROUTES - Atrasos e Relatórios
+# ==========================================
+
+@api_router.get("/tarefas-atrasadas", response_model=List[dict])
+async def listar_tarefas_atrasadas(
+    projeto_id: Optional[str] = None,
+    setor: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Lista todas as tarefas atrasadas"""
+    query = select(TarefaModel).where(TarefaModel.finalizada == False)
+    
+    if projeto_id:
+        query = query.where(TarefaModel.projeto_id == projeto_id)
+    if setor:
+        query = query.where(TarefaModel.setor == setor)
+    
+    result = await db.execute(query)
+    tarefas = result.scalars().all()
+    
+    atrasadas = []
+    for tarefa in tarefas:
+        tarefa_dict = model_to_dict(tarefa)
+        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
+        if is_atrasada:
+            tarefa_dict["dias_atraso"] = dias_atraso
+            tarefa_dict["atrasada"] = True
+            atrasadas.append(tarefa_dict)
+    
+    atrasadas.sort(key=lambda x: x.get("dias_atraso", 0), reverse=True)
+    
+    return atrasadas
+
+
+@api_router.get("/atrasos-por-setor", response_model=List[dict])
+async def atrasos_por_setor(db: AsyncSession = Depends(get_db)):
+    """Retorna resumo de atrasos agrupados por setor"""
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.finalizada == False)
+    )
+    tarefas = result.scalars().all()
+    
+    setores = {}
+    for tarefa in tarefas:
+        tarefa_dict = model_to_dict(tarefa)
+        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
+        
+        setor = tarefa.setor or "Sem setor"
+        if setor not in setores:
+            setores[setor] = {
+                "setor": setor,
+                "total_tarefas": 0,
+                "tarefas_atrasadas": 0,
+                "total_dias_atraso": 0,
+                "tarefas": []
+            }
+        
+        setores[setor]["total_tarefas"] += 1
+        if is_atrasada:
+            setores[setor]["tarefas_atrasadas"] += 1
+            setores[setor]["total_dias_atraso"] += dias_atraso
+            setores[setor]["tarefas"].append({
+                "id": tarefa.id,
+                "titulo": tarefa.titulo,
+                "dias_atraso": dias_atraso,
+                "responsavel": tarefa.responsavel_nome,
+                "criado_por": tarefa.criado_por_nome
+            })
+    
+    result_list = list(setores.values())
+    result_list.sort(key=lambda x: x["tarefas_atrasadas"], reverse=True)
+    
+    return result_list
+
+
+@api_router.get("/atrasos-por-projeto/{projeto_id}", response_model=dict)
+async def atrasos_por_projeto(projeto_id: str, db: AsyncSession = Depends(get_db)):
+    """Retorna detalhes de atrasos de um projeto específico"""
+    result = await db.execute(
+        select(TarefaModel).where(
+            and_(TarefaModel.projeto_id == projeto_id, TarefaModel.finalizada == False)
+        )
+    )
+    tarefas = result.scalars().all()
+    
+    resultado = {
+        "projeto_id": projeto_id,
+        "total_tarefas": len(tarefas),
+        "tarefas_atrasadas": 0,
+        "tarefas_em_dia": 0,
+        "total_dias_atraso": 0,
+        "atrasos_por_setor": {},
+        "detalhes_atrasos": []
+    }
+    
+    for tarefa in tarefas:
+        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
+        
+        if is_atrasada:
+            resultado["tarefas_atrasadas"] += 1
+            resultado["total_dias_atraso"] += dias_atraso
+            
+            setor = tarefa.setor or "Sem setor"
+            if setor not in resultado["atrasos_por_setor"]:
+                resultado["atrasos_por_setor"][setor] = 0
+            resultado["atrasos_por_setor"][setor] += 1
+            
+            resultado["detalhes_atrasos"].append({
+                "tarefa_id": tarefa.id,
+                "titulo": tarefa.titulo,
+                "setor": setor,
+                "dias_atraso": dias_atraso,
+                "responsavel": tarefa.responsavel_nome,
+                "criado_por": tarefa.criado_por_nome,
+                "criado_por_setor": tarefa.criado_por_setor
+            })
+        else:
+            resultado["tarefas_em_dia"] += 1
+    
+    resultado["detalhes_atrasos"].sort(key=lambda x: x["dias_atraso"], reverse=True)
+    
+    return resultado
+
+
+# ==========================================
+# ROUTES - Dashboard Stats
+# ==========================================
+
+@api_router.get("/dashboard-stats", response_model=dict)
+async def dashboard_stats(db: AsyncSession = Depends(get_db)):
+    """Retorna estatísticas gerais para o dashboard"""
+    result = await db.execute(select(TarefaModel))
+    tarefas = result.scalars().all()
+    
+    total = len(tarefas)
+    finalizadas = sum(1 for t in tarefas if t.finalizada)
+    em_andamento = total - finalizadas
+    
+    atrasadas = 0
+    for tarefa in tarefas:
+        if not tarefa.finalizada:
+            _, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
+            if is_atrasada:
+                atrasadas += 1
+    
+    por_setor = {}
+    for tarefa in tarefas:
+        setor = tarefa.setor or "Sem setor"
+        if setor not in por_setor:
+            por_setor[setor] = {"total": 0, "finalizadas": 0, "em_andamento": 0}
+        por_setor[setor]["total"] += 1
+        if tarefa.finalizada:
+            por_setor[setor]["finalizadas"] += 1
+        else:
+            por_setor[setor]["em_andamento"] += 1
+    
+    return {
+        "total_tarefas": total,
+        "tarefas_finalizadas": finalizadas,
+        "tarefas_em_andamento": em_andamento,
+        "tarefas_atrasadas": atrasadas,
+        "percentual_conclusao": round((finalizadas / total * 100) if total > 0 else 0, 1),
+        "por_setor": por_setor,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+
+# ==========================================
 # ROUTES - Template de Prazos
 # ==========================================
 
 @api_router.get("/templates-prazos", response_model=List[dict])
-async def listar_templates_prazos():
+async def listar_templates_prazos(db: AsyncSession = Depends(get_db)):
     """Lista todos os templates de prazos"""
-    templates = await db.templates_prazos.find({"ativo": True}, {"_id": 0}).to_list(100)
-    return [deserialize_doc(t) for t in templates]
+    result = await db.execute(
+        select(TemplatePrazosModel).where(TemplatePrazosModel.ativo == True)
+    )
+    templates = result.scalars().all()
+    return [model_to_dict(t) for t in templates]
 
 
 @api_router.get("/templates-prazos/{template_id}", response_model=dict)
-async def obter_template_prazo(template_id: str):
+async def obter_template_prazo(template_id: str, db: AsyncSession = Depends(get_db)):
     """Obtém um template específico"""
-    template = await db.templates_prazos.find_one({"id": template_id}, {"_id": 0})
+    result = await db.execute(
+        select(TemplatePrazosModel).where(TemplatePrazosModel.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+    
     if not template:
         raise HTTPException(status_code=404, detail="Template não encontrado")
-    return deserialize_doc(template)
+    
+    return model_to_dict(template)
 
 
 @api_router.post("/templates-prazos", response_model=dict)
-async def criar_template_prazo(input: TemplatePrazosCreate, user_id: str = Query(...), user_role: str = Query(...)):
+async def criar_template_prazo(
+    input: TemplatePrazosCreate,
+    user_id: str = Query(...),
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
     """Cria um novo template de prazos (apenas admin)"""
     if user_role != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores podem criar templates")
     
-    # Calculate total days
     prazo_total = sum(etapa.get("prazo_dias", 0) for etapa in input.etapas)
     
-    template_obj = TemplatePrazos(
+    template_obj = TemplatePrazosModel(
+        id=str(uuid.uuid4()),
         nome=input.nome,
         descricao=input.descricao,
         etapas=input.etapas,
@@ -1368,19 +1502,29 @@ async def criar_template_prazo(input: TemplatePrazosCreate, user_id: str = Query
         criado_por=user_id
     )
     
-    doc = serialize_doc(template_obj.model_dump())
-    await db.templates_prazos.insert_one(doc)
+    db.add(template_obj)
+    await db.commit()
+    await db.refresh(template_obj)
     
-    return deserialize_doc(doc)
+    return model_to_dict(template_obj)
 
 
 @api_router.put("/templates-prazos/{template_id}", response_model=dict)
-async def atualizar_template_prazo(template_id: str, input: TemplatePrazosUpdate, user_role: str = Query(...)):
+async def atualizar_template_prazo(
+    template_id: str,
+    input: TemplatePrazosUpdate,
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
     """Atualiza um template de prazos (apenas admin)"""
     if user_role != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores podem atualizar templates")
     
-    existing = await db.templates_prazos.find_one({"id": template_id})
+    result = await db.execute(
+        select(TemplatePrazosModel).where(TemplatePrazosModel.id == template_id)
+    )
+    existing = result.scalar_one_or_none()
+    
     if not existing:
         raise HTTPException(status_code=404, detail="Template não encontrado")
     
@@ -1389,36 +1533,55 @@ async def atualizar_template_prazo(template_id: str, input: TemplatePrazosUpdate
     if "etapas" in update_data:
         update_data["prazo_total_dias"] = sum(etapa.get("prazo_dias", 0) for etapa in update_data["etapas"])
     
-    update_data["atualizado_em"] = datetime.now(timezone.utc).isoformat()
+    for key, value in update_data.items():
+        setattr(existing, key, value)
+    existing.atualizado_em = datetime.now(timezone.utc)
     
-    await db.templates_prazos.update_one({"id": template_id}, {"$set": update_data})
+    await db.commit()
+    await db.refresh(existing)
     
-    updated = await db.templates_prazos.find_one({"id": template_id}, {"_id": 0})
-    return deserialize_doc(updated)
+    return model_to_dict(existing)
 
 
 @api_router.delete("/templates-prazos/{template_id}")
-async def deletar_template_prazo(template_id: str, user_role: str = Query(...)):
+async def deletar_template_prazo(
+    template_id: str,
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
     """Deleta um template de prazos (apenas admin)"""
     if user_role != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores podem deletar templates")
     
-    existing = await db.templates_prazos.find_one({"id": template_id})
+    result = await db.execute(
+        select(TemplatePrazosModel).where(TemplatePrazosModel.id == template_id)
+    )
+    existing = result.scalar_one_or_none()
+    
     if not existing:
         raise HTTPException(status_code=404, detail="Template não encontrado")
     
-    await db.templates_prazos.delete_one({"id": template_id})
+    await db.delete(existing)
+    await db.commit()
+    
     return {"message": "Template deletado com sucesso"}
 
 
 @api_router.post("/contratos/{contrato_id}/aplicar-template/{template_id}", response_model=dict)
-async def aplicar_template_contrato(contrato_id: str, template_id: str, data_inicio: str = Query(...)):
-    """Aplica um template de prazos a um contrato, gerando as datas de cada etapa"""
-    template = await db.templates_prazos.find_one({"id": template_id}, {"_id": 0})
+async def aplicar_template_contrato(
+    contrato_id: str,
+    template_id: str,
+    data_inicio: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Aplica um template de prazos a um contrato"""
+    result = await db.execute(
+        select(TemplatePrazosModel).where(TemplatePrazosModel.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+    
     if not template:
         raise HTTPException(status_code=404, detail="Template não encontrado")
-    
-    from datetime import timedelta
     
     try:
         inicio = datetime.fromisoformat(data_inicio).date()
@@ -1428,7 +1591,7 @@ async def aplicar_template_contrato(contrato_id: str, template_id: str, data_ini
     prazos_gerados = []
     data_atual = inicio
     
-    for etapa in template.get("etapas", []):
+    for etapa in template.etapas or []:
         prazo_dias = etapa.get("prazo_dias", 0)
         data_fim = data_atual + timedelta(days=prazo_dias)
         
@@ -1443,31 +1606,36 @@ async def aplicar_template_contrato(contrato_id: str, template_id: str, data_ini
         
         data_atual = data_fim
     
-    # Save to contract prazos collection
-    prazo_contrato = {
-        "id": str(uuid.uuid4()),
-        "contrato_id": contrato_id,
-        "template_id": template_id,
-        "template_nome": template.get("nome"),
-        "data_inicio": data_inicio,
-        "data_fim_prevista": data_atual.isoformat(),
-        "prazo_total_dias": template.get("prazo_total_dias", 0),
-        "etapas": prazos_gerados,
-        "criado_em": datetime.now(timezone.utc).isoformat()
-    }
+    prazo_contrato = PrazoContratoModel(
+        id=str(uuid.uuid4()),
+        contrato_id=contrato_id,
+        template_id=template_id,
+        template_nome=template.nome,
+        data_inicio=data_inicio,
+        data_fim_prevista=data_atual.isoformat(),
+        prazo_total_dias=template.prazo_total_dias,
+        etapas=prazos_gerados
+    )
     
-    await db.prazos_contratos.insert_one(prazo_contrato)
+    db.add(prazo_contrato)
+    await db.commit()
+    await db.refresh(prazo_contrato)
     
-    return prazo_contrato
+    return model_to_dict(prazo_contrato)
 
 
 @api_router.get("/contratos/{contrato_id}/prazos", response_model=dict)
-async def obter_prazos_contrato(contrato_id: str):
+async def obter_prazos_contrato(contrato_id: str, db: AsyncSession = Depends(get_db)):
     """Obtém os prazos aplicados a um contrato"""
-    prazos = await db.prazos_contratos.find_one({"contrato_id": contrato_id}, {"_id": 0})
+    result = await db.execute(
+        select(PrazoContratoModel).where(PrazoContratoModel.contrato_id == contrato_id)
+    )
+    prazos = result.scalar_one_or_none()
+    
     if not prazos:
         return {"contrato_id": contrato_id, "prazos": None, "message": "Nenhum template aplicado"}
-    return deserialize_doc(prazos)
+    
+    return model_to_dict(prazos)
 
 
 # ==========================================
@@ -1475,26 +1643,27 @@ async def obter_prazos_contrato(contrato_id: str):
 # ==========================================
 
 @api_router.get("/relatorio-gargalos", response_model=dict)
-async def relatorio_gargalos():
+async def relatorio_gargalos(db: AsyncSession = Depends(get_db)):
     """Relatório de gargalos - O que está travando os processos"""
-    tarefas = await db.tarefas.find({"finalizada": False}, {"_id": 0}).to_list(1000)
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.finalizada == False)
+    )
+    tarefas = result.scalars().all()
     
-    # Análise de gargalos
     gargalos_por_setor = {}
     gargalos_por_responsavel = {}
     gargalos_por_projeto = {}
     tarefas_criticas = []
     
     for tarefa in tarefas:
-        tarefa = deserialize_doc(tarefa)
-        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
         
         if not is_atrasada:
             continue
-            
-        setor = tarefa.get("setor", "Sem setor")
-        responsavel = tarefa.get("responsavel_nome", "Não atribuído")
-        projeto = tarefa.get("projeto_id", "Sem projeto")
+        
+        setor = tarefa.setor or "Sem setor"
+        responsavel = tarefa.responsavel_nome or "Não atribuído"
+        projeto = tarefa.projeto_id or "Sem projeto"
         
         # Por setor
         if setor not in gargalos_por_setor:
@@ -1508,11 +1677,11 @@ async def relatorio_gargalos():
         gargalos_por_setor[setor]["quantidade_atrasadas"] += 1
         gargalos_por_setor[setor]["total_dias_atraso"] += dias_atraso
         gargalos_por_setor[setor]["tarefas"].append({
-            "id": tarefa["id"],
-            "titulo": tarefa["titulo"],
+            "id": tarefa.id,
+            "titulo": tarefa.titulo,
             "dias_atraso": dias_atraso,
             "responsavel": responsavel,
-            "prioridade": tarefa.get("prioridade", "media")
+            "prioridade": tarefa.prioridade
         })
         
         # Por responsável
@@ -1537,18 +1706,18 @@ async def relatorio_gargalos():
         gargalos_por_projeto[projeto]["quantidade_atrasadas"] += 1
         gargalos_por_projeto[projeto]["total_dias_atraso"] += dias_atraso
         
-        # Tarefas críticas (atraso > 7 dias ou prioridade crítica)
-        if dias_atraso > 7 or tarefa.get("prioridade") == "critica":
+        # Tarefas críticas
+        if dias_atraso > 7 or tarefa.prioridade == "critica":
             tarefas_criticas.append({
-                "id": tarefa["id"],
-                "titulo": tarefa["titulo"],
+                "id": tarefa.id,
+                "titulo": tarefa.titulo,
                 "setor": setor,
                 "responsavel": responsavel,
                 "dias_atraso": dias_atraso,
-                "prioridade": tarefa.get("prioridade", "media"),
+                "prioridade": tarefa.prioridade,
                 "projeto_id": projeto,
-                "criado_por": tarefa.get("criado_por_nome"),
-                "criado_em": tarefa.get("criado_em")
+                "criado_por": tarefa.criado_por_nome,
+                "criado_em": tarefa.criado_em.isoformat() if tarefa.criado_em else None
             })
     
     # Calculate averages
@@ -1564,14 +1733,14 @@ async def relatorio_gargalos():
     
     # Sort by severity
     setores_ordenados = sorted(
-        gargalos_por_setor.values(), 
-        key=lambda x: x["total_dias_atraso"], 
+        gargalos_por_setor.values(),
+        key=lambda x: x["total_dias_atraso"],
         reverse=True
     )
     
     responsaveis_ordenados = sorted(
-        gargalos_por_responsavel.values(), 
-        key=lambda x: x["quantidade_atrasadas"], 
+        gargalos_por_responsavel.values(),
+        key=lambda x: x["quantidade_atrasadas"],
         reverse=True
     )
     
@@ -1587,8 +1756,8 @@ async def relatorio_gargalos():
             "tarefas_criticas": len(tarefas_criticas)
         },
         "gargalos_por_setor": setores_ordenados,
-        "gargalos_por_responsavel": responsaveis_ordenados[:10],  # Top 10
-        "tarefas_criticas": tarefas_criticas[:20],  # Top 20
+        "gargalos_por_responsavel": responsaveis_ordenados[:10],
+        "tarefas_criticas": tarefas_criticas[:20],
         "indicadores_cobranca": {
             "setor_mais_critico": setores_ordenados[0] if setores_ordenados else None,
             "responsavel_mais_atrasado": responsaveis_ordenados[0] if responsaveis_ordenados else None
@@ -1597,61 +1766,50 @@ async def relatorio_gargalos():
 
 
 @api_router.get("/relatorio-semanal", response_model=dict)
-async def relatorio_semanal():
+async def relatorio_semanal(db: AsyncSession = Depends(get_db)):
     """Relatório semanal de produtividade"""
-    from datetime import timedelta
-    
     hoje = datetime.now(timezone.utc)
     inicio_semana = hoje - timedelta(days=7)
     
-    # Tarefas criadas na semana
-    tarefas = await db.tarefas.find({}, {"_id": 0}).to_list(1000)
+    result = await db.execute(select(TarefaModel))
+    tarefas = result.scalars().all()
     
     criadas_semana = []
     finalizadas_semana = []
     atrasadas_atuais = []
     
     for tarefa in tarefas:
-        tarefa = deserialize_doc(tarefa)
-        
-        criado_em = tarefa.get("criado_em")
-        if isinstance(criado_em, str):
-            criado_em = datetime.fromisoformat(criado_em.replace('Z', '+00:00'))
-        
-        if criado_em and criado_em >= inicio_semana:
+        if tarefa.criado_em and tarefa.criado_em >= inicio_semana:
             criadas_semana.append(tarefa)
         
-        if tarefa.get("finalizada"):
-            data_finalizacao = tarefa.get("data_finalizacao")
-            if isinstance(data_finalizacao, str):
-                data_finalizacao = datetime.fromisoformat(data_finalizacao.replace('Z', '+00:00'))
-            if data_finalizacao and data_finalizacao >= inicio_semana:
+        if tarefa.finalizada:
+            if tarefa.data_finalizacao and tarefa.data_finalizacao >= inicio_semana:
                 finalizadas_semana.append(tarefa)
         else:
-            dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+            dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
             if is_atrasada:
-                tarefa["dias_atraso"] = dias_atraso
-                atrasadas_atuais.append(tarefa)
+                tarefa_dict = model_to_dict(tarefa)
+                tarefa_dict["dias_atraso"] = dias_atraso
+                atrasadas_atuais.append(tarefa_dict)
     
-    # Agrupar por setor
     por_setor = {}
     for tarefa in tarefas:
-        setor = tarefa.get("setor", "Sem setor")
+        setor = tarefa.setor or "Sem setor"
         if setor not in por_setor:
             por_setor[setor] = {"criadas": 0, "finalizadas": 0, "atrasadas": 0}
     
     for t in criadas_semana:
-        setor = t.get("setor", "Sem setor")
+        setor = t.setor or "Sem setor"
         if setor in por_setor:
             por_setor[setor]["criadas"] += 1
     
     for t in finalizadas_semana:
-        setor = t.get("setor", "Sem setor")
+        setor = t.setor or "Sem setor"
         if setor in por_setor:
             por_setor[setor]["finalizadas"] += 1
     
     for t in atrasadas_atuais:
-        setor = t.get("setor", "Sem setor")
+        setor = t.get("setor") or "Sem setor"
         if setor in por_setor:
             por_setor[setor]["atrasadas"] += 1
     
@@ -1666,7 +1824,7 @@ async def relatorio_semanal():
             "tarefas_finalizadas": len(finalizadas_semana),
             "tarefas_atrasadas": len(atrasadas_atuais),
             "taxa_conclusao": round(
-                (len(finalizadas_semana) / len(criadas_semana) * 100) 
+                (len(finalizadas_semana) / len(criadas_semana) * 100)
                 if criadas_semana else 0, 1
             )
         },
@@ -1687,67 +1845,36 @@ async def relatorio_semanal():
 
 
 @api_router.get("/relatorio-mensal", response_model=dict)
-async def relatorio_mensal():
+async def relatorio_mensal(db: AsyncSession = Depends(get_db)):
     """Relatório mensal de produtividade"""
-    from datetime import timedelta
-    
     hoje = datetime.now(timezone.utc)
     inicio_mes = hoje - timedelta(days=30)
     
-    tarefas = await db.tarefas.find({}, {"_id": 0}).to_list(1000)
+    result = await db.execute(select(TarefaModel))
+    tarefas = result.scalars().all()
     
     criadas_mes = []
     finalizadas_mes = []
     atrasadas_atuais = []
     
     for tarefa in tarefas:
-        tarefa = deserialize_doc(tarefa)
-        
-        criado_em = tarefa.get("criado_em")
-        if isinstance(criado_em, str):
-            criado_em = datetime.fromisoformat(criado_em.replace('Z', '+00:00'))
-        
-        if criado_em and criado_em >= inicio_mes:
+        if tarefa.criado_em and tarefa.criado_em >= inicio_mes:
             criadas_mes.append(tarefa)
         
-        if tarefa.get("finalizada"):
-            data_finalizacao = tarefa.get("data_finalizacao")
-            if isinstance(data_finalizacao, str):
-                data_finalizacao = datetime.fromisoformat(data_finalizacao.replace('Z', '+00:00'))
-            if data_finalizacao and data_finalizacao >= inicio_mes:
+        if tarefa.finalizada:
+            if tarefa.data_finalizacao and tarefa.data_finalizacao >= inicio_mes:
                 finalizadas_mes.append(tarefa)
         else:
-            dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+            dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
             if is_atrasada:
-                tarefa["dias_atraso"] = dias_atraso
-                atrasadas_atuais.append(tarefa)
-    
-    # Evolução por semana
-    semanas = []
-    for i in range(4):
-        inicio_semana = hoje - timedelta(days=30 - (i * 7))
-        fim_semana = inicio_semana + timedelta(days=7)
-        
-        criadas = sum(1 for t in criadas_mes 
-                     if isinstance(t.get("criado_em"), datetime) 
-                     and inicio_semana <= t.get("criado_em") < fim_semana)
-        
-        finalizadas = sum(1 for t in finalizadas_mes 
-                        if isinstance(t.get("data_finalizacao"), datetime)
-                        and inicio_semana <= t.get("data_finalizacao") < fim_semana)
-        
-        semanas.append({
-            "semana": i + 1,
-            "inicio": inicio_semana.isoformat(),
-            "fim": fim_semana.isoformat(),
-            "criadas": criadas,
-            "finalizadas": finalizadas
-        })
+                tarefa_dict = model_to_dict(tarefa)
+                tarefa_dict["dias_atraso"] = dias_atraso
+                atrasadas_atuais.append(tarefa_dict)
     
     # Análise por setor
     analise_setor = {}
     for tarefa in tarefas:
-        setor = tarefa.get("setor", "Sem setor")
+        setor = tarefa.setor or "Sem setor"
         if setor not in analise_setor:
             analise_setor[setor] = {
                 "total": 0,
@@ -1757,13 +1884,13 @@ async def relatorio_mensal():
                 "taxa_conclusao": 0
             }
         analise_setor[setor]["total"] += 1
-        if tarefa.get("finalizada"):
+        if tarefa.finalizada:
             analise_setor[setor]["finalizadas"] += 1
         else:
             analise_setor[setor]["em_andamento"] += 1
     
     for t in atrasadas_atuais:
-        setor = t.get("setor", "Sem setor")
+        setor = t.get("setor") or "Sem setor"
         if setor in analise_setor:
             analise_setor[setor]["atrasadas"] += 1
     
@@ -1799,13 +1926,12 @@ async def relatorio_mensal():
             "tarefas_finalizadas": len(finalizadas_mes),
             "tarefas_atrasadas": len(atrasadas_atuais),
             "taxa_conclusao": round(
-                (len(finalizadas_mes) / len(criadas_mes) * 100) 
+                (len(finalizadas_mes) / len(criadas_mes) * 100)
                 if criadas_mes else 0, 1
             ),
             "media_diaria_criadas": round(len(criadas_mes) / 30, 1),
             "media_diaria_finalizadas": round(len(finalizadas_mes) / 30, 1)
         },
-        "evolucao_semanal": semanas,
         "analise_por_setor": analise_setor,
         "gargalos_para_cobranca": gargalos_cobranca[:15],
         "timestamp": hoje.isoformat()
@@ -1817,33 +1943,45 @@ async def relatorio_mensal():
 # ==========================================
 
 @api_router.get("/contratos", response_model=List[dict])
-async def listar_contratos():
+async def listar_contratos(db: AsyncSession = Depends(get_db)):
     """Lista todos os contratos"""
-    contratos = await db.contratos.find({}, {"_id": 0}).sort("criado_em", -1).to_list(1000)
-    return [deserialize_doc(c) for c in contratos]
+    result = await db.execute(
+        select(ContratoModel).order_by(ContratoModel.criado_em.desc())
+    )
+    contratos = result.scalars().all()
+    return [model_to_dict(c) for c in contratos]
 
 
 @api_router.get("/contratos/{contrato_id}", response_model=dict)
-async def obter_contrato(contrato_id: str):
+async def obter_contrato(contrato_id: str, db: AsyncSession = Depends(get_db)):
     """Obtém um contrato específico"""
-    contrato = await db.contratos.find_one({"id": contrato_id}, {"_id": 0})
+    result = await db.execute(
+        select(ContratoModel).where(ContratoModel.id == contrato_id)
+    )
+    contrato = result.scalar_one_or_none()
+    
     if not contrato:
         raise HTTPException(status_code=404, detail="Contrato não encontrado")
-    return deserialize_doc(contrato)
+    
+    return model_to_dict(contrato)
 
 
 @api_router.post("/contratos", response_model=dict)
-async def criar_contrato(input: ContratoCreate):
+async def criar_contrato(input: ContratoCreate, db: AsyncSession = Depends(get_db)):
     """Cria um novo contrato e automaticamente cria o projeto com todas as etapas"""
-    from datetime import timedelta
-    
     # Verificar se template existe
-    template = await db.templates_prazos.find_one({"id": input.template_id}, {"_id": 0})
+    result = await db.execute(
+        select(TemplatePrazosModel).where(TemplatePrazosModel.id == input.template_id)
+    )
+    template = result.scalar_one_or_none()
+    
     if not template:
         raise HTTPException(status_code=404, detail="Template não encontrado")
     
     # Criar contrato
-    contrato_obj = Contrato(
+    contrato_id = str(uuid.uuid4())
+    contrato_obj = ContratoModel(
+        id=contrato_id,
         cliente=input.cliente,
         faculdade=input.faculdade,
         numero_contrato=input.numero_contrato,
@@ -1851,12 +1989,11 @@ async def criar_contrato(input: ContratoCreate):
         data_inicio=input.data_inicio,
         data_fim=input.data_fim,
         template_id=input.template_id,
-        template_nome=template.get("nome"),
+        template_nome=template.nome,
         criado_por=input.criado_por
     )
     
-    contrato_doc = serialize_doc(contrato_obj.model_dump())
-    await db.contratos.insert_one(contrato_doc)
+    db.add(contrato_obj)
     
     # Calcular data fim prevista
     try:
@@ -1864,14 +2001,19 @@ async def criar_contrato(input: ContratoCreate):
     except:
         data_inicio_dt = datetime.now(timezone.utc).date()
     
-    prazo_total = template.get("prazo_total_dias", 134)
+    prazo_total = template.prazo_total_dias or 134
     data_fim_prevista = (data_inicio_dt + timedelta(days=prazo_total)).isoformat()
     
     # Criar projeto automaticamente
-    projeto_obj = Projeto(
-        contrato_id=contrato_obj.id,
+    projeto_id = str(uuid.uuid4())
+    etapas = template.etapas or []
+    etapa_atual = etapas[0].get("etapa_nome", "Início") if etapas else "Início"
+    
+    projeto_obj = ProjetoModel(
+        id=projeto_id,
+        contrato_id=contrato_id,
         cliente=input.cliente,
-        etapa_atual=template.get("etapas", [])[0].get("etapa_nome", "Início") if template.get("etapas") else "Início",
+        etapa_atual=etapa_atual,
         etapa_atual_ordem=1,
         progresso=0.0,
         risco="baixo",
@@ -1879,37 +2021,43 @@ async def criar_contrato(input: ContratoCreate):
         data_inicio=input.data_inicio,
         data_fim_prevista=data_fim_prevista,
         template_id=input.template_id,
-        template_nome=template.get("nome"),
+        template_nome=template.nome,
         criado_por=input.criado_por
     )
     
-    projeto_doc = serialize_doc(projeto_obj.model_dump())
-    await db.projetos.insert_one(projeto_doc)
+    db.add(projeto_obj)
     
     # Atualizar contrato com projeto_id
-    await db.contratos.update_one(
-        {"id": contrato_obj.id},
-        {"$set": {"projeto_id": projeto_obj.id}}
-    )
+    contrato_obj.projeto_id = projeto_id
     
     # Criar todas as tarefas (etapas) do template
-    # Obter status "Pendente"
-    status_pendente = await db.status_tarefas.find_one({"nome": "Pendente"})
-    if not status_pendente:
-        status_pendente = {"id": str(uuid.uuid4()), "nome": "Pendente"}
+    status_list = await get_status_padrao(db)
+    status_pendente = status_list[0] if status_list else {"id": str(uuid.uuid4()), "nome": "Pendente"}
     
     data_atual = data_inicio_dt
     tarefas_criadas = []
     
-    for etapa in template.get("etapas", []):
+    for etapa in etapas:
         prazo_dias = etapa.get("prazo_dias", 1)
         data_fim_etapa = data_atual + timedelta(days=prazo_dias)
         
-        tarefa_obj = Tarefa(
+        tarefa_id = str(uuid.uuid4())
+        historico = [{
+            "id": str(uuid.uuid4()),
+            "acao": "criada",
+            "usuario_id": input.criado_por,
+            "usuario_nome": input.criado_por,
+            "setor": "sistema",
+            "data": datetime.now(timezone.utc).isoformat(),
+            "detalhes": f"Etapa criada automaticamente do template {template.nome}"
+        }]
+        
+        tarefa_obj = TarefaModel(
+            id=tarefa_id,
             titulo=etapa.get("etapa_nome"),
             descricao=etapa.get("descricao", ""),
-            projeto_id=projeto_obj.id,
-            contrato_id=contrato_obj.id,
+            projeto_id=projeto_id,
+            contrato_id=contrato_id,
             setor=etapa.get("departamento", "atendimento"),
             responsavel_id=None,
             responsavel_nome=None,
@@ -1921,69 +2069,85 @@ async def criar_contrato(input: ContratoCreate):
             criado_por_id=input.criado_por,
             criado_por_nome=input.criado_por,
             criado_por_setor="sistema",
-            historico=[
-                HistoricoAcao(
-                    acao="criada",
-                    usuario_id=input.criado_por,
-                    usuario_nome=input.criado_por,
-                    setor="sistema",
-                    detalhes=f"Etapa criada automaticamente do template {template.get('nome')}"
-                )
-            ]
+            historico=historico
         )
         
-        tarefa_doc = serialize_doc(tarefa_obj.model_dump())
-        await db.tarefas.insert_one(tarefa_doc)
-        tarefas_criadas.append(tarefa_obj.id)
+        db.add(tarefa_obj)
+        tarefas_criadas.append(tarefa_id)
         
         data_atual = data_fim_etapa
     
-    logger.info(f"Contrato criado: {contrato_obj.id}, Projeto criado: {projeto_obj.id}, {len(tarefas_criadas)} tarefas criadas")
+    await db.commit()
+    await db.refresh(contrato_obj)
+    await db.refresh(projeto_obj)
     
-    # Buscar contrato atualizado com projeto_id
-    contrato_atualizado = await db.contratos.find_one({"id": contrato_obj.id}, {"_id": 0})
+    logger.info(f"Contrato criado: {contrato_id}, Projeto criado: {projeto_id}, {len(tarefas_criadas)} tarefas criadas")
     
     return {
-        "contrato": deserialize_doc(contrato_atualizado),
-        "projeto": deserialize_doc(projeto_doc),
+        "contrato": model_to_dict(contrato_obj),
+        "projeto": model_to_dict(projeto_obj),
         "tarefas_criadas": len(tarefas_criadas),
         "message": f"Contrato, projeto e {len(tarefas_criadas)} etapas criados com sucesso!"
     }
 
 
 @api_router.put("/contratos/{contrato_id}", response_model=dict)
-async def atualizar_contrato(contrato_id: str, input: ContratoUpdate):
+async def atualizar_contrato(
+    contrato_id: str,
+    input: ContratoUpdate,
+    db: AsyncSession = Depends(get_db)
+):
     """Atualiza um contrato"""
-    existing = await db.contratos.find_one({"id": contrato_id})
+    result = await db.execute(
+        select(ContratoModel).where(ContratoModel.id == contrato_id)
+    )
+    existing = result.scalar_one_or_none()
+    
     if not existing:
         raise HTTPException(status_code=404, detail="Contrato não encontrado")
     
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
-    if update_data:
-        update_data["atualizado_em"] = datetime.now(timezone.utc).isoformat()
-        await db.contratos.update_one({"id": contrato_id}, {"$set": update_data})
+    for key, value in update_data.items():
+        setattr(existing, key, value)
+    existing.atualizado_em = datetime.now(timezone.utc)
     
-    updated = await db.contratos.find_one({"id": contrato_id}, {"_id": 0})
-    return deserialize_doc(updated)
+    await db.commit()
+    await db.refresh(existing)
+    
+    return model_to_dict(existing)
 
 
 @api_router.delete("/contratos/{contrato_id}")
-async def deletar_contrato(contrato_id: str, user_role: str = Query(...)):
+async def deletar_contrato(
+    contrato_id: str,
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
     """Deleta um contrato (apenas admin)"""
     if user_role != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores podem deletar contratos")
     
-    contrato = await db.contratos.find_one({"id": contrato_id})
+    result = await db.execute(
+        select(ContratoModel).where(ContratoModel.id == contrato_id)
+    )
+    contrato = result.scalar_one_or_none()
+    
     if not contrato:
         raise HTTPException(status_code=404, detail="Contrato não encontrado")
     
-    await db.contratos.delete_one({"id": contrato_id})
-    
     # Deletar projeto relacionado se existir
-    if contrato.get("projeto_id"):
-        await db.projetos.delete_one({"id": contrato["projeto_id"]})
+    if contrato.projeto_id:
         # Deletar tarefas do projeto
-        await db.tarefas.delete_many({"projeto_id": contrato["projeto_id"]})
+        await db.execute(
+            delete(TarefaModel).where(TarefaModel.projeto_id == contrato.projeto_id)
+        )
+        # Deletar projeto
+        await db.execute(
+            delete(ProjetoModel).where(ProjetoModel.id == contrato.projeto_id)
+        )
+    
+    await db.delete(contrato)
+    await db.commit()
     
     return {"message": "Contrato deletado com sucesso"}
 
@@ -1993,79 +2157,92 @@ async def deletar_contrato(contrato_id: str, user_role: str = Query(...)):
 # ==========================================
 
 @api_router.get("/projetos", response_model=List[dict])
-async def listar_projetos():
+async def listar_projetos(db: AsyncSession = Depends(get_db)):
     """Lista todos os projetos"""
-    projetos = await db.projetos.find({}, {"_id": 0}).sort("criado_em", -1).to_list(1000)
+    result = await db.execute(
+        select(ProjetoModel).order_by(ProjetoModel.criado_em.desc())
+    )
+    projetos = result.scalars().all()
     
-    # Atualizar progresso e risco de cada projeto
-    result = []
+    result_list = []
     for projeto in projetos:
-        projeto = deserialize_doc(projeto)
+        projeto_dict = model_to_dict(projeto)
         
         # Calcular progresso baseado nas tarefas
-        tarefas = await db.tarefas.find({"projeto_id": projeto["id"]}, {"_id": 0}).to_list(1000)
+        tarefas_result = await db.execute(
+            select(TarefaModel).where(TarefaModel.projeto_id == projeto.id)
+        )
+        tarefas = tarefas_result.scalars().all()
+        
         if tarefas:
             total_tarefas = len(tarefas)
-            tarefas_concluidas = sum(1 for t in tarefas if t.get("finalizada"))
-            projeto["progresso"] = round((tarefas_concluidas / total_tarefas) * 100, 1)
+            tarefas_concluidas = sum(1 for t in tarefas if t.finalizada)
+            projeto_dict["progresso"] = round((tarefas_concluidas / total_tarefas) * 100, 1)
             
             # Calcular risco baseado em atrasos
             tarefas_atrasadas = 0
             total_dias_atraso = 0
             for tarefa in tarefas:
-                if not tarefa.get("finalizada"):
-                    dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+                if not tarefa.finalizada:
+                    dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
                     if is_atrasada:
                         tarefas_atrasadas += 1
                         total_dias_atraso += dias_atraso
             
             # Definir nível de risco
             if tarefas_atrasadas == 0:
-                projeto["risco"] = "baixo"
+                projeto_dict["risco"] = "baixo"
             elif tarefas_atrasadas <= 2 and total_dias_atraso < 7:
-                projeto["risco"] = "medio"
+                projeto_dict["risco"] = "medio"
             elif tarefas_atrasadas <= 5 or total_dias_atraso < 15:
-                projeto["risco"] = "alto"
+                projeto_dict["risco"] = "alto"
             else:
-                projeto["risco"] = "critico"
+                projeto_dict["risco"] = "critico"
             
-            # Atualizar etapa atual (primeira não concluída)
+            # Atualizar etapa atual
             for tarefa in tarefas:
-                if not tarefa.get("finalizada"):
-                    projeto["etapa_atual"] = tarefa.get("titulo")
+                if not tarefa.finalizada:
+                    projeto_dict["etapa_atual"] = tarefa.titulo
                     break
         
-        result.append(projeto)
+        result_list.append(projeto_dict)
     
-    return result
+    return result_list
 
 
 @api_router.get("/projetos/{projeto_id}", response_model=dict)
-async def obter_projeto(projeto_id: str):
+async def obter_projeto(projeto_id: str, db: AsyncSession = Depends(get_db)):
     """Obtém um projeto específico com detalhes"""
-    projeto = await db.projetos.find_one({"id": projeto_id}, {"_id": 0})
+    result = await db.execute(
+        select(ProjetoModel).where(ProjetoModel.id == projeto_id)
+    )
+    projeto = result.scalar_one_or_none()
+    
     if not projeto:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
     
-    projeto = deserialize_doc(projeto)
+    projeto_dict = model_to_dict(projeto)
     
     # Buscar tarefas do projeto
-    tarefas = await db.tarefas.find({"projeto_id": projeto_id}, {"_id": 0}).to_list(1000)
-    tarefas_deserializadas = []
+    tarefas_result = await db.execute(
+        select(TarefaModel).where(TarefaModel.projeto_id == projeto_id)
+    )
+    tarefas = tarefas_result.scalars().all()
     
+    tarefas_list = []
     for tarefa in tarefas:
-        tarefa = deserialize_doc(tarefa)
-        if not tarefa.get("finalizada"):
-            dias_atraso, atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
-            tarefa["dias_atraso"] = dias_atraso
-            tarefa["atrasada"] = atrasada
-        tarefas_deserializadas.append(tarefa)
+        tarefa_dict = model_to_dict(tarefa)
+        if not tarefa.finalizada:
+            dias_atraso, atrasada = await calcular_dias_atraso(tarefa.prazo)
+            tarefa_dict["dias_atraso"] = dias_atraso
+            tarefa_dict["atrasada"] = atrasada
+        tarefas_list.append(tarefa_dict)
     
-    projeto["tarefas"] = tarefas_deserializadas
-    projeto["total_tarefas"] = len(tarefas)
-    projeto["tarefas_concluidas"] = sum(1 for t in tarefas if t.get("finalizada"))
+    projeto_dict["tarefas"] = tarefas_list
+    projeto_dict["total_tarefas"] = len(tarefas)
+    projeto_dict["tarefas_concluidas"] = sum(1 for t in tarefas if t.finalizada)
     
-    return projeto
+    return projeto_dict
 
 
 # ==========================================
@@ -2073,50 +2250,88 @@ async def obter_projeto(projeto_id: str):
 # ==========================================
 
 @api_router.get("/notificacoes/{usuario_id}", response_model=List[dict])
-async def listar_notificacoes(usuario_id: str, apenas_nao_lidas: bool = False):
+async def listar_notificacoes(
+    usuario_id: str,
+    apenas_nao_lidas: bool = False,
+    db: AsyncSession = Depends(get_db)
+):
     """Lista notificações de um usuário"""
-    query = {"para_usuario_id": usuario_id}
-    if apenas_nao_lidas:
-        query["lida"] = False
+    query = select(NotificacaoModel).where(NotificacaoModel.para_usuario_id == usuario_id)
     
-    notificacoes = await db.notificacoes.find(query, {"_id": 0}).sort("criado_em", -1).to_list(100)
-    return [deserialize_doc(n) for n in notificacoes]
+    if apenas_nao_lidas:
+        query = query.where(NotificacaoModel.lida == False)
+    
+    query = query.order_by(NotificacaoModel.criado_em.desc())
+    
+    result = await db.execute(query)
+    notificacoes = result.scalars().all()
+    
+    return [model_to_dict(n) for n in notificacoes]
 
 
 @api_router.post("/notificacoes", response_model=dict)
-async def criar_notificacao(input: NotificacaoCreate):
+async def criar_notificacao(input: NotificacaoCreate, db: AsyncSession = Depends(get_db)):
     """Cria uma nova notificação"""
-    notif_obj = Notificacao(**input.model_dump())
-    doc = serialize_doc(notif_obj.model_dump())
-    await db.notificacoes.insert_one(doc)
-    return deserialize_doc(doc)
+    notif_obj = NotificacaoModel(
+        id=str(uuid.uuid4()),
+        tipo=input.tipo,
+        titulo=input.titulo,
+        mensagem=input.mensagem,
+        de_usuario_id=input.de_usuario_id,
+        de_usuario_nome=input.de_usuario_nome,
+        para_usuario_id=input.para_usuario_id,
+        para_usuario_nome=input.para_usuario_nome,
+        tarefa_id=input.tarefa_id,
+        projeto_id=input.projeto_id
+    )
+    
+    db.add(notif_obj)
+    await db.commit()
+    await db.refresh(notif_obj)
+    
+    return model_to_dict(notif_obj)
 
 
 @api_router.put("/notificacoes/{notificacao_id}/marcar-lida")
-async def marcar_notificacao_lida(notificacao_id: str):
+async def marcar_notificacao_lida(
+    notificacao_id: str,
+    db: AsyncSession = Depends(get_db)
+):
     """Marca uma notificação como lida"""
-    result = await db.notificacoes.update_one(
-        {"id": notificacao_id},
-        {"$set": {"lida": True}}
+    result = await db.execute(
+        select(NotificacaoModel).where(NotificacaoModel.id == notificacao_id)
     )
-    if result.matched_count == 0:
+    notif = result.scalar_one_or_none()
+    
+    if not notif:
         raise HTTPException(status_code=404, detail="Notificação não encontrada")
+    
+    notif.lida = True
+    await db.commit()
+    
     return {"message": "Notificação marcada como lida"}
 
 
 @api_router.post("/cobrar-operador")
-async def cobrar_operador(input: CobrancaOperador, user_role: str = Query(...)):
+async def cobrar_operador(
+    input: CobrancaOperador,
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
     """Envia cobrança para operador atrasado (apenas gerente/admin)"""
     if user_role not in ["admin", "gerente"]:
         raise HTTPException(status_code=403, detail="Apenas gerentes e administradores podem cobrar operadores")
     
-    # Buscar tarefa
-    tarefa = await db.tarefas.find_one({"id": input.tarefa_id}, {"_id": 0})
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == input.tarefa_id)
+    )
+    tarefa = result.scalar_one_or_none()
+    
     if not tarefa:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
     
-    # Criar notificação interna
-    notif_obj = Notificacao(
+    notif_obj = NotificacaoModel(
+        id=str(uuid.uuid4()),
         tipo="cobranca",
         titulo=f"Cobrança de {input.gerente_nome}",
         mensagem=input.mensagem,
@@ -2125,20 +2340,17 @@ async def cobrar_operador(input: CobrancaOperador, user_role: str = Query(...)):
         para_usuario_id=input.operador_id,
         para_usuario_nome=input.operador_nome,
         tarefa_id=input.tarefa_id,
-        projeto_id=tarefa.get("projeto_id")
+        projeto_id=tarefa.projeto_id
     )
     
-    notif_doc = serialize_doc(notif_obj.model_dump())
-    await db.notificacoes.insert_one(notif_doc)
+    db.add(notif_obj)
+    await db.commit()
     
-    # Se solicitado, enviar email (implementação simplificada - em produção usar serviço de email)
     email_enviado = False
     if input.enviar_email:
-        # TODO: Integrar com serviço de email (SendGrid, AWS SES, etc)
-        # Por enquanto, apenas log
         logger.info(f"Email de cobrança enviado para {input.operador_email}")
         logger.info(f"De: {input.gerente_nome}")
-        logger.info(f"Assunto: Cobrança - Tarefa Atrasada: {tarefa.get('titulo')}")
+        logger.info(f"Assunto: Cobrança - Tarefa Atrasada: {tarefa.titulo}")
         logger.info(f"Mensagem: {input.mensagem}")
         email_enviado = True
     
@@ -2154,26 +2366,26 @@ async def cobrar_operador(input: CobrancaOperador, user_role: str = Query(...)):
 # ==========================================
 
 @api_router.get("/dashboard-avancado", response_model=dict)
-async def dashboard_avancado():
+async def dashboard_avancado(db: AsyncSession = Depends(get_db)):
     """Dashboard com informações detalhadas para gestores"""
-    # Buscar todos os projetos
-    projetos = await db.projetos.find({}, {"_id": 0}).to_list(1000)
-    tarefas = await db.tarefas.find({}, {"_id": 0}).to_list(1000)
+    projetos_result = await db.execute(select(ProjetoModel))
+    projetos = projetos_result.scalars().all()
     
-    # Estatísticas gerais
+    tarefas_result = await db.execute(select(TarefaModel))
+    tarefas = tarefas_result.scalars().all()
+    
     total_projetos = len(projetos)
-    projetos_em_andamento = sum(1 for p in projetos if p.get("status") == "Em Andamento")
+    projetos_em_andamento = sum(1 for p in projetos if p.status == "Em Andamento")
     
-    # Análise de atrasos por responsável
     carga_por_responsavel = {}
     alertas_atrasos = []
     
     for tarefa in tarefas:
-        if tarefa.get("finalizada"):
+        if tarefa.finalizada:
             continue
-            
-        responsavel = tarefa.get("responsavel_nome", "Não atribuído")
-        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.get("prazo"))
+        
+        responsavel = tarefa.responsavel_nome or "Não atribuído"
+        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
         
         if responsavel not in carga_por_responsavel:
             carga_por_responsavel[responsavel] = {
@@ -2190,62 +2402,59 @@ async def dashboard_avancado():
             carga_por_responsavel[responsavel]["tarefas_atrasadas"] += 1
             carga_por_responsavel[responsavel]["total_dias_atraso"] += dias_atraso
             carga_por_responsavel[responsavel]["tarefas"].append({
-                "id": tarefa["id"],
-                "titulo": tarefa["titulo"],
+                "id": tarefa.id,
+                "titulo": tarefa.titulo,
                 "dias_atraso": dias_atraso,
-                "projeto_id": tarefa.get("projeto_id"),
-                "setor": tarefa.get("setor")
+                "projeto_id": tarefa.projeto_id,
+                "setor": tarefa.setor
             })
             
             alertas_atrasos.append({
-                "tarefa_id": tarefa["id"],
-                "titulo": tarefa["titulo"],
+                "tarefa_id": tarefa.id,
+                "titulo": tarefa.titulo,
                 "responsavel": responsavel,
-                "responsavel_id": tarefa.get("responsavel_id"),
+                "responsavel_id": tarefa.responsavel_id,
                 "dias_atraso": dias_atraso,
-                "setor": tarefa.get("setor"),
-                "projeto_id": tarefa.get("projeto_id"),
-                "prioridade": tarefa.get("prioridade")
+                "setor": tarefa.setor,
+                "projeto_id": tarefa.projeto_id,
+                "prioridade": tarefa.prioridade
             })
     
-    # Ordenar alertas por dias de atraso
     alertas_atrasos.sort(key=lambda x: x["dias_atraso"], reverse=True)
     
-    # Converter carga para lista e ordenar
     carga_lista = sorted(
         carga_por_responsavel.values(),
         key=lambda x: x["tarefas_atrasadas"],
         reverse=True
     )
     
-    # Projetos em andamento com detalhes
     projetos_detalhados = []
     for projeto in projetos:
-        if projeto.get("status") != "Em Andamento":
+        if projeto.status != "Em Andamento":
             continue
-            
-        tarefas_projeto = [t for t in tarefas if t.get("projeto_id") == projeto["id"]]
+        
+        tarefas_projeto = [t for t in tarefas if t.projeto_id == projeto.id]
         total = len(tarefas_projeto)
-        concluidas = sum(1 for t in tarefas_projeto if t.get("finalizada"))
+        concluidas = sum(1 for t in tarefas_projeto if t.finalizada)
         
         atrasadas = 0
         for t in tarefas_projeto:
-            if not t.get("finalizada"):
-                _, is_atrasada = await calcular_dias_atraso(t.get("prazo"))
+            if not t.finalizada:
+                _, is_atrasada = await calcular_dias_atraso(t.prazo)
                 if is_atrasada:
                     atrasadas += 1
         
         projetos_detalhados.append({
-            "id": projeto["id"],
-            "cliente": projeto.get("cliente"),
-            "etapa_atual": projeto.get("etapa_atual"),
+            "id": projeto.id,
+            "cliente": projeto.cliente,
+            "etapa_atual": projeto.etapa_atual,
             "progresso": round((concluidas / total * 100) if total > 0 else 0, 1),
             "total_tarefas": total,
             "tarefas_concluidas": concluidas,
             "tarefas_atrasadas": atrasadas,
-            "risco": projeto.get("risco", "baixo"),
-            "data_inicio": projeto.get("data_inicio"),
-            "data_fim_prevista": projeto.get("data_fim_prevista")
+            "risco": projeto.risco,
+            "data_inicio": projeto.data_inicio,
+            "data_fim_prevista": projeto.data_fim_prevista
         })
     
     return {
@@ -2257,7 +2466,7 @@ async def dashboard_avancado():
             "responsaveis_com_atraso": len([c for c in carga_lista if c["tarefas_atrasadas"] > 0])
         },
         "projetos_em_andamento": projetos_detalhados,
-        "alertas_atrasos": alertas_atrasos[:20],  # Top 20
+        "alertas_atrasos": alertas_atrasos[:20],
         "carga_por_responsavel": carga_lista
     }
 
@@ -2267,16 +2476,17 @@ async def dashboard_avancado():
 # ==========================================
 
 @api_router.post("/templates-prazos/criar-padrao")
-async def criar_template_padrao(user_id: str = Query(...), user_role: str = Query(...)):
+async def criar_template_padrao(
+    user_id: str = Query(...),
+    user_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
     """Cria o template padrão de prazos baseado nas etapas do sistema - Versão 2026.01"""
     if user_role != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores podem criar templates")
     
-    # Template baseado no documento oficial IDEIABH - Versão 2026.01
     etapas_padrao = [
-        # =====================================================
-        # 🟦 ATENDIMENTO - Ana, Larissa, Keyla, Mickaela
-        # =====================================================
+        # ATENDIMENTO
         {"etapa_id": 1, "etapa_nome": "Informar que recebeu o contrato", "departamento": "atendimento", "prazo_dias": 0, "descricao": "No mesmo dia que receber"},
         {"etapa_id": 2, "etapa_nome": "Ativar contrato no site", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após receber o contrato"},
         {"etapa_id": 3, "etapa_nome": "1º contato com a comissão", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após receber o contrato"},
@@ -2294,10 +2504,7 @@ async def criar_template_padrao(user_id: str = Query(...), user_role: str = Quer
         {"etapa_id": 15, "etapa_nome": "Envio do e-mail de conferência de lista", "departamento": "atendimento", "prazo_dias": 1, "descricao": "1 dia após apresentação"},
         {"etapa_id": 16, "etapa_nome": "Liberação do envelope de saída", "departamento": "atendimento", "prazo_dias": 2, "descricao": "2 dias"},
         {"etapa_id": 17, "etapa_nome": "Atualização da planilha geral e relatório", "departamento": "atendimento", "prazo_dias": 7, "descricao": "Semanal - Quinta até 17h"},
-        
-        # =====================================================
-        # 🟨 CRIAÇÃO - Taelsei, Juliana, Clara, Suelen, Marcus, Fagner, Ketlen, Gabi
-        # =====================================================
+        # CRIAÇÃO
         {"etapa_id": 18, "etapa_nome": "RC - Reunião de criação", "departamento": "criacao", "prazo_dias": 1, "descricao": "Confirmar 1 dia antes"},
         {"etapa_id": 19, "etapa_nome": "Envio do briefing para atendimento", "departamento": "criacao", "prazo_dias": 2, "descricao": "2 dias"},
         {"etapa_id": 20, "etapa_nome": "Layout de Fotos", "departamento": "criacao", "prazo_dias": 3, "descricao": "3 dias após e-mail"},
@@ -2314,20 +2521,14 @@ async def criar_template_padrao(user_id: str = Query(...), user_role: str = Quer
         {"etapa_id": 31, "etapa_nome": "Aprovação das páginas individuais", "departamento": "criacao", "prazo_dias": 0, "descricao": "Depende da CDC"},
         {"etapa_id": 32, "etapa_nome": "Revisão - REV (verificação final)", "departamento": "criacao", "prazo_dias": 1, "descricao": "1 dia após miolo aprovado"},
         {"etapa_id": 33, "etapa_nome": "Saída - Finalização e envio", "departamento": "criacao", "prazo_dias": 3, "descricao": "3 dias após aprovação total"},
-        
-        # =====================================================
-        # 🟩 PRÉ-PRODUÇÃO - Carlos, Emanuel, Julio
-        # =====================================================
+        # PRÉ-PRODUÇÃO
         {"etapa_id": 34, "etapa_nome": "Recorte e tratamento das fotos", "departamento": "pre-producao", "prazo_dias": 10, "descricao": "10 dias"},
         {"etapa_id": 35, "etapa_nome": "Recebimento do envelope de saída", "departamento": "pre-producao", "prazo_dias": 5, "descricao": "5 dias para finalizar"},
         {"etapa_id": 36, "etapa_nome": "Conferir textos e revisão ortográfica", "departamento": "pre-producao", "prazo_dias": 2, "descricao": "Após receber envelope"},
         {"etapa_id": 37, "etapa_nome": "Envio dos arquivos para gráfica", "departamento": "pre-producao", "prazo_dias": 1, "descricao": "Campo de justificativa"},
         {"etapa_id": 38, "etapa_nome": "Conferência de xerox", "departamento": "pre-producao", "prazo_dias": 2, "descricao": "Impressão externa"},
         {"etapa_id": 39, "etapa_nome": "Controle de impressões internas", "departamento": "pre-producao", "prazo_dias": 1, "descricao": "Campo de justificativa"},
-        
-        # =====================================================
-        # 🟥 PRODUÇÃO / ENTREGA - Ricardo
-        # =====================================================
+        # PRODUÇÃO
         {"etapa_id": 40, "etapa_nome": "Triagem de materiais", "departamento": "producao", "prazo_dias": 3, "descricao": "3 dias"},
         {"etapa_id": 41, "etapa_nome": "Orçamentos nos fornecedores", "departamento": "producao", "prazo_dias": 2, "descricao": "Campo de justificativa"},
         {"etapa_id": 42, "etapa_nome": "Envio do arquivo à gráfica", "departamento": "producao", "prazo_dias": 1, "descricao": "Depende da Pré-produção"},
@@ -2344,26 +2545,31 @@ async def criar_template_padrao(user_id: str = Query(...), user_role: str = Quer
     
     prazo_total = sum(e["prazo_dias"] for e in etapas_padrao)
     
-    template = {
-        "id": str(uuid.uuid4()),
-        "nome": "Template Padrão IDEIABH - v2026.01",
-        "descricao": "Template completo com todas as 51 etapas do processo de formaturas - Versão 2026.01",
-        "etapas": etapas_padrao,
-        "prazo_total_dias": prazo_total,
-        "ativo": True,
-        "criado_por": user_id,
-        "criado_em": datetime.now(timezone.utc).isoformat(),
-        "atualizado_em": datetime.now(timezone.utc).isoformat()
+    template = TemplatePrazosModel(
+        id=str(uuid.uuid4()),
+        nome="Template Padrão IDEIABH - v2026.01",
+        descricao=f"Template completo com todas as {len(etapas_padrao)} etapas do processo de formaturas - Versão 2026.01",
+        etapas=etapas_padrao,
+        prazo_total_dias=prazo_total,
+        ativo=True,
+        criado_por=user_id
+    )
+    
+    db.add(template)
+    await db.commit()
+    await db.refresh(template)
+    
+    return {
+        "message": f"Template padrão criado com sucesso ({prazo_total} dias, {len(etapas_padrao)} etapas)",
+        "template": model_to_dict(template)
     }
-    
-    await db.templates_prazos.insert_one(template)
-    
-    # Remove _id before returning
-    template.pop("_id", None)
-    
-    return {"message": f"Template padrão criado com sucesso ({prazo_total} dias, {len(etapas_padrao)} etapas)", "template": template}
 
-class StatusCheck(BaseModel):
+
+# ==========================================
+# ROUTES - Status Check (Legacy)
+# ==========================================
+
+class StatusCheckPydantic(BaseModel):
     model_config = ConfigDict(extra="ignore")
     
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -2371,31 +2577,44 @@ class StatusCheck(BaseModel):
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class StatusCheckCreate(BaseModel):
+class StatusCheckCreatePydantic(BaseModel):
     client_name: str
 
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
+@api_router.post("/status", response_model=StatusCheckPydantic)
+async def create_status_check(
+    input: StatusCheckCreatePydantic,
+    db: AsyncSession = Depends(get_db)
+):
+    status_obj = StatusCheckModel(
+        id=str(uuid.uuid4()),
+        client_name=input.client_name
+    )
     
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
+    db.add(status_obj)
+    await db.commit()
+    await db.refresh(status_obj)
     
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
+    return StatusCheckPydantic(
+        id=status_obj.id,
+        client_name=status_obj.client_name,
+        timestamp=status_obj.timestamp
+    )
 
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
+@api_router.get("/status", response_model=List[StatusCheckPydantic])
+async def get_status_checks(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(StatusCheckModel))
+    status_checks = result.scalars().all()
     
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+    return [
+        StatusCheckPydantic(
+            id=s.id,
+            client_name=s.client_name,
+            timestamp=s.timestamp
+        )
+        for s in status_checks
+    ]
 
 
 # Include the router in the main app
@@ -2412,12 +2631,18 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize default data on startup"""
-    logger.info("Starting IDEIABH API...")
-    await get_status_padrao()
-    logger.info("Default statuses initialized")
+    """Initialize database on startup"""
+    logger.info("Starting IDEIABH API with PostgreSQL...")
+    await init_db()
+    logger.info("Database tables initialized")
+    
+    # Initialize default statuses
+    async with async_session() as db:
+        await get_status_padrao(db)
+        logger.info("Default statuses initialized")
 
 
 @app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
+async def shutdown_event():
+    """Close database connection on shutdown"""
+    await close_db()
