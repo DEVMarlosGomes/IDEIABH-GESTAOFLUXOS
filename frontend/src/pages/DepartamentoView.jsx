@@ -132,6 +132,31 @@ const DepartamentoView = ({ departamento }) => {
   };
 
   const handleFinalizar = (tarefa) => {
+    // Verificar se operador pode finalizar esta tarefa (apenas seu próprio setor)
+    if (user?.role === 'operador') {
+      const userSetor = user?.setor?.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+      const tarefaSetor = tarefa.setor?.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+      
+      // Normalizar nomes de setores
+      const setorMap = {
+        'atendimento': 'atendimento',
+        'criacao': 'criacao',
+        'criação': 'criacao',
+        'preproducao': 'pre-producao',
+        'préproducao': 'pre-producao',
+        'producao': 'producao',
+        'produção': 'producao',
+      };
+      
+      const userSetorNorm = setorMap[userSetor] || userSetor;
+      const tarefaSetorNorm = setorMap[tarefaSetor] || tarefaSetor;
+      
+      if (userSetorNorm !== tarefaSetorNorm) {
+        alert(`Você só pode finalizar tarefas do seu setor (${user?.setor}). Esta tarefa é do setor ${tarefa.setor}.`);
+        return;
+      }
+    }
+    
     setSelectedTarefa(tarefa);
     setShowFinalizarModal(true);
   };
