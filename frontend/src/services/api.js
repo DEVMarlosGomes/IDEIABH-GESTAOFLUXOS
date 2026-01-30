@@ -249,6 +249,45 @@ export const cobrarOperador = async (data, userRole) => {
 };
 
 // ==========================================
+// Atribuição de Tarefas
+// ==========================================
+
+export const listarUsuariosSetor = async (setor, userRole, userSetor) => {
+  const params = new URLSearchParams();
+  params.append('usuario_role', userRole);
+  if (userSetor) params.append('usuario_setor', userSetor);
+  
+  const response = await api.get(`/api/usuarios/setor/${setor}?${params}`);
+  return response.data;
+};
+
+export const atribuirTarefa = async (
+  tarefaId,
+  usuarioId,
+  usuarioNome,
+  usuarioSetor,
+  atribuidorId,
+  atribuidorNome,
+  atribuidorSetor,
+  atribuidorRole
+) => {
+  const params = new URLSearchParams();
+  params.append('atribuidor_id', atribuidorId);
+  params.append('atribuidor_nome', atribuidorNome);
+  params.append('atribuidor_setor', atribuidorSetor);
+  params.append('atribuidor_role', atribuidorRole);
+  
+  const data = {
+    usuario_id: usuarioId,
+    usuario_nome: usuarioNome,
+    usuario_setor: usuarioSetor,
+  };
+  
+  const response = await api.post(`/api/tarefas/${tarefaId}/atribuir?${params}`, data);
+  return response.data;
+};
+
+// ==========================================
 // Dashboard Avançado
 // ==========================================
 

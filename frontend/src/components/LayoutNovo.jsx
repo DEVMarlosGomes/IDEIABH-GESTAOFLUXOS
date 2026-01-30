@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import SidebarNova from './SidebarNova';
@@ -6,7 +6,8 @@ import ThemeToggle from './ThemeToggle';
 import { Bell, Search, Share2, ChevronDown, User, Settings, LogOut, Check, Menu, X } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
-import { mockNotificacoes, mockProjetos, mockContratos } from '../data/mockNovo';
+import { mockNotificacoes } from '../data/mockNovo';
+import { getProjetos, getContratos } from '../services/api';
 import './LayoutNovo.css';
 
 const LayoutNovo = ({ children, title, subtitle }) => {
@@ -19,8 +20,13 @@ const LayoutNovo = ({ children, title, subtitle }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [projetosCache, setProjetosCache] = useState([]);
+  const [contratosCache, setContratosCache] = useState([]);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const compactRoutes = new Set(['/contratos', '/contratos-old', '/templates-prazos']);
+  const isCompactLayout = compactRoutes.has(location.pathname);
 
   // Carregar notificações lidas do localStorage
   const getReadNotificationIds = () => {
@@ -79,37 +85,62 @@ const LayoutNovo = ({ children, title, subtitle }) => {
 
   // Search functionality
   useEffect(() => {
-    if (searchTerm.length > 2) {
-      const results = [];
-      
-      // Search in projects
-      const projectResults = mockProjetos
-        .filter(p => 
-          p.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.instituicao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.etapa_atual_nome.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        .slice(0, 5)
-        .map(p => ({ ...p, type: 'projeto' }));
-      
-      // Search in contracts
-      const contractResults = mockContratos
-        .filter(c => 
-          c.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.instituicao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          c.numero_contrato.toLowerCase().includes(searchTerm.toLowerCase())
-        )
-        .slice(0, 5)
-        .map(c => ({ ...c, type: 'contrato' }));
-      
-      results.push(...projectResults, ...contractResults);
-      setSearchResults(results.slice(0, 8));
-      setShowSearchResults(true);
-    } else {
-      setSearchResults([]);
-      setShowSearchResults(false);
-    }
-  }, [searchTerm]);
+    const loadAndSearch = async () => {
+      if (searchTerm.length <= 2) {
+        setSearchResults([]);
+        setShowSearchResults(false);
+        return;
+      }
+
+      try {
+        setSearchLoading(true);
+        let projetos = projetosCache;
+        let contratos = contratosCache;
+
+        if (!projetos.length) {
+          projetos = await getProjetos();
+          setProjetosCache(projetos || []);
+        }
+        if (!contratos.length) {
+          contratos = await getContratos();
+          setContratosCache(contratos || []);
+        }
+
+        const term = searchTerm.toLowerCase();
+        const results = [];
+
+        const projectResults = (projetos || [])
+          .filter(p => 
+            (p.cliente || '').toLowerCase().includes(term) ||
+            (p.instituicao || '').toLowerCase().includes(term) ||
+            (p.etapa_atual_nome || '').toLowerCase().includes(term)
+          )
+          .slice(0, 5)
+          .map(p => ({ ...p, type: 'projeto' }));
+
+        const contractResults = (contratos || [])
+          .filter(c => 
+            (c.cliente || '').toLowerCase().includes(term) ||
+            (c.instituicao || '').toLowerCase().includes(term) ||
+            (c.numero_contrato || '').toLowerCase().includes(term)
+          )
+          .slice(0, 5)
+          .map(c => ({ ...c, type: 'contrato' }));
+
+        results.push(...projectResults, ...contractResults);
+        setSearchResults(results.slice(0, 8));
+        setShowSearchResults(true);
+      } catch (e) {
+        console.error('Erro ao buscar:', e);
+        setSearchResults([]);
+        setShowSearchResults(true);
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    loadAndSearch();
+  }, [searchTerm, projetosCache, contratosCache]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -128,6 +159,15 @@ const LayoutNovo = ({ children, title, subtitle }) => {
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
+
+  const prevCompactRef = useRef(isCompactLayout);
+
+  useEffect(() => {
+    if (!prevCompactRef.current && isCompactLayout) {
+      setSidebarOpen(false);
+    }
+    prevCompactRef.current = isCompactLayout;
+  }, [isCompactLayout]);
 
   const getNotificacaoIcon = (tipo) => {
     switch(tipo) {
@@ -192,7 +232,7 @@ const LayoutNovo = ({ children, title, subtitle }) => {
   };
 
   return (
-    <div className="layout-novo">
+    <div className={`layout-novo ${isCompactLayout ? 'layout-compact' : ''}`}>
       <SidebarNova isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       {/* Overlay for mobile sidebar */}
@@ -220,7 +260,15 @@ const LayoutNovo = ({ children, title, subtitle }) => {
               />
               
               {/* Search Results Dropdown */}
-              {showSearchResults && searchResults.length > 0 && (
+              {showSearchResults && searchLoading && (
+                <div className="search-results-dropdown">
+                  <div className="no-results">
+                    <p>Carregando resultados...</p>
+                  </div>
+                </div>
+              )}
+
+              {showSearchResults && !searchLoading && searchResults.length > 0 && (
                 <div className="search-results-dropdown">
                   <div className="search-results-header">
                     <span>Resultados da busca</span>
@@ -251,7 +299,7 @@ const LayoutNovo = ({ children, title, subtitle }) => {
                 </div>
               )}
               
-              {showSearchResults && searchResults.length === 0 && searchTerm.length > 2 && (
+              {showSearchResults && !searchLoading && searchResults.length === 0 && searchTerm.length > 2 && (
                 <div className="search-results-dropdown">
                   <div className="no-results">
                     <p>Nenhum resultado encontrado para "{searchTerm}"</p>

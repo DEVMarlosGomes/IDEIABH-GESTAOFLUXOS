@@ -26,6 +26,7 @@ import { useAuth } from '../context/AuthContext';
 import TarefaDetalhesModal from '../components/TarefaDetalhesModal';
 import EditarTarefaModal from '../components/EditarTarefaModal';
 import FinalizarTarefaModal from '../components/FinalizarTarefaModal';
+import AtribuirTarefaModal from '../components/AtribuirTarefaModal';
 
 const ProjetoDetalhes = () => {
   const { id } = useParams();
@@ -38,7 +39,9 @@ const ProjetoDetalhes = () => {
   const [showDetalhesModal, setShowDetalhesModal] = useState(false);
   const [showEditarModal, setShowEditarModal] = useState(false);
   const [showFinalizarModal, setShowFinalizarModal] = useState(false);
+  const [showAtribuirModal, setShowAtribuirModal] = useState(false);
   const [selectedTarefa, setSelectedTarefa] = useState(null);
+  const [tarefaParaAtribuir, setTarefaParaAtribuir] = useState(null);
 
   useEffect(() => {
     loadProjeto();
@@ -95,6 +98,41 @@ const ProjetoDetalhes = () => {
     
     setSelectedTarefa(tarefa);
     setShowFinalizarModal(true);
+  };
+
+  const handleAtribuir = (tarefa) => {
+    // Verificar permissÃ£o - apenas admin ou gerente podem atribuir
+    if (!['admin', 'gerente'].includes(user?.role)) {
+      toast.error('Apenas administradores e gerentes podem atribuir tarefas');
+      return;
+    }
+
+    // Verificar se gerente estÃ¡ tentando atribuir fora de seu setor
+    if (user?.role === 'gerente') {
+      const userSetor = user?.setor?.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+      const tarefaSetor = tarefa.setor?.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+      
+      const setorMap = {
+        'atendimento': 'atendimento',
+        'criacao': 'criacao',
+        'criaÃ§Ã£o': 'criacao',
+        'preproducao': 'pre-producao',
+        'prÃ©producao': 'pre-producao',
+        'producao': 'producao',
+        'produÃ§Ã£o': 'producao',
+      };
+      
+      const userSetorNorm = setorMap[userSetor] || userSetor;
+      const tarefaSetorNorm = setorMap[tarefaSetor] || tarefaSetor;
+      
+      if (userSetorNorm !== tarefaSetorNorm) {
+        toast.error(`Gerentes sÃ³ podem atribuir tarefas de seu setor (${user?.setor})`);
+        return;
+      }
+    }
+
+    setTarefaParaAtribuir(tarefa);
+    setShowAtribuirModal(true);
   };
 
   const handleExcluir = async (tarefa) => {
@@ -400,6 +438,7 @@ const ProjetoDetalhes = () => {
         onEditar={handleEditar}
         onExcluir={handleExcluir}
         onFinalizar={handleFinalizar}
+        onAtribuir={handleAtribuir}
       />
 
       <EditarTarefaModal
@@ -419,6 +458,16 @@ const ProjetoDetalhes = () => {
           setSelectedTarefa(null);
         }}
         tarefa={selectedTarefa}
+        onSuccess={loadProjeto}
+      />
+
+      <AtribuirTarefaModal
+        isOpen={showAtribuirModal}
+        onClose={() => {
+          setShowAtribuirModal(false);
+          setTarefaParaAtribuir(null);
+        }}
+        tarefa={tarefaParaAtribuir}
         onSuccess={loadProjeto}
       />
     </LayoutNovo>

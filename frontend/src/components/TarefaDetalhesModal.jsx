@@ -48,7 +48,8 @@ const TarefaDetalhesModal = ({
   tarefa, 
   onEditar, 
   onExcluir, 
-  onFinalizar 
+  onFinalizar,
+  onAtribuir
 }) => {
   const { user, isAdminOrGerente } = useAuth();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -301,6 +302,22 @@ const TarefaDetalhesModal = ({
             <div className="flex gap-2">
               {!tarefa.finalizada && (
                 <>
+                  {canManage && onAtribuir && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          onAtribuir?.(tarefa);
+                          onClose();
+                        }}
+                        className="text-blue-600 hover:bg-blue-50"
+                      >
+                        <User size={16} className="mr-2" />
+                        Atribuir
+                      </Button>
+                    </>
+                  )}
                   {canManage && (
                     <>
                       <Button

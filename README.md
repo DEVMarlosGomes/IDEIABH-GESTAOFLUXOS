@@ -351,7 +351,7 @@ REACT_APP_VERSION=2.0.0
 cd backend
 source venv/bin/activate
 uvicorn server:app --reload --host 0.0.0.0 --port 8001
-```
+
 
 Backend estará disponível em: `http://localhost:8001`
 

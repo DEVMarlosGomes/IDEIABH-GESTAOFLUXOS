@@ -13,6 +13,7 @@ import { Textarea } from './ui/textarea';
 import { useAuth } from '../context/AuthContext';
 import { finalizarTarefa } from '../services/api';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import './FinalizarTarefaModal.css';
 
 const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
   const { user } = useAuth();
@@ -53,7 +54,7 @@ const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="finalizar-tarefa-modal sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-green-600" />

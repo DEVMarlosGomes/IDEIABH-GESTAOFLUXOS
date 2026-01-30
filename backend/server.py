@@ -1488,6 +1488,236 @@ async def deletar_todas_tarefas(
 
 
 # ==========================================
+# ROUTES - Atribuição de Tarefas
+# ==========================================
+
+class AtribuirTarefaInput(BaseModel):
+    usuario_id: str
+    usuario_nome: str
+    usuario_setor: str
+    usuario_role: str
+    atribuidor_id: str
+    atribuidor_nome: str
+    atribuidor_setor: str
+
+
+@api_router.get("/usuarios/setor/{setor}", response_model=List[dict])
+async def listar_usuarios_setor(
+    setor: str,
+    usuario_role: str = Query(...),
+    usuario_setor: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Lista usuários disponíveis em um setor específico para atribuição de tarefas.
+    Apenas admin/gerente podem acessar este endpoint.
+    
+    - Admin vê todos os usuários ativos em qualquer setor
+    - Gerente vê todos os usuários ativos do seu próprio setor
+    - Operador não tem acesso
+    """
+    # Verificar permissão
+    if usuario_role not in ["admin", "gerente"]:
+        raise HTTPException(
+            status_code=403, 
+            detail="Apenas administradores e gerentes podem listar usuários para atribuição"
+        )
+    
+    # Se é gerente, verificar se está tentando acessar outro setor
+    if usuario_role == "gerente" and usuario_setor:
+        setor_norm = setor.lower().replace("-", "").replace("_", "").replace(" ", "")
+        usuario_setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
+        
+        if setor_norm != usuario_setor_norm:
+            raise HTTPException(
+                status_code=403, 
+                detail=f"Gerentes podem atribuir tarefas apenas dentro de seu setor ({usuario_setor})"
+            )
+    
+    # Normalizar nome do setor
+    setor_map = {
+        "atendimento": "atendimento",
+        "criacao": "criacao",
+        "criação": "criacao",
+        "preproducao": "pre-producao",
+        "préproducao": "pre-producao",
+        "pre-producao": "pre-producao",
+        "pré-produção": "pre-producao",
+        "producao": "producao",
+        "produção": "producao",
+    }
+    
+    setor_normalizado = setor_map.get(setor.lower().replace("-", "").replace("_", "").replace(" ", ""), setor)
+    
+    # Buscar usuários do setor
+    result = await db.execute(
+        select(UserModel).where(
+            and_(
+                UserModel.setor == setor_normalizado,
+                UserModel.ativo == True,
+                UserModel.aprovado == True,
+                UserModel.role != "admin"  # Não mostrar admins na lista de atribuição
+            )
+        ).order_by(UserModel.nome)
+    )
+    usuarios = result.scalars().all()
+    
+    # Convertendo para dict e removendo campos sensíveis
+    usuarios_list = []
+    for u in usuarios:
+        user_dict = model_to_dict(u)
+        user_dict.pop("password_hash", None)
+        usuarios_list.append(user_dict)
+    
+    if not usuarios_list:
+        return []
+    
+    return usuarios_list
+
+
+class AtribuirTarefaRequest(BaseModel):
+    usuario_id: str
+    usuario_nome: str
+    usuario_setor: str
+
+
+@api_router.post("/tarefas/{tarefa_id}/atribuir", response_model=dict)
+async def atribuir_tarefa(
+    tarefa_id: str,
+    input: AtribuirTarefaRequest,
+    atribuidor_id: str = Query(...),
+    atribuidor_nome: str = Query(...),
+    atribuidor_setor: str = Query(...),
+    atribuidor_role: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Atribui uma tarefa a um usuário específico.
+    
+    Permissões:
+    - Apenas admin ou gerente podem atribuir tarefas
+    - Gerente pode atribuir apenas dentro de seu setor
+    - A tarefa e o usuário devem estar no mesmo setor
+    
+    Retorna: Tarefa atualizada com histórico de atribuição
+    """
+    # Verificar permissão do atribuidor
+    if atribuidor_role not in ["admin", "gerente"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas administradores e gerentes podem atribuir tarefas"
+        )
+    
+    # Buscar tarefa
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == tarefa_id)
+    )
+    tarefa = result.scalar_one_or_none()
+    
+    if not tarefa:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    
+    if tarefa.finalizada:
+        raise HTTPException(status_code=400, detail="Não é possível atribuir uma tarefa finalizada")
+    
+    # Normalizar setores para comparação
+    setor_map = {
+        "atendimento": "atendimento",
+        "criacao": "criacao",
+        "criação": "criacao",
+        "preproducao": "pre-producao",
+        "préproducao": "pre-producao",
+        "pre-producao": "pre-producao",
+        "pré-produção": "pre-producao",
+        "producao": "producao",
+        "produção": "producao",
+    }
+    
+    tarefa_setor_norm = setor_map.get(tarefa.setor.lower().replace("-", "").replace("_", "").replace(" ", ""), tarefa.setor)
+    usuario_setor_norm = setor_map.get(input.usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", ""), input.usuario_setor)
+    
+    # Verificação 1: Se é gerente, só pode atribuir no seu setor
+    if atribuidor_role == "gerente":
+        atribuidor_setor_norm = setor_map.get(atribuidor_setor.lower().replace("-", "").replace("_", "").replace(" ", ""), atribuidor_setor)
+        if tarefa_setor_norm != atribuidor_setor_norm:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Gerentes podem atribuir tarefas apenas em seu setor ({atribuidor_setor_norm})"
+            )
+    
+    # Verificação 2: Tarefa e usuário devem estar no mesmo setor
+    if tarefa_setor_norm != usuario_setor_norm:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não é possível atribuir tarefa do setor '{tarefa_setor_norm}' para usuário do setor '{usuario_setor_norm}'"
+        )
+    
+    # Buscar o usuário a ser atribuído
+    result = await db.execute(
+        select(UserModel).where(UserModel.id == input.usuario_id)
+    )
+    usuario = result.scalar_one_or_none()
+    
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    if not usuario.ativo or not usuario.aprovado:
+        raise HTTPException(status_code=400, detail="Usuário não está ativo ou aprovado")
+    
+    # Preparar informações antigas (para historico)
+    responsavel_anterior = tarefa.responsavel_nome or "Não atribuído"
+    
+    # Atualizar tarefa
+    tarefa.responsavel_id = input.usuario_id
+    tarefa.responsavel_nome = input.usuario_nome
+    tarefa.atualizado_em = datetime.now(timezone.utc)
+    
+    # Registrar no histórico
+    historico = tarefa.historico or []
+    historico.append({
+        "id": str(uuid.uuid4()),
+        "acao": "atribuida",
+        "usuario_id": atribuidor_id,
+        "usuario_nome": atribuidor_nome,
+        "setor": atribuidor_setor,
+        "data": datetime.now(timezone.utc).isoformat(),
+        "detalhes": f"Tarefa atribuída de '{responsavel_anterior}' para '{input.usuario_nome}' ({input.usuario_setor})"
+    })
+    tarefa.historico = historico
+    
+    await db.commit()
+    await db.refresh(tarefa)
+    
+    # Criar notificação para o usuário
+    notif = NotificacaoModel(
+        id=str(uuid.uuid4()),
+        tipo="atribuicao",
+        titulo=f"Nova tarefa atribuída por {atribuidor_nome}",
+        mensagem=f"Você foi atribuído à tarefa: {tarefa.titulo}",
+        de_usuario_id=atribuidor_id,
+        de_usuario_nome=atribuidor_nome,
+        para_usuario_id=input.usuario_id,
+        para_usuario_nome=input.usuario_nome,
+        tarefa_id=tarefa_id,
+        projeto_id=tarefa.projeto_id
+    )
+    
+    db.add(notif)
+    await db.commit()
+    
+    logger.info(
+        f"Tarefa atribuída: {tarefa_id} para {input.usuario_nome} ({input.usuario_setor}) "
+        f"por {atribuidor_nome} ({atribuidor_setor})"
+    )
+    
+    return {
+        "message": f"Tarefa atribuída com sucesso para {input.usuario_nome}",
+        "tarefa": model_to_dict(tarefa),
+        "notificacao_enviada": True
+    }
+
+
+# ==========================================
 # ROUTES - Atrasos e Relatórios
 # ==========================================
 

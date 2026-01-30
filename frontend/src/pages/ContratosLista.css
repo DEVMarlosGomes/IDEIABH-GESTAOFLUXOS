@@ -57,13 +57,13 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.search-wrapper {
+.contratos-container .search-wrapper {
   position: relative;
   flex: 1;
   max-width: 400px;
 }
 
-.search-icon {
+.contratos-container .search-icon {
   position: absolute;
   left: 14px;
   top: 50%;
@@ -71,14 +71,14 @@
   color: #9ca3af;
 }
 
-.search-input {
+.contratos-container .search-input {
   padding-left: 42px;
   height: 42px;
   border-radius: 10px;
   border: 2px solid #e5e7eb;
 }
 
-.search-input:focus {
+.contratos-container .search-input:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
@@ -276,7 +276,10 @@
 
 /* Modal */
 .contrato-modal {
-  max-width: 600px;
+  max-width: 860px;
+  width: min(90vw, 860px);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
 }
 
 .modal-form {
@@ -387,5 +390,11 @@
 
   .view-grid {
     grid-template-columns: 1fr;
+  }
+
+  .contrato-modal {
+    width: 94vw;
+    max-height: calc(100vh - 110px);
+    padding: 16px;
   }
 }

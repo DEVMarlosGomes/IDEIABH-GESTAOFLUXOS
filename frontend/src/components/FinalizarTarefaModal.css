@@ -1,0 +1,12 @@
+.finalizar-tarefa-modal {
+  width: min(92vw, 520px);
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+
+@media (max-width: 639px) {
+  .finalizar-tarefa-modal {
+    width: 94vw;
+    max-height: calc(100vh - 110px);
+  }
+}

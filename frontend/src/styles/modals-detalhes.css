@@ -10,7 +10,7 @@
 .projeto-modal-detalhado,
 .contrato-modal-detalhado {
   max-width: 900px !important;
-  max-height: 90vh;
+  max-height: calc(100vh - 140px);
   overflow: hidden;
   border-radius: var(--radius-2xl) !important;
   box-shadow: var(--elevation-6) !important;
@@ -81,7 +81,7 @@
   flex-direction: column;
   gap: var(--space-lg);
   padding: var(--space-md) 0;
-  max-height: calc(90vh - 180px);
+  max-height: calc(100vh - 220px);
   overflow-y: auto;
   overflow-x: hidden;
 }

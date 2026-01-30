@@ -19,15 +19,18 @@ import {
   Check,
   Play,
   TrendingUp,
-  FileText
+  FileText,
+  UserPlus
 } from 'lucide-react';
 import { DEPARTAMENTOS } from '../data/mockNovo';
 import { useAuth } from '../context/AuthContext';
 import { 
   getTarefas,
   finalizarTarefa,
-  criarNotificacao
+  criarNotificacao,
+  listarUsuariosSetor
 } from '../services/api';
+import AtribuirTarefaModal from '../components/AtribuirTarefaModal';
 import { toast } from 'sonner';
 import './DepartamentoView.css';
 
@@ -36,9 +39,12 @@ const DepartamentoViewNovo = ({ departamento }) => {
   
   const [tarefas, setTarefas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [equipeUsuarios, setEquipeUsuarios] = useState([]);
   const [finalizarModal, setFinalizarModal] = useState(false);
   const [tarefaSelecionada, setTarefaSelecionada] = useState(null);
   const [finalizando, setFinalizando] = useState(false);
+  const [atribuirModalAberto, setAtribuirModalAberto] = useState(false);
+  const [tarefaParaAtribuir, setTarefaParaAtribuir] = useState(null);
   const [feedbackForm, setFeedbackForm] = useState({
     observacao: '',
     dificuldades: '',
@@ -54,6 +60,23 @@ const DepartamentoViewNovo = ({ departamento }) => {
     cor: '#3b82f6',
     equipe: [],
     descricao: ''
+  };
+
+  const normalizeSetor = (setor) => {
+    if (!setor) return '';
+    const key = setor.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+    const setorMap = {
+      'atendimento': 'atendimento',
+      'criacao': 'criacao',
+      'criação': 'criacao',
+      'preproducao': 'pre-producao',
+      'préproducao': 'pre-producao',
+      'pre-producao': 'pre-producao',
+      'pré-produção': 'pre-producao',
+      'producao': 'producao',
+      'produção': 'producao',
+    };
+    return setorMap[key] || setor;
   };
 
   // Load data
@@ -81,9 +104,32 @@ const DepartamentoViewNovo = ({ departamento }) => {
     }
   }, [departamento]);
 
+  const loadEquipe = useCallback(async () => {
+    if (!user?.role) return;
+    try {
+      const setor = normalizeSetor(departamento);
+      if (!setor) {
+        setEquipeUsuarios([]);
+        return;
+      }
+      const usuarios = await listarUsuariosSetor(
+        setor,
+        user.role,
+        user.role === 'gerente' ? normalizeSetor(user.setor) : undefined
+      );
+      setEquipeUsuarios(usuarios || []);
+    } catch (err) {
+      setEquipeUsuarios([]);
+    }
+  }, [departamento, user]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    loadEquipe();
+  }, [loadEquipe]);
 
   // Estatísticas
   const stats = {
@@ -143,6 +189,46 @@ const DepartamentoViewNovo = ({ departamento }) => {
       proximos_passos: ''
     });
     setFinalizarModal(true);
+  };
+
+  const handleAbrirAtribuir = (tarefa) => {
+    // Verificar permissão - apenas admin ou gerente podem atribuir
+    if (!['admin', 'gerente'].includes(user?.role)) {
+      toast.error('Apenas administradores e gerentes podem atribuir tarefas');
+      return;
+    }
+
+    // Verificar se gerente está tentando atribuir fora de seu setor
+    if (user?.role === 'gerente') {
+      const userSetor = user?.setor?.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+      const tarefaSetor = tarefa.setor?.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+      
+      const setorMap = {
+        'atendimento': 'atendimento',
+        'criacao': 'criacao',
+        'criação': 'criacao',
+        'preproducao': 'pre-producao',
+        'préproducao': 'pre-producao',
+        'producao': 'producao',
+        'produção': 'producao',
+      };
+      
+      const userSetorNorm = setorMap[userSetor] || userSetor;
+      const tarefaSetorNorm = setorMap[tarefaSetor] || tarefaSetor;
+      
+      if (userSetorNorm !== tarefaSetorNorm) {
+        toast.error(`Gerentes só podem atribuir tarefas de seu setor (${user?.setor})`);
+        return;
+      }
+    }
+
+    setTarefaParaAtribuir(tarefa);
+    setAtribuirModalAberto(true);
+  };
+
+  const handleAtribuicaoSucesso = () => {
+    toast.success('Tarefa atribuída com sucesso!');
+    loadData(); // Recarregar tarefas
   };
 
   const handleFinalizar = async () => {
@@ -292,12 +378,12 @@ Data: ${new Date().toLocaleString('pt-BR')}
             {deptInfo.descricao && (
               <p className="text-gray-600">{deptInfo.descricao}</p>
             )}
-            {deptInfo.equipe && deptInfo.equipe.length > 0 && (
+            {equipeUsuarios.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
-                {deptInfo.equipe.map((membro, idx) => (
-                  <Badge key={idx} variant="outline" className="bg-white">
+                {equipeUsuarios.map((usuario) => (
+                  <Badge key={usuario.id} variant="outline" className="bg-white">
                     <User size={12} className="mr-1" />
-                    {membro}
+                    {usuario.nome}
                   </Badge>
                 ))}
               </div>
@@ -418,7 +504,17 @@ Data: ${new Date().toLocaleString('pt-BR')}
                         </div>
                       </div>
                       
-                      <div className="ml-4">
+                      <div className="ml-4 flex gap-2">
+                        {['admin', 'gerente'].includes(user?.role) && (
+                          <Button
+                            onClick={() => handleAbrirAtribuir(tarefa)}
+                            variant="outline"
+                            className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                          >
+                            <UserPlus size={16} className="mr-2" />
+                            Atribuir
+                          </Button>
+                        )}
                         <Button
                           onClick={() => handleAbrirFinalizar(tarefa)}
                           className="bg-green-600 hover:bg-green-700"
@@ -582,9 +678,21 @@ Data: ${new Date().toLocaleString('pt-BR')}
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Modal de Atribuição de Tarefa */}
+        <AtribuirTarefaModal
+          isOpen={atribuirModalAberto}
+          onClose={() => {
+            setAtribuirModalAberto(false);
+            setTarefaParaAtribuir(null);
+          }}
+          tarefa={tarefaParaAtribuir}
+          onSuccess={handleAtribuicaoSucesso}
+        />
       </div>
     </LayoutNovo>
   );
 };
 
 export default DepartamentoViewNovo;
+
