@@ -14,6 +14,8 @@
   flex-direction: column;
   z-index: 1000;
   transition: transform var(--transition-normal), background-color var(--transition-normal);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 /* Mobile Sidebar */
@@ -102,6 +104,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 16px 12px;
+  overscroll-behavior: contain;
 }
 
 .nav-section {

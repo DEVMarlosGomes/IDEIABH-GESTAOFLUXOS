@@ -27,6 +27,23 @@ import TemplatesPrazos from "./pages/TemplatesPrazos";
 import { Toaster } from "./components/ui/sonner";
 
 // Protected Route Component
+const normalizeSetor = (setor) => {
+  if (!setor) return "";
+  const key = setor.toLowerCase().replace("-", "").replace("_", "").replace(" ", "");
+  const setorMap = {
+    atendimento: "atendimento",
+    criacao: "criacao",
+    criação: "criacao",
+    preproducao: "pre-producao",
+    préproducao: "pre-producao",
+    "pre-producao": "pre-producao",
+    "pré-produção": "pre-producao",
+    producao: "producao",
+    produção: "producao",
+  };
+  return setorMap[key] || setor;
+};
+
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
 
@@ -41,6 +58,37 @@ const ProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+const RoleRoute = ({ children, allowRoles, allowSetores }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner"></div>
+        <p>Carregando...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowRoles && !allowRoles.includes(user.role)) {
+    const setor = normalizeSetor(user.setor);
+    return <Navigate to={`/departamento/${setor || "atendimento"}`} replace />;
+  }
+
+  if (allowSetores && user.role === "operador") {
+    const setor = normalizeSetor(user.setor);
+    if (!allowSetores.includes(setor)) {
+      return <Navigate to={`/departamento/${setor || "atendimento"}`} replace />;
+    }
   }
 
   return children;
@@ -107,41 +155,41 @@ function AppRoutes() {
       <Route
         path="/projetos"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente"]}>
             <ProjetosVisaoGeralNovo />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/projetos/:id"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente"]}>
             <ProjetoDetalhes />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/projetos-old"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente"]}>
             <ProjetosVisaoGeral />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/contratos"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente"]}>
             <ContratosListaNova />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/contratos-old"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente"]}>
             <ContratosVisaoGeral />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       
@@ -149,33 +197,33 @@ function AppRoutes() {
       <Route
         path="/departamento/atendimento"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente", "operador"]} allowSetores={["atendimento"]}>
             <DepartamentoViewNovo departamento="atendimento" />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/departamento/criacao"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente", "operador"]} allowSetores={["criacao"]}>
             <DepartamentoViewNovo departamento="criacao" />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/departamento/pre-producao"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente", "operador"]} allowSetores={["pre-producao"]}>
             <DepartamentoViewNovo departamento="pre-producao" />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/departamento/producao"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente", "operador"]} allowSetores={["producao"]}>
             <DepartamentoViewNovo departamento="producao" />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
 
@@ -183,25 +231,25 @@ function AppRoutes() {
       <Route
         path="/admin/users"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin"]}>
             <AdminUsersNovo />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/admin/users-old"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin"]}>
             <AdminUsers />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/configuracoes"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin"]}>
             <Configuracoes />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
 
@@ -209,25 +257,25 @@ function AppRoutes() {
       <Route
         path="/relatorios"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente"]}>
             <RelatoriosNovo />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/relatorios-old"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente"]}>
             <RelatoriosCompleto />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
       <Route
         path="/templates-prazos"
         element={
-          <ProtectedRoute>
+          <RoleRoute allowRoles={["admin", "gerente"]}>
             <TemplatesPrazos />
-          </ProtectedRoute>
+          </RoleRoute>
         }
       />
 

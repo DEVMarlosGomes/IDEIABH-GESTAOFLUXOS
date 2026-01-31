@@ -4,6 +4,130 @@
   gap: 24px;
 }
 
+.contratos-controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  grid-template-areas:
+    "search toggle"
+    "filters filters";
+  gap: 12px;
+  align-items: center;
+}
+
+.search-wrapper-contratos {
+  grid-area: search;
+  position: relative;
+  max-width: 520px;
+  width: 100%;
+}
+
+.search-icon-contratos {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.search-icon-contratos.is-hidden {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.9);
+}
+
+.search-input-contratos {
+  width: 100%;
+  height: 44px;
+  padding-left: 46px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-xl);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.search-input-contratos:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
+}
+
+.view-toggle {
+  grid-area: toggle;
+  display: flex;
+  gap: 6px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  padding: 6px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+}
+
+.view-toggle-btn {
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 160ms ease;
+  display: flex;
+  align-items: center;
+}
+
+.view-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.view-toggle-btn.active {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.filtros-status.filtros-contratos {
+  grid-area: filters;
+  display: flex;
+  gap: 6px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  padding: 6px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+}
+
+.filtros-status.filtros-contratos .filtro-btn {
+  flex: 1 1 0;
+  text-align: center;
+  padding: 8px 12px;
+}
+
+.contratos-grid.list-view {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 1023px) {
+  .contratos-controls {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "search"
+      "filters"
+      "toggle";
+  }
+  .search-wrapper-contratos {
+    max-width: none;
+  }
+  .view-toggle {
+    justify-self: flex-start;
+  }
+}
+
 /* Header */
 .contratos-header {
   display: flex;
@@ -52,9 +176,10 @@
   align-items: center;
   gap: 16px;
   padding: 16px;
-  background: white;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 .contratos-container .search-wrapper {
@@ -90,24 +215,24 @@
 
 .filter-btn {
   padding: 8px 16px;
-  border: 2px solid #e5e7eb;
-  background: white;
+  border: 1px solid var(--border-primary);
+  background: var(--card-bg);
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .filter-btn:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
 
 .filter-btn.active {
-  background: #3b82f6;
-  border-color: #3b82f6;
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
   color: white;
 }
 
@@ -121,14 +246,16 @@
 .contrato-card {
   border: none;
   border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-sm);
   transition: transform 0.2s, box-shadow 0.2s;
   overflow: hidden;
 }
 
 .contrato-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-md);
 }
 
 .contrato-card-header {
@@ -145,14 +272,14 @@
 .contrato-numero {
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-tertiary);
   text-transform: uppercase;
 }
 
 .contrato-cliente {
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
@@ -161,7 +288,7 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .contrato-card-content {
@@ -174,7 +301,7 @@
   gap: 12px;
   margin-bottom: 16px;
   padding: 12px;
-  background: #f8fafc;
+  background: var(--bg-tertiary);
   border-radius: 10px;
 }
 
@@ -185,7 +312,7 @@
 }
 
 .info-item svg {
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .info-item > div {
@@ -195,7 +322,7 @@
 
 .info-label {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-muted);
   text-transform: uppercase;
   font-weight: 600;
 }
@@ -203,14 +330,14 @@
 .info-value {
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .contrato-actions {
   display: flex;
   align-items: center;
   gap: 4px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--border-primary);
   padding-top: 12px;
 }
 

@@ -25,7 +25,9 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
-  ClipboardList
+  ClipboardList,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { 
   getContratos, 
@@ -45,6 +47,7 @@ const ContratosListaNova = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
+  const [viewMode, setViewMode] = useState('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContrato, setEditingContrato] = useState(null);
   const [viewContrato, setViewContrato] = useState(null);
@@ -269,23 +272,44 @@ const ContratosListaNova = () => {
           </Button>
         </div>
 
-        {/* Filtros */}
-        <div className="filters-bar">
-          <div className="search-wrapper">
-            <Search size={18} className="search-icon" />
+        {/* Controls */}
+        <div className="contratos-controls">
+          <div className="search-wrapper-contratos">
+            <Search
+              size={18}
+              className={`search-icon-contratos ${searchTerm ? 'is-hidden' : ''}`}
+            />
             <Input
               type="text"
-              placeholder="Buscar por cliente ou número..."
+              placeholder=""
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
+              className="search-input-contratos"
             />
           </div>
-          <div className="filter-buttons">
+
+          <div className="view-toggle">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              aria-label="Visualizar em grade"
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+              aria-label="Visualizar em lista"
+            >
+              <List size={18} />
+            </button>
+          </div>
+
+          <div className="filtros-status filtros-contratos">
             {['todos', 'Ativo', 'Em Andamento', 'Finalizado'].map((status) => (
               <button
                 key={status}
-                className={`filter-btn ${filterStatus === status ? 'active' : ''}`}
+                className={`filtro-btn ${filterStatus === status ? 'active' : ''}`}
                 onClick={() => setFilterStatus(status)}
               >
                 {status === 'todos' ? 'Todos' : status}
@@ -294,8 +318,8 @@ const ContratosListaNova = () => {
           </div>
         </div>
 
-        {/* Contratos Grid */}
-        <div className="contratos-grid">
+        {/* Contratos Grid/List */}
+        <div className={`contratos-grid ${viewMode === 'list' ? 'list-view' : ''}`}>
           {filteredContratos.map((contrato) => (
             <Card key={contrato.id} className="contrato-card">
               <CardHeader className="contrato-card-header">
@@ -388,7 +412,7 @@ const ContratosListaNova = () => {
 
         {/* Modal de Criar/Editar */}
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="contrato-modal max-w-4xl">
+          <DialogContent className="contrato-modal max-w-4xl dialog-safe-center">
             <DialogHeader>
               <DialogTitle>
                 {editingContrato ? 'Editar Contrato' : 'Novo Contrato'}

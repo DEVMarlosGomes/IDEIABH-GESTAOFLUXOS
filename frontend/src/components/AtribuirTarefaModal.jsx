@@ -232,14 +232,14 @@ export const AtribuirTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
         .selected-user-info {
           margin-top: 20px;
           padding: 15px;
-          background-color: #f0f9ff;
-          border-left: 4px solid #3b82f6;
+          background-color: var(--bg-tertiary);
+          border-left: 4px solid var(--accent-primary);
           border-radius: 4px;
         }
 
         .selected-user-info h4 {
           margin: 0 0 12px 0;
-          color: #1e40af;
+          color: var(--text-primary);
           font-size: 14px;
           font-weight: 600;
         }
@@ -254,7 +254,7 @@ export const AtribuirTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
           display: flex;
           justify-content: space-between;
           padding: 8px 0;
-          border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+          border-bottom: 1px solid var(--border-primary);
         }
 
         .user-field:last-child {
@@ -263,48 +263,48 @@ export const AtribuirTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
 
         .field-label {
           font-weight: 600;
-          color: #475569;
+          color: var(--text-secondary);
           font-size: 13px;
         }
 
         .field-value {
-          color: #1e293b;
+          color: var(--text-primary);
           font-size: 13px;
         }
 
         .no-users-message {
           padding: 20px;
           text-align: center;
-          background-color: #fef2f2;
-          border: 1px solid #fca5a5;
+          background-color: var(--bg-tertiary);
+          border: 1px solid var(--border-primary);
           border-radius: 4px;
-          color: #991b1b;
+          color: var(--text-secondary);
           font-size: 14px;
         }
 
         .loading-spinner {
           text-align: center;
           padding: 20px;
-          color: #64748b;
+          color: var(--text-tertiary);
           font-size: 14px;
         }
 
         .modal-success-message {
           padding: 12px 16px;
-          background-color: #dcfce7;
-          border: 1px solid #86efac;
+          background-color: var(--bg-tertiary);
+          border: 1px solid var(--border-primary);
           border-radius: 4px;
-          color: #166534;
+          color: var(--accent-success);
           font-weight: 500;
           margin-bottom: 16px;
         }
 
         .modal-error-message {
           padding: 12px 16px;
-          background-color: #fee2e2;
-          border: 1px solid #fca5a5;
+          background-color: var(--bg-tertiary);
+          border: 1px solid var(--border-primary);
           border-radius: 4px;
-          color: #991b1b;
+          color: var(--accent-danger);
           font-weight: 500;
           margin-bottom: 16px;
         }
@@ -320,17 +320,17 @@ export const AtribuirTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
         }
 
         .text-muted {
-          color: #64748b;
+          color: var(--text-tertiary);
           font-size: 13px;
           margin-top: 4px;
         }
 
         .form-readonly {
           padding: 12px;
-          background-color: #f1f5f9;
-          border: 1px solid #cbd5e1;
+          background-color: var(--bg-tertiary);
+          border: 1px solid var(--border-primary);
           border-radius: 4px;
-          color: #1e293b;
+          color: var(--text-primary);
           font-size: 14px;
         }
 
@@ -343,7 +343,9 @@ export const AtribuirTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
         .form-select {
           width: 100%;
           padding: 10px 12px;
-          border: 1px solid #cbd5e1;
+          border: 1px solid var(--border-primary);
+          background: var(--input-bg);
+          color: var(--text-primary);
           border-radius: 4px;
           font-size: 14px;
           font-family: inherit;
@@ -351,14 +353,18 @@ export const AtribuirTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
 
         .form-select:focus {
           outline: none;
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          border-color: var(--input-focus-border);
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
         }
 
         .form-select:disabled {
-          background-color: #f1f5f9;
+          background-color: var(--bg-tertiary);
           cursor: not-allowed;
           opacity: 0.6;
+        }
+
+        [data-theme="dark"] .badge {
+          color: #fff;
         }
       `}</style>
     </div>

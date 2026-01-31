@@ -65,48 +65,50 @@ const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-              <AlertCircle size={18} />
-              <span>{error}</span>
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="finalizar-form">
+          <div className="finalizar-body">
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+                <AlertCircle size={18} />
+                <span>{error}</span>
+              </div>
+            )}
 
-          <div className="py-4">
-            {/* Info da tarefa */}
-            <div className="mb-4 p-3 bg-gray-50 rounded-lg space-y-1 text-sm">
-              <div><strong>Setor:</strong> {tarefa?.setor}</div>
-              <div><strong>Responsável:</strong> {tarefa?.responsavel_nome || 'Não definido'}</div>
-              <div><strong>Criada por:</strong> {tarefa?.criado_por_nome} ({tarefa?.criado_por_setor})</div>
-              {tarefa?.prazo && (
-                <div><strong>Prazo:</strong> {new Date(tarefa.prazo).toLocaleDateString('pt-BR')}</div>
-              )}
-              {tarefa?.atrasada && (
-                <div className="text-red-600 font-medium">
-                  Atraso: {tarefa.dias_atraso} dias
-                </div>
-              )}
-            </div>
+            <div className="py-4">
+              {/* Info da tarefa */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg space-y-1 text-sm">
+                <div><strong>Setor:</strong> {tarefa?.setor}</div>
+                <div><strong>Responsável:</strong> {tarefa?.responsavel_nome || 'Não definido'}</div>
+                <div><strong>Criada por:</strong> {tarefa?.criado_por_nome} ({tarefa?.criado_por_setor})</div>
+                {tarefa?.prazo && (
+                  <div><strong>Prazo:</strong> {new Date(tarefa.prazo).toLocaleDateString('pt-BR')}</div>
+                )}
+                {tarefa?.atrasada && (
+                  <div className="text-red-600 font-medium">
+                    Atraso: {tarefa.dias_atraso} dias
+                  </div>
+                )}
+              </div>
 
-            {/* Observação */}
-            <div className="grid gap-2">
-              <Label htmlFor="observacao">Observação *</Label>
-              <Textarea
-                id="observacao"
-                value={observacao}
-                onChange={(e) => setObservacao(e.target.value)}
-                placeholder="Descreva como a tarefa foi concluída, o que foi feito, observações importantes..."
-                rows={4}
-                required
-              />
-              <p className="text-xs text-gray-500">
-                A observação é obrigatória e ficará registrada no histórico da tarefa.
-              </p>
+              {/* Observação */}
+              <div className="grid gap-2">
+                <Label htmlFor="observacao">Observação *</Label>
+                <Textarea
+                  id="observacao"
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  placeholder="Descreva como a tarefa foi concluída, o que foi feito, observações importantes..."
+                  rows={4}
+                  required
+                />
+                <p className="text-xs text-gray-500">
+                  A observação é obrigatória e ficará registrada no histórico da tarefa.
+                </p>
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="finalizar-footer">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancelar
             </Button>

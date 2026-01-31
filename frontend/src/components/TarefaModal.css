@@ -65,6 +65,32 @@
   color: #fff;
 }
 
+.btn-secondary:hover {
+  background: #e2e8f0;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+[data-theme="dark"] .btn-secondary {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  background: var(--bg-hover);
+}
+
+[data-theme="dark"] .btn-primary {
+  background: var(--accent-primary);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  background: var(--accent-primary-hover);
+}
+
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

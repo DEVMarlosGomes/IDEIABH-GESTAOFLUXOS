@@ -216,7 +216,7 @@
 /* Editor Modal */
 .editor-modal {
   max-width: 900px !important;
-  max-height: 90vh;
+  max-height: calc(100vh - 140px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -229,6 +229,13 @@
   max-width: min(900px, calc(100vw - 32px)) !important;
 }
 
+.aplicar-modal {
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
 @media (max-width: 639px) {
   .editor-modal,
   .aplicar-modal,
@@ -239,12 +246,22 @@
     max-height: calc(100vh - 16px) !important;
     border-radius: 12px !important;
   }
+
+  .editor-content {
+    max-height: calc(100vh - 260px);
+  }
+
+  .aplicar-modal {
+    max-height: calc(100vh - 120px);
+  }
 }
 
 .editor-content {
   flex: 1;
   overflow-y: auto;
   padding: 16px 0;
+  max-height: calc(100vh - 320px);
+  padding-right: 6px;
 }
 
 .editor-section {
@@ -696,4 +713,146 @@
   .templates-grid {
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   }
+}
+
+/* Dark Theme - Premium */
+[data-theme="dark"] .loading-container {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .empty-card {
+  border-color: var(--border-primary);
+  background: var(--card-bg);
+}
+
+[data-theme="dark"] .empty-content h3,
+[data-theme="dark"] .empty-content p {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .template-card {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .template-descricao {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .dept-item {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+}
+
+[data-theme="dark"] .dept-nome {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .dept-stats {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .etapas-summary {
+  color: var(--accent-primary);
+}
+
+[data-theme="dark"] .etapas-lista {
+  border-color: var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .etapa-item-template {
+  border-bottom-color: var(--border-primary);
+}
+
+[data-theme="dark"] .etapa-nome-template {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .template-actions {
+  border-top-color: var(--border-primary);
+}
+
+[data-theme="dark"] .editor-modal {
+  background: var(--card-bg);
+  border-color: var(--card-border);
+}
+
+[data-theme="dark"] .prazo-total-display {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #86efac;
+}
+
+[data-theme="dark"] .etapas-section {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .section-header h3 {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .etapas-empty {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .etapa-editor-item {
+  background: var(--card-bg);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .etapa-editor-item:hover {
+  border-color: var(--accent-primary);
+}
+
+[data-theme="dark"] .etapa-numero {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .prazo-suffix {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .template-info-box,
+[data-theme="dark"] .preview-fim {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .template-nome {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .template-prazo,
+[data-theme="dark"] .form-hint {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .result-header {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .result-header.success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #86efac;
+}
+
+[data-theme="dark"] .result-item,
+[data-theme="dark"] .etapa-gerada {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .result-label,
+[data-theme="dark"] .etapa-datas,
+[data-theme="dark"] .mais-etapas {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .result-item span:last-child,
+[data-theme="dark"] .result-etapas h4,
+[data-theme="dark"] .etapa-nome-gerada {
+  color: var(--text-primary);
 }

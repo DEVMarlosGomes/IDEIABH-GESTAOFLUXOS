@@ -2,11 +2,33 @@
   width: min(92vw, 520px);
   max-height: calc(100vh - 140px);
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.finalizar-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.finalizar-body {
+  overflow-y: auto;
+  max-height: calc(100vh - 320px);
+  padding-right: 4px;
+}
+
+.finalizar-footer {
+  margin-top: 8px;
 }
 
 @media (max-width: 639px) {
   .finalizar-tarefa-modal {
     width: 94vw;
     max-height: calc(100vh - 110px);
+  }
+
+  .finalizar-body {
+    max-height: calc(100vh - 280px);
   }
 }

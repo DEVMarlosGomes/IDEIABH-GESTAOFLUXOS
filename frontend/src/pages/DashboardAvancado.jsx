@@ -39,6 +39,23 @@ const DashboardAvancado = () => {
   });
   const [enviandoCobranca, setEnviandoCobranca] = useState(false);
 
+  const normalizeSetor = (setor) => {
+    if (!setor) return '';
+    const key = setor.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+    const setorMap = {
+      'atendimento': 'atendimento',
+      'criacao': 'criacao',
+      'criação': 'criacao',
+      'preproducao': 'pre-producao',
+      'préproducao': 'pre-producao',
+      'pre-producao': 'pre-producao',
+      'pré-produção': 'pre-producao',
+      'producao': 'producao',
+      'produção': 'producao',
+    };
+    return setorMap[key] || setor;
+  };
+
   useEffect(() => {
     loadDashboard();
     // Atualizar a cada 30 segundos
@@ -159,7 +176,53 @@ const DashboardAvancado = () => {
     );
   }
 
-  const { resumo, projetos_em_andamento, alertas_atrasos, carga_por_responsavel } = dashboardData;
+  const isOperador = user?.role === 'operador';
+  const setorOperador = normalizeSetor(user?.setor);
+
+  const setorMatches = (value) => {
+    if (!setorOperador) return false;
+    return normalizeSetor(value) === setorOperador;
+  };
+
+  const projetosEmAndamentoRaw = dashboardData.projetos_em_andamento || [];
+  const alertasAtrasosRaw = dashboardData.alertas_atrasos || [];
+  const cargaResponsavelRaw = dashboardData.carga_por_responsavel || [];
+
+  const projetos_em_andamento = isOperador
+    ? projetosEmAndamentoRaw.filter((projeto) => {
+        const projetoSetor =
+          projeto.setor ||
+          projeto.etapa_atual_setor ||
+          projeto.departamento ||
+          projeto.setor_atual;
+        return projetoSetor ? setorMatches(projetoSetor) : false;
+      })
+    : projetosEmAndamentoRaw;
+
+  const alertas_atrasos = isOperador
+    ? alertasAtrasosRaw.filter((atraso) => setorMatches(atraso.setor))
+    : alertasAtrasosRaw;
+
+  const carga_por_responsavel = isOperador
+    ? cargaResponsavelRaw.filter((carga) => {
+        if (carga.setor) return setorMatches(carga.setor);
+        if (carga.tarefas && carga.tarefas.length > 0) {
+          return setorMatches(carga.tarefas[0].setor);
+        }
+        return false;
+      })
+    : cargaResponsavelRaw;
+
+  const resumo = isOperador
+    ? {
+        total_projetos: projetos_em_andamento.length,
+        projetos_em_andamento: projetos_em_andamento.length,
+        total_tarefas_atrasadas: alertas_atrasos.length,
+        responsaveis_com_atraso: new Set(
+          alertas_atrasos.map((a) => a.responsavel).filter(Boolean)
+        ).size,
+      }
+    : dashboardData.resumo;
 
   const kpiCards = [
     {

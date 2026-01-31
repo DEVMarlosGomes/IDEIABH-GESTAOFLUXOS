@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from './ui/select';
 import { useAuth } from '../context/AuthContext';
-import { atualizarTarefa, getStatusTarefas } from '../services/api';
+import { atualizarTarefa, listarUsuariosSetor } from '../services/api';
 import { DEPARTAMENTOS } from '../data/mockNovo';
 import { Loader2, AlertCircle, Edit } from 'lucide-react';
 
@@ -34,38 +34,29 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
   const { user, hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [statusList, setStatusList] = useState([]);
-  
+  const [usuariosSetor, setUsuariosSetor] = useState([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
+
   const canEdit = user?.role === 'admin' || user?.role === 'gerente' || hasPermission('admin') || hasPermission('gerente');
-  
+
   const [formData, setFormData] = useState({
     titulo: '',
     descricao: '',
     setor: '',
+    responsavel_id: '',
     responsavel_nome: '',
-    status_id: '',
     prazo: '',
     prioridade: 'media',
   });
 
   useEffect(() => {
-    const fetchStatusList = async () => {
-      try {
-        const data = await getStatusTarefas();
-        setStatusList(data);
-      } catch (err) {
-        console.error('Error loading status list:', err);
-      }
-    };
-
     if (isOpen && tarefa) {
-      fetchStatusList();
       setFormData({
         titulo: tarefa.titulo || '',
         descricao: tarefa.descricao || '',
         setor: tarefa.setor || '',
+        responsavel_id: tarefa.responsavel_id || '',
         responsavel_nome: tarefa.responsavel_nome || '',
-        status_id: tarefa.status_id || '',
         prazo: tarefa.prazo ? tarefa.prazo.split('T')[0] : '',
         prioridade: tarefa.prioridade || 'media',
       });
@@ -73,18 +64,41 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
     }
   }, [isOpen, tarefa]);
 
+  useEffect(() => {
+    const fetchUsuarios = async () => {
+      if (!formData.setor) {
+        setUsuariosSetor([]);
+        return;
+      }
+      setLoadingUsuarios(true);
+      try {
+        const data = await listarUsuariosSetor(formData.setor, user?.role || 'operador', user?.setor);
+        setUsuariosSetor(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Erro ao carregar usuários do setor:', err);
+        setUsuariosSetor([]);
+      } finally {
+        setLoadingUsuarios(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchUsuarios();
+    }
+  }, [isOpen, formData.setor, user?.role, user?.setor]);
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!canEdit) {
       setError('Você não tem permissão para editar tarefas');
       return;
     }
-    
+
     setLoading(true);
     setError(null);
 
@@ -98,7 +112,7 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
       };
 
       await atualizarTarefa(tarefa.id, updateData);
-      
+
       onSuccess?.();
       onClose();
     } catch (err) {
@@ -186,7 +200,11 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
                 <Label>Setor</Label>
                 <Select
                   value={formData.setor}
-                  onValueChange={(value) => handleChange('setor', value)}
+                  onValueChange={(value) => {
+                    handleChange('setor', value);
+                    handleChange('responsavel_id', '');
+                    handleChange('responsavel_nome', '');
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
@@ -195,8 +213,8 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
                     {departamentos.map((dept) => (
                       <SelectItem key={dept.id} value={dept.id}>
                         <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
+                          <div
+                            className="w-3 h-3 rounded-full"
                             style={{ backgroundColor: dept.cor }}
                           />
                           {dept.nome}
@@ -208,67 +226,63 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="responsavel">Responsável</Label>
-                <Input
-                  id="responsavel"
-                  value={formData.responsavel_nome}
-                  onChange={(e) => handleChange('responsavel_nome', e.target.value)}
-                  placeholder="Nome do responsável"
-                />
+                <Label>Responsável</Label>
+                <Select
+                  value={formData.responsavel_id || ''}
+                  onValueChange={(value) => {
+                    const usuario = usuariosSetor.find((u) => u.id === value);
+                    handleChange('responsavel_id', value);
+                    handleChange('responsavel_nome', usuario?.nome || '');
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingUsuarios ? 'Carregando...' : 'Selecione...'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {usuariosSetor.length === 0 && (
+                      <SelectItem value="__vazio" disabled>
+                        {formData.setor ? 'Nenhum usuário no setor' : 'Selecione um setor'}
+                      </SelectItem>
+                    )}
+                    {usuariosSetor.map((usuario) => (
+                      <SelectItem key={usuario.id} value={usuario.id}>
+                        {usuario.nome}
+                      </SelectItem>
+                    ))}
+                    {formData.responsavel_id && !usuariosSetor.find((u) => u.id === formData.responsavel_id) && (
+                      <SelectItem value={formData.responsavel_id}>
+                        {formData.responsavel_nome || 'Responsável atual'}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {/* Status e Prioridade */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Status</Label>
-                <Select
-                  value={formData.status_id}
-                  onValueChange={(value) => handleChange('status_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusList.map((status) => (
-                      <SelectItem key={status.id} value={status.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: status.cor }}
-                          />
-                          {status.nome}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Prioridade</Label>
-                <Select
-                  value={formData.prioridade}
-                  onValueChange={(value) => handleChange('prioridade', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRIORIDADES.map((p) => (
-                      <SelectItem key={p.value} value={p.value}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: p.cor }}
-                          />
-                          {p.label}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            {/* Prioridade */}
+            <div className="grid gap-2">
+              <Label>Prioridade</Label>
+              <Select
+                value={formData.prioridade}
+                onValueChange={(value) => handleChange('prioridade', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORIDADES.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: p.cor }}
+                        />
+                        {p.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Prazo */}

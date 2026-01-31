@@ -5,9 +5,10 @@
 }
 
 .configuracoes-tabs {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-md);
   padding: 24px;
 }
 
@@ -15,8 +16,10 @@
   display: flex;
   gap: 8px;
   margin-bottom: 24px;
-  border-bottom: 2px solid #f1f5f9;
-  padding-bottom: 16px;
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  padding: 8px;
+  background: var(--bg-tertiary);
 }
 
 .tab-trigger {
@@ -25,22 +28,28 @@
   gap: 8px;
   padding: 12px 20px;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-tertiary);
   transition: all 0.2s;
 }
 
 .tab-trigger:hover {
-  background: #f8fafc;
-  color: #1e293b;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .tab-trigger[data-state="active"] {
-  background: #3b82f6;
-  color: white;
+  background: var(--accent-primary);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
+}
+
+.tab-trigger svg {
+  color: inherit;
 }
 
 .tab-content {
@@ -72,7 +81,7 @@
 
 .form-group label {
   font-weight: 500;
-  color: #1e293b;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -80,17 +89,38 @@
   position: relative;
   display: flex;
   align-items: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  padding: 4px 10px;
 }
 
 .input-icon {
   position: absolute;
   left: 12px;
-  color: #94a3b8;
+  color: var(--text-muted);
   pointer-events: none;
 }
 
 .input-with-icon input {
   padding-left: 40px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--text-primary);
+  height: 40px;
+}
+
+.configuracoes-tabs .config-form > .form-group > input {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  height: 40px;
+}
+
+.configuracoes-tabs .config-form > .form-group > input::placeholder,
+.input-with-icon input::placeholder {
+  color: var(--text-muted);
 }
 
 .toggle-password {
@@ -98,7 +128,7 @@
   right: 12px;
   background: none;
   border: none;
-  color: #94a3b8;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
   display: flex;
@@ -107,7 +137,45 @@
 }
 
 .toggle-password:hover {
-  color: #3b82f6;
+  color: var(--accent-primary);
+}
+
+/* Dark mode polish */
+[data-theme="dark"] .configuracoes-tabs {
+  background: linear-gradient(180deg, rgba(19, 28, 43, 0.9), rgba(15, 23, 42, 0.95));
+  border-color: #243149;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .configuracoes-tabs-list {
+  background: #121a2a;
+  border-color: #243149;
+}
+
+[data-theme="dark"] .tab-trigger {
+  color: #9fb0c6;
+}
+
+[data-theme="dark"] .tab-trigger[data-state="active"] {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.45);
+}
+
+[data-theme="dark"] .input-with-icon {
+  background: #0f172a;
+  border-color: #2a364c;
+}
+
+[data-theme="dark"] .configuracoes-tabs .config-form > .form-group > input {
+  background: #0f172a;
+  border-color: #2a364c;
+  color: #e5e7eb;
+}
+
+[data-theme="dark"] .input-icon,
+[data-theme="dark"] .toggle-password {
+  color: #9fb0c6;
 }
 
 .save-btn {
@@ -115,8 +183,8 @@
   align-items: center;
   gap: 8px;
   margin-top: 12px;
-  background: #3b82f6;
-  color: white;
+  background: var(--accent-primary);
+  color: #ffffff;
   padding: 12px 24px;
   border-radius: 8px;
   border: none;
@@ -126,9 +194,9 @@
 }
 
 .save-btn:hover {
-  background: #2563eb;
+  background: var(--accent-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.35);
 }
 
 .notification-item {
@@ -136,27 +204,27 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
   transition: all 0.2s;
 }
 
 .notification-item:hover {
-  border-color: #3b82f6;
-  background: #f8fafc;
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
 }
 
 .notification-info h4 {
   margin: 0 0 4px 0;
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
 }
 
 .notification-info p {
   margin: 0;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-tertiary);
 }
 
 .system-info {
@@ -164,7 +232,7 @@
   flex-direction: column;
   gap: 12px;
   padding: 20px;
-  background: #f8fafc;
+  background: var(--bg-tertiary);
   border-radius: 8px;
   margin-bottom: 20px;
 }
@@ -174,7 +242,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .info-row:last-child {
@@ -183,13 +251,13 @@
 
 .info-label {
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 
 .info-value {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
@@ -199,17 +267,20 @@
 }
 
 .action-btn {
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  border: 2px solid #e2e8f0;
-  background: white;
+  border: 1px solid var(--border-primary);
+  background: var(--card-bg);
   border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 
+
+}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -288,10 +359,8 @@
   }
 }
 
-}
-
 .action-btn:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
   transform: translateY(-1px);
 }

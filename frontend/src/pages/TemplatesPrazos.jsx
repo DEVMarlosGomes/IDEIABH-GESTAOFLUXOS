@@ -57,8 +57,9 @@ import {
   atualizarTemplatePrazo,
   deletarTemplatePrazo,
   aplicarTemplateContrato,
+  getContratos,
 } from '../services/api';
-import { mockContratos, DEPARTAMENTOS } from '../data/mockNovo';
+import { DEPARTAMENTOS } from '../data/mockNovo';
 import './TemplatesPrazos.css';
 
 const DEPT_CORES = {
@@ -140,6 +141,8 @@ const TemplatesPrazos = () => {
   });
   const [aplicarLoading, setAplicarLoading] = useState(false);
   const [aplicarResult, setAplicarResult] = useState(null);
+  const [contratos, setContratos] = useState([]);
+  const [contratosLoading, setContratosLoading] = useState(false);
   
   // Delete state
   const [templateToDelete, setTemplateToDelete] = useState(null);
@@ -153,6 +156,19 @@ const TemplatesPrazos = () => {
       console.error('Error loading templates:', err);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadContratos = useCallback(async () => {
+    setContratosLoading(true);
+    try {
+      const data = await getContratos();
+      setContratos(data || []);
+    } catch (err) {
+      console.error('Error loading contratos:', err);
+      setContratos([]);
+    } finally {
+      setContratosLoading(false);
     }
   }, []);
 
@@ -313,6 +329,9 @@ const TemplatesPrazos = () => {
     setAplicarData({ contrato_id: '', data_inicio: '' });
     setAplicarResult(null);
     setShowAplicarModal(true);
+    if (!contratos.length) {
+      loadContratos();
+    }
   };
 
   const confirmarAplicar = async () => {
@@ -685,7 +704,7 @@ const TemplatesPrazos = () => {
 
         {/* Modal Aplicar Template */}
         <Dialog open={showAplicarModal} onOpenChange={setShowAplicarModal}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] aplicar-modal">
             <DialogHeader>
               <DialogTitle>Aplicar Template ao Contrato</DialogTitle>
               <DialogDescription>
@@ -718,11 +737,23 @@ const TemplatesPrazos = () => {
                       <SelectValue placeholder="Selecione o contrato..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockContratos.filter(c => c.status !== 'Concluído').map(contrato => (
-                        <SelectItem key={contrato.id} value={contrato.id}>
-                          {contrato.numero_contrato} - {contrato.cliente}
+                      {contratosLoading && (
+                        <SelectItem value="loading" disabled>
+                          Carregando contratos...
                         </SelectItem>
-                      ))}
+                      )}
+                      {!contratosLoading && contratos.length === 0 && (
+                        <SelectItem value="empty" disabled>
+                          Nenhum contrato disponível
+                        </SelectItem>
+                      )}
+                      {!contratosLoading && contratos
+                        .filter(c => c.status !== 'Concluído')
+                        .map(contrato => (
+                          <SelectItem key={contrato.id} value={contrato.id}>
+                            {contrato.numero_contrato} - {contrato.cliente}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>

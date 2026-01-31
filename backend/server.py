@@ -10,8 +10,10 @@ from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 from enum import Enum
+import smtplib
+from email.message import EmailMessage
 
 from database import get_db, init_db, close_db, async_session
 from models import (
@@ -41,6 +43,49 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def send_email(to_email: str, subject: str, body: str) -> bool:
+    host = os.getenv("SMTP_HOST")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    user = os.getenv("SMTP_USER")
+    password = os.getenv("SMTP_PASS")
+    sender = os.getenv("SMTP_FROM", user)
+    use_tls = os.getenv("SMTP_TLS", "true").lower() == "true"
+
+    if not host or not sender or not user or not password:
+        logger.warning("SMTP não configurado. Defina SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM")
+        return False
+
+    msg = EmailMessage()
+    msg["From"] = sender
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.set_content(body)
+
+    try:
+        with smtplib.SMTP(host, port, timeout=20) as server:
+            if use_tls:
+                server.starttls()
+            server.login(user, password)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        logger.error(f"Erro ao enviar email: {e}")
+        return False
+
+
+def parse_iso_date(value) -> Optional[date]:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return datetime.fromisoformat(str(value)).date()
+    except Exception:
+        return None
 
 
 # ==========================================
@@ -328,6 +373,13 @@ class CobrancaOperador(BaseModel):
     enviar_email: bool = True
 
 
+class RespostaCobranca(BaseModel):
+    notificacao_id: str
+    resposta: str
+    operador_id: str
+    operador_nome: str
+
+
 class ProjetoAtraso(BaseModel):
     projeto_id: str
     cliente: str
@@ -562,13 +614,13 @@ async def recalcular_prazos_projeto(db: AsyncSession, projeto_id: str, tarefa_fi
                 dias_diferenca = (prazo_original_tarefa - prazo_original_anterior).days
                 if dias_diferenca < 0:
                     dias_diferenca = 1
-            except:
-                dias_diferenca = 1
+            except Exception:
+                dias_diferenca = 0
         else:
-            dias_diferenca = 1
+            dias_diferenca = 0
         
         # Novo prazo baseado na data de finalização real + diferença
-        novo_prazo = data_base + timedelta(days=max(dias_diferenca, 1))
+        novo_prazo = data_base + timedelta(days=max(dias_diferenca, 0))
         prazo_antigo = tarefa.prazo
         
         # Atualizar histórico
@@ -600,6 +652,210 @@ async def recalcular_prazos_projeto(db: AsyncSession, projeto_id: str, tarefa_fi
     
     await db.commit()
     return tarefas_atualizadas
+
+
+async def recalcular_prazos_a_partir_de_tarefa(
+    db: AsyncSession,
+    projeto_id: str,
+    tarefa_base_id: str,
+    data_base: date,
+):
+    """Recalcula os prazos das tarefas seguintes baseado na data base informada."""
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == tarefa_base_id)
+    )
+    tarefa_base = result.scalar_one_or_none()
+    if not tarefa_base:
+        return []
+
+    base_date = parse_iso_date(data_base)
+    if not base_date:
+        return []
+
+    prazo_anterior = tarefa_base.prazo_original or tarefa_base.prazo
+
+    result = await db.execute(
+        select(TarefaModel)
+        .where(and_(
+            TarefaModel.projeto_id == projeto_id,
+            TarefaModel.finalizada == False
+        ))
+        .order_by(TarefaModel.prazo_original)
+    )
+    tarefas_projeto = result.scalars().all()
+
+    if not tarefas_projeto:
+        return []
+
+    base_index = next((i for i, t in enumerate(tarefas_projeto) if t.id == tarefa_base_id), None)
+    if base_index is None:
+        return []
+
+    tarefas_alvo = tarefas_projeto[base_index + 1:]
+    if not tarefas_alvo:
+        return []
+
+    tarefas_atualizadas = []
+    data_cursor = base_date
+
+    for tarefa in tarefas_alvo:
+        if tarefa.prazo_original and prazo_anterior:
+            try:
+                prazo_original_tarefa = datetime.fromisoformat(tarefa.prazo_original).date()
+                prazo_original_anterior = datetime.fromisoformat(prazo_anterior).date()
+                dias_diferenca = (prazo_original_tarefa - prazo_original_anterior).days
+                if dias_diferenca < 0:
+                    dias_diferenca = 1
+            except Exception:
+                dias_diferenca = 0
+        else:
+            dias_diferenca = 0
+
+        novo_prazo = data_cursor + timedelta(days=max(dias_diferenca, 0))
+        prazo_antigo = tarefa.prazo
+
+        historico = tarefa.historico or []
+        historico.append({
+            "id": str(uuid.uuid4()),
+            "acao": "prazo_recalculado",
+            "usuario_id": "sistema",
+            "usuario_nome": "Sistema",
+            "setor": "sistema",
+            "data": datetime.now(timezone.utc).isoformat(),
+            "detalhes": f"Prazo recalculado de {prazo_antigo} para {novo_prazo.isoformat()} (baseado na edição anterior)"
+        })
+
+        tarefa.prazo = novo_prazo.isoformat()
+        tarefa.historico = historico
+        tarefa.atualizado_em = datetime.now(timezone.utc)
+
+        tarefas_atualizadas.append({
+            "id": tarefa.id,
+            "titulo": tarefa.titulo,
+            "prazo_anterior": prazo_antigo,
+            "novo_prazo": novo_prazo.isoformat()
+        })
+
+        data_cursor = novo_prazo
+        prazo_anterior = tarefa.prazo_original
+
+    await db.commit()
+    return tarefas_atualizadas
+
+
+async def atualizar_projeto_prazos(db: AsyncSession, projeto_id: str):
+    """Atualiza data_fim_prevista, dias_restantes e etapa_atual com base nas tarefas."""
+    result = await db.execute(
+        select(ProjetoModel).where(ProjetoModel.id == projeto_id)
+    )
+    projeto = result.scalar_one_or_none()
+    if not projeto:
+        return None
+
+    tarefas_result = await db.execute(
+        select(TarefaModel)
+        .where(TarefaModel.projeto_id == projeto_id)
+        .order_by(TarefaModel.prazo_original)
+    )
+    tarefas = tarefas_result.scalars().all()
+
+    last_date = None
+    etapa_atual = None
+    etapa_ordem = 1
+
+    for idx, tarefa in enumerate(tarefas, start=1):
+        prazo_dt = parse_iso_date(tarefa.prazo)
+        if prazo_dt and (not last_date or prazo_dt > last_date):
+            last_date = prazo_dt
+        if not tarefa.finalizada and etapa_atual is None:
+            etapa_atual = tarefa.titulo
+            etapa_ordem = idx
+
+    if last_date:
+        projeto.data_fim_prevista = last_date.isoformat()
+        hoje = datetime.now(timezone.utc).date()
+        projeto.dias_restantes = max((last_date - hoje).days, 0)
+
+    if etapa_atual:
+        projeto.etapa_atual = etapa_atual
+        projeto.etapa_atual_ordem = etapa_ordem
+
+    projeto.atualizado_em = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(projeto)
+    return model_to_dict(projeto)
+
+
+async def aplicar_template_no_projeto(
+    db: AsyncSession,
+    projeto_id: str,
+    template: TemplatePrazosModel,
+    data_inicio: Optional[str] = None
+):
+    """Aplica um template de prazos ao projeto, atualizando prazos das tarefas não finalizadas."""
+    result = await db.execute(
+        select(ProjetoModel).where(ProjetoModel.id == projeto_id)
+    )
+    projeto = result.scalar_one_or_none()
+    if not projeto:
+        return None
+
+    tarefas_result = await db.execute(
+        select(TarefaModel)
+        .where(TarefaModel.projeto_id == projeto_id)
+        .order_by(TarefaModel.prazo_original)
+    )
+    tarefas = tarefas_result.scalars().all()
+    if not tarefas:
+        return None
+
+    inicio_base = parse_iso_date(data_inicio) or parse_iso_date(projeto.data_inicio) or datetime.now(timezone.utc).date()
+    data_cursor = inicio_base
+
+    etapas = template.etapas or []
+    total_etapas = len(etapas)
+
+    for idx, tarefa in enumerate(tarefas):
+        if idx >= total_etapas:
+            break
+
+        etapa = etapas[idx]
+        prazo_dias = etapa.get("prazo_dias", 0)
+        data_fim = data_cursor + timedelta(days=prazo_dias)
+
+        if tarefa.finalizada:
+            data_cursor = parse_iso_date(tarefa.data_finalizacao) or parse_iso_date(tarefa.prazo) or data_fim
+            continue
+
+        prazo_anterior = tarefa.prazo
+        tarefa.prazo = data_fim.isoformat()
+        tarefa.prazo_original = data_fim.isoformat()
+        dias_atraso, atrasada = await calcular_dias_atraso(tarefa.prazo)
+        tarefa.dias_atraso = dias_atraso
+        tarefa.atrasada = atrasada
+        tarefa.atualizado_em = datetime.now(timezone.utc)
+
+        historico = tarefa.historico or []
+        historico.append({
+            "id": str(uuid.uuid4()),
+            "acao": "prazo_recalculado",
+            "usuario_id": "sistema",
+            "usuario_nome": "Sistema",
+            "setor": "sistema",
+            "data": datetime.now(timezone.utc).isoformat(),
+            "detalhes": f"Prazo recalculado de {prazo_anterior} para {tarefa.prazo} (aplicação de template)"
+        })
+        tarefa.historico = historico
+
+        data_cursor = data_fim
+
+    projeto.template_id = template.id
+    projeto.template_nome = template.nome
+    projeto.atualizado_em = datetime.now(timezone.utc)
+
+    await db.commit()
+    await atualizar_projeto_prazos(db, projeto_id)
+    return model_to_dict(projeto)
 
 
 # ==========================================
@@ -1264,6 +1520,7 @@ async def atualizar_tarefa(
         raise HTTPException(status_code=400, detail="Não é possível editar uma tarefa finalizada")
     
     detalhes = []
+    prazo_alterado = False
     
     if input.titulo and input.titulo != tarefa.titulo:
         tarefa.titulo = input.titulo
@@ -1289,6 +1546,7 @@ async def atualizar_tarefa(
         tarefa.dias_atraso = dias_atraso
         tarefa.atrasada = atrasada
         detalhes.append(f"Prazo alterado de {prazo_anterior} para: {input.prazo}")
+        prazo_alterado = True
     
     if input.prioridade and input.prioridade != tarefa.prioridade:
         tarefa.prioridade = input.prioridade
@@ -1309,10 +1567,24 @@ async def atualizar_tarefa(
         })
         tarefa.historico = historico
     
-    await db.commit()
+    prazos_recalculados = []
+    if detalhes:
+        await db.commit()
+        await db.refresh(tarefa)
+
+    if prazo_alterado and tarefa.projeto_id:
+        base_date = parse_iso_date(input.prazo)
+        if base_date:
+            prazos_recalculados = await recalcular_prazos_a_partir_de_tarefa(
+                db, tarefa.projeto_id, tarefa.id, base_date
+            )
+        await atualizar_projeto_prazos(db, tarefa.projeto_id)
+
     await db.refresh(tarefa)
+    result_dict = model_to_dict(tarefa)
+    result_dict["prazos_recalculados"] = prazos_recalculados
     
-    return model_to_dict(tarefa)
+    return result_dict
 
 
 @api_router.post("/tarefas/{tarefa_id}/finalizar", response_model=dict)
@@ -1383,6 +1655,7 @@ async def finalizar_tarefa(
         )
         if prazos_recalculados:
             logger.info(f"Prazos recalculados para {len(prazos_recalculados)} tarefas do projeto {tarefa.projeto_id}")
+        await atualizar_projeto_prazos(db, tarefa.projeto_id)
     
     await db.refresh(tarefa)
     result_dict = model_to_dict(tarefa)
@@ -1460,9 +1733,13 @@ async def deletar_tarefa(
     
     if user_role not in ["admin", "gerente"]:
         raise HTTPException(status_code=403, detail="Apenas administradores e gerentes podem deletar tarefas")
-    
+    projeto_id = tarefa.projeto_id
+
     await db.delete(tarefa)
     await db.commit()
+
+    if projeto_id:
+        await atualizar_projeto_prazos(db, projeto_id)
     
     logger.info(f"Tarefa deletada: {tarefa_id} por user {user_id} (role: {user_role})")
     
@@ -2008,6 +2285,13 @@ async def aplicar_template_contrato(
     db: AsyncSession = Depends(get_db)
 ):
     """Aplica um template de prazos a um contrato"""
+    contrato_result = await db.execute(
+        select(ContratoModel).where(ContratoModel.id == contrato_id)
+    )
+    contrato = contrato_result.scalar_one_or_none()
+    if not contrato:
+        raise HTTPException(status_code=404, detail="Contrato não encontrado")
+
     result = await db.execute(
         select(TemplatePrazosModel).where(TemplatePrazosModel.id == template_id)
     )
@@ -2039,21 +2323,41 @@ async def aplicar_template_contrato(
         
         data_atual = data_fim
     
-    prazo_contrato = PrazoContratoModel(
-        id=str(uuid.uuid4()),
-        contrato_id=contrato_id,
-        template_id=template_id,
-        template_nome=template.nome,
-        data_inicio=data_inicio,
-        data_fim_prevista=data_atual.isoformat(),
-        prazo_total_dias=template.prazo_total_dias,
-        etapas=prazos_gerados
+    prazos_result = await db.execute(
+        select(PrazoContratoModel).where(PrazoContratoModel.contrato_id == contrato_id)
     )
-    
-    db.add(prazo_contrato)
+    prazo_contrato = prazos_result.scalar_one_or_none()
+
+    if prazo_contrato:
+        prazo_contrato.template_id = template_id
+        prazo_contrato.template_nome = template.nome
+        prazo_contrato.data_inicio = data_inicio
+        prazo_contrato.data_fim_prevista = data_atual.isoformat()
+        prazo_contrato.prazo_total_dias = template.prazo_total_dias
+        prazo_contrato.etapas = prazos_gerados
+    else:
+        prazo_contrato = PrazoContratoModel(
+            id=str(uuid.uuid4()),
+            contrato_id=contrato_id,
+            template_id=template_id,
+            template_nome=template.nome,
+            data_inicio=data_inicio,
+            data_fim_prevista=data_atual.isoformat(),
+            prazo_total_dias=template.prazo_total_dias,
+            etapas=prazos_gerados
+        )
+        db.add(prazo_contrato)
+
+    contrato.template_id = template_id
+    contrato.template_nome = template.nome
+    contrato.atualizado_em = datetime.now(timezone.utc)
+
     await db.commit()
     await db.refresh(prazo_contrato)
-    
+
+    if contrato.projeto_id:
+        await aplicar_template_no_projeto(db, contrato.projeto_id, template, data_inicio)
+
     return model_to_dict(prazo_contrato)
 
 
@@ -2781,17 +3085,58 @@ async def cobrar_operador(
     
     email_enviado = False
     if input.enviar_email:
-        logger.info(f"Email de cobrança enviado para {input.operador_email}")
-        logger.info(f"De: {input.gerente_nome}")
-        logger.info(f"Assunto: Cobrança - Tarefa Atrasada: {tarefa.titulo}")
-        logger.info(f"Mensagem: {input.mensagem}")
-        email_enviado = True
+        subject = f"Cobrança - Tarefa Atrasada: {tarefa.titulo}"
+        body = (
+            f"Olá {input.operador_nome},\n\n"
+            f"{input.mensagem}\n\n"
+            f"Tarefa: {tarefa.titulo}\n"
+            f"Projeto: {tarefa.projeto_id}\n"
+            f"Responsável: {input.operador_nome}\n\n"
+            f"Enviado por: {input.gerente_nome}\n"
+        )
+        email_enviado = send_email(input.operador_email, subject, body)
     
     return {
         "message": "Cobrança enviada com sucesso",
         "notificacao_criada": True,
         "email_enviado": email_enviado
     }
+
+
+@api_router.post("/cobrancas/responder")
+async def responder_cobranca(
+    input: RespostaCobranca,
+    db: AsyncSession = Depends(get_db)
+):
+    """Operador responde a uma cobrança (notifica gerente/admin)."""
+    result = await db.execute(
+        select(NotificacaoModel).where(NotificacaoModel.id == input.notificacao_id)
+    )
+    notif = result.scalar_one_or_none()
+
+    if not notif:
+        raise HTTPException(status_code=404, detail="Cobrança não encontrada")
+
+    if notif.tipo != "cobranca":
+        raise HTTPException(status_code=400, detail="Notificação não é cobrança")
+
+    resposta_notif = NotificacaoModel(
+        id=str(uuid.uuid4()),
+        tipo="resposta_cobranca",
+        titulo=f"Resposta de cobrança - {input.operador_nome}",
+        mensagem=input.resposta,
+        de_usuario_id=input.operador_id,
+        de_usuario_nome=input.operador_nome,
+        para_usuario_id=notif.de_usuario_id,
+        para_usuario_nome=notif.de_usuario_nome,
+        tarefa_id=notif.tarefa_id,
+        projeto_id=notif.projeto_id
+    )
+
+    db.add(resposta_notif)
+    await db.commit()
+
+    return {"message": "Resposta enviada", "notificacao_criada": True}
 
 
 # ==========================================

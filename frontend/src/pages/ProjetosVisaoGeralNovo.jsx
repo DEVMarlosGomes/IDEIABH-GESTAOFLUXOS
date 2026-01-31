@@ -2,15 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Progress } from '../components/ui/progress';
 import { Input } from '../components/ui/input';
 import {
   Search,
   Building2,
   Calendar,
   ChevronRight,
+  FileText,
   Loader2,
   LayoutGrid,
   List
@@ -75,12 +74,12 @@ const ProjetosVisaoGeralNovo = () => {
 
   const getStatusBadge = (projeto) => {
     if (projeto.progresso === 100) {
-      return { label: 'Concluído', color: 'bg-green-100 text-green-800' };
+      return { label: 'Concluído', className: 'status-badge-novo concluido' };
     }
     if (projeto.tarefas_atrasadas > 0) {
-      return { label: 'Atrasado', color: 'bg-red-100 text-red-800' };
+      return { label: 'Atrasado', className: 'status-badge-novo atrasado' };
     }
-    return { label: 'Ativo', color: 'bg-blue-100 text-blue-800' };
+    return { label: 'Ativo', className: 'status-badge-novo ativo' };
   };
 
   if (loading) {
@@ -95,141 +94,126 @@ const ProjetosVisaoGeralNovo = () => {
 
   return (
     <LayoutNovo>
-      <div className="projetos-container">
+      <div className="projetos-visao-container">
         {/* Header */}
-        <div className="projetos-header mb-6">
+        <div className="visao-header">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Visão Geral de Projetos</h1>
-            <p className="text-gray-600">Acompanhe o status e atrasos de todos os projetos</p>
+            <h1 className="page-title">Visão Geral de Projetos</h1>
+            <p className="page-description">Acompanhe o status e atrasos de todos os projetos</p>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+        {/* Controls */}
+        <div className="visao-controls">
+          <div className="search-wrapper-projetos">
+            <Search
+              className={`search-icon-projetos ${searchTerm ? 'is-hidden' : ''}`}
+              size={18}
+            />
             <Input
               type="text"
-              placeholder="Buscar projetos, contratos, clientes..."
+              placeholder=""
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-12 text-base"
+              className="search-input-projetos"
             />
           </div>
-        </div>
 
-        {/* Filters Tabs */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex gap-2 bg-white rounded-lg p-1 shadow-sm border">
+          <div className="filtros-status">
             <button
               onClick={() => setFilterStatus('todos')}
-              className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all ${
-                filterStatus === 'todos'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`filtro-btn ${filterStatus === 'todos' ? 'active' : ''}`}
             >
               Todos ({counts.todos})
             </button>
             <button
               onClick={() => setFilterStatus('ativos')}
-              className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all ${
-                filterStatus === 'ativos'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`filtro-btn em-dia ${filterStatus === 'ativos' ? 'active' : ''}`}
             >
               Ativos ({counts.ativos})
             </button>
             <button
               onClick={() => setFilterStatus('atrasados')}
-              className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all ${
-                filterStatus === 'atrasados'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`filtro-btn atrasados ${filterStatus === 'atrasados' ? 'active' : ''}`}
             >
               Atrasados ({counts.atrasados})
             </button>
             <button
               onClick={() => setFilterStatus('concluidos')}
-              className={`px-6 py-2.5 rounded-md text-sm font-medium transition-all ${
-                filterStatus === 'concluidos'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
+              className={`filtro-btn concluidos ${filterStatus === 'concluidos' ? 'active' : ''}`}
             >
               Concluídos ({counts.concluidos})
             </button>
           </div>
 
-          <div className="flex gap-2">
+          <div className="view-toggle">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 rounded-md ${viewMode === 'grid' ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              aria-label="Visualizar em grade"
             >
-              <LayoutGrid size={20} />
+              <LayoutGrid size={18} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+              aria-label="Visualizar em lista"
             >
-              <List size={20} />
+              <List size={18} />
             </button>
           </div>
         </div>
 
         {/* Projects Grid */}
-        <div className={`projects-grid ${viewMode === 'list' ? 'list-view' : ''}`}>
+        <div className={`projetos-grid ${viewMode === 'list' ? 'list-view' : ''}`}>
           {projetosFiltrados.map((projeto) => {
             const statusBadge = getStatusBadge(projeto);
             
             return (
-              <Card key={projeto.id} className="project-card">
-                <CardContent className="p-6">
-                  {/* Header com título e badge */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">
-                        {projeto.cliente}
-                      </h3>
-                      <div className="flex items-center text-gray-600 text-sm">
-                        <Building2 size={16} className="mr-1.5" />
+              <Card key={projeto.id} className="projeto-card-novo">
+                <CardContent className="projeto-card-content-novo">
+                  <div className="card-header-novo">
+                    <div className="cliente-info">
+                      <h3 className="cliente-nome">{projeto.cliente}</h3>
+                      <div className="instituicao">
+                        <Building2 size={16} />
                         <span>UFMG</span>
                       </div>
                     </div>
-                    <Badge className={`${statusBadge.color} px-3 py-1 text-sm font-medium`}>
-                      {statusBadge.label}
-                    </Badge>
+                    <span className={statusBadge.className}>{statusBadge.label}</span>
                   </div>
 
-                  {/* Etapa atual */}
-                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                    <div className="text-sm text-gray-600 mb-1">Etapa atual:</div>
-                    <div className="font-medium text-gray-900">{projeto.etapa_atual}</div>
-                  </div>
-
-                  {/* Progresso */}
-                  <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-gray-600">Progresso geral</span>
-                      <span className="text-sm font-bold text-gray-900">{projeto.progresso}%</span>
+                  <div className="etapa-atual-info">
+                    <div className="dept-icon">
+                      <FileText size={18} />
                     </div>
-                    <Progress value={projeto.progresso} className="h-2" />
+                    <div className="etapa-details">
+                      <span className="dept-label">Etapa atual</span>
+                      <div className="etapa-nome">{projeto.etapa_atual}</div>
+                    </div>
                   </div>
 
-                  {/* Footer com data e botão */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Calendar size={16} className="mr-1.5" />
+                  <div className="progresso-section">
+                    <div className="progresso-header">
+                      <span className="progresso-label">Progresso geral</span>
+                      <span className="progresso-value">{projeto.progresso}%</span>
+                    </div>
+                    <div className={`progresso-bar ${projeto.tarefas_atrasadas > 0 ? 'atrasado' : ''}`}>
+                      <div className="progress-indicator" style={{ width: `${projeto.progresso}%` }} />
+                    </div>
+                  </div>
+
+                  <div className="card-footer-novo">
+                    <div className="prazo-info">
+                      <Calendar size={16} />
                       <span>Entrega: {formatDate(projeto.data_fim_prevista)}</span>
                     </div>
-                    <Button 
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    <Button
+                      className="ver-detalhes-btn"
                       onClick={() => navigate(`/projetos/${projeto.id}`)}
                     >
                       Ver detalhes
-                      <ChevronRight size={16} className="ml-1" />
+                      <ChevronRight size={16} />
                     </Button>
                   </div>
                 </CardContent>
@@ -238,63 +222,17 @@ const ProjetosVisaoGeralNovo = () => {
           })}
         </div>
 
-        {/* Empty State */}
         {projetosFiltrados.length === 0 && (
-          <div className="text-center py-20">
-            <div className="text-gray-400 mb-4">
-              <LayoutGrid size={64} className="mx-auto" />
+          <div className="empty-state-projetos">
+            <div className="empty-icon-projetos">
+              <LayoutGrid size={48} />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Nenhum projeto encontrado
-            </h3>
-            <p className="text-gray-600">
-              Tente ajustar os filtros ou busque por outro termo
-            </p>
+            <h3>Nenhum projeto encontrado</h3>
+            <p>Tente ajustar os filtros ou busque por outro termo</p>
           </div>
         )}
       </div>
 
-      <style jsx>{`
-        .projetos-container {
-          padding: 2rem;
-          max-width: 1400px;
-          margin: 0 auto;
-        }
-
-        .projects-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-          gap: 1.5rem;
-        }
-
-        .projects-grid.list-view {
-          grid-template-columns: 1fr;
-        }
-
-        .project-card {
-          background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          transition: all 0.2s ease;
-          height: 100%;
-        }
-
-        .project-card:hover {
-          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
-          transform: translateY(-2px);
-        }
-
-        @media (max-width: 768px) {
-          .projetos-container {
-            padding: 1rem;
-          }
-
-          .projects-grid {
-            grid-template-columns: 1fr;
-            gap: 1rem;
-          }
-        }
-      `}</style>
     </LayoutNovo>
   );
 };

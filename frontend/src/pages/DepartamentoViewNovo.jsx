@@ -327,24 +327,24 @@ Data: ${new Date().toLocaleString('pt-BR')}
   const getStatusBadge = (tarefa) => {
     if (tarefa.atrasada) {
       return (
-        <Badge className="bg-red-100 text-red-800 border-red-300">
-          <AlertTriangle size={12} className="mr-1" />
+        <span className="status-badge status-atrasado">
+          <AlertTriangle size={12} />
           {tarefa.dias_atraso} dias atrasado
-        </Badge>
+        </span>
       );
     }
-    
+
     const colors = {
-      'Pendente': 'bg-gray-100 text-gray-800',
-      'Em Andamento': 'bg-blue-100 text-blue-800',
-      'Aguardando': 'bg-yellow-100 text-yellow-800',
-      'Concluído': 'bg-green-100 text-green-800'
+      'Pendente': 'status-pendente',
+      'Em Andamento': 'status-ativo',
+      'Aguardando': 'status-aguardando',
+      'Concluído': 'status-concluido'
     };
-    
+
     return (
-      <Badge className={colors[tarefa.status_nome] || 'bg-gray-100 text-gray-800'}>
+      <span className={`status-badge ${colors[tarefa.status_nome] || 'status-pendente'}`}>
         {tarefa.status_nome}
-      </Badge>
+      </span>
     );
   };
 
@@ -369,19 +369,19 @@ Data: ${new Date().toLocaleString('pt-BR')}
         {/* Header */}
         <div className="mb-6">
           <div 
-            className="department-header p-6 rounded-lg mb-6"
+            className="departamento-header p-6 rounded-lg mb-6"
             style={{ backgroundColor: deptInfo.cor + '15', borderLeft: `4px solid ${deptInfo.cor}` }}
           >
-            <h1 className="text-3xl font-bold mb-2" style={{ color: deptInfo.cor }}>
+            <h1 className="departamento-title" style={{ color: deptInfo.cor }}>
               {deptInfo.nome}
             </h1>
             {deptInfo.descricao && (
-              <p className="text-gray-600">{deptInfo.descricao}</p>
+              <p className="departamento-description">{deptInfo.descricao}</p>
             )}
             {equipeUsuarios.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
                 {equipeUsuarios.map((usuario) => (
-                  <Badge key={usuario.id} variant="outline" className="bg-white">
+                  <Badge key={usuario.id} variant="outline" className="badge membro-badge">
                     <User size={12} className="mr-1" />
                     {usuario.nome}
                   </Badge>
@@ -391,66 +391,46 @@ Data: ${new Date().toLocaleString('pt-BR')}
           </div>
 
           {/* Estatísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total</p>
-                    <p className="text-2xl font-bold">{stats.total}</p>
-                  </div>
-                  <FileText size={32} className="text-blue-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
+          <div className="departamento-stats">
+            <div className="stat-item">
+              <div>
+                <span className="stat-label">Total</span>
+                <span className="stat-value">{stats.total}</span>
+              </div>
+              <FileText size={32} className="stat-icon stat-icon-primary" />
+            </div>
             
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Pendentes</p>
-                    <p className="text-2xl font-bold text-gray-600">{stats.pendentes}</p>
-                  </div>
-                  <Clock size={32} className="text-gray-400 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="stat-item">
+              <div>
+                <span className="stat-label">Pendentes</span>
+                <span className="stat-value">{stats.pendentes}</span>
+              </div>
+              <Clock size={32} className="stat-icon stat-icon-muted" />
+            </div>
             
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Em Andamento</p>
-                    <p className="text-2xl font-bold text-blue-600">{stats.emAndamento}</p>
-                  </div>
-                  <Play size={32} className="text-blue-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="stat-item">
+              <div>
+                <span className="stat-label">Em Andamento</span>
+                <span className="stat-value">{stats.emAndamento}</span>
+              </div>
+              <Play size={32} className="stat-icon stat-icon-primary" />
+            </div>
             
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Atrasadas</p>
-                    <p className="text-2xl font-bold text-red-600">{stats.atrasadas}</p>
-                  </div>
-                  <AlertTriangle size={32} className="text-red-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="stat-item">
+              <div>
+                <span className="stat-label">Atrasadas</span>
+                <span className="stat-value">{stats.atrasadas}</span>
+              </div>
+              <AlertTriangle size={32} className="stat-icon stat-icon-danger" />
+            </div>
             
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Prazo Médio</p>
-                    <p className="text-2xl font-bold text-green-600">{stats.prazoMedio} dias</p>
-                  </div>
-                  <TrendingUp size={32} className="text-green-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
+            <div className="stat-item">
+              <div>
+                <span className="stat-label">Prazo Médio</span>
+                <span className="stat-value">{stats.prazoMedio} dias</span>
+              </div>
+              <TrendingUp size={32} className="stat-icon stat-icon-success" />
+            </div>
           </div>
         </div>
 
@@ -509,7 +489,7 @@ Data: ${new Date().toLocaleString('pt-BR')}
                           <Button
                             onClick={() => handleAbrirAtribuir(tarefa)}
                             variant="outline"
-                            className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                            className="btn-ghost btn-ghost-blue"
                           >
                             <UserPlus size={16} className="mr-2" />
                             Atribuir

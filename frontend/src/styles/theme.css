@@ -88,20 +88,20 @@
 
 /* Dark Theme */
 [data-theme="dark"] {
-  --bg-primary: #0f172a;
-  --bg-secondary: #0f172a;
-  --bg-tertiary: #1b2436;
-  --bg-hover: #243047;
-  --bg-active: #1f2a40;
+  --bg-primary: #0b1224;
+  --bg-secondary: #0b1224;
+  --bg-tertiary: #141e33;
+  --bg-hover: #1b2740;
+  --bg-active: #1a243a;
   
-  --text-primary: #e5e7eb;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #a3b0c2;
-  --text-muted: #7c8aa0;
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #cbd5e1;
+  --text-muted: #94a3b8;
   --text-inverse: #0f172a;
   
-  --border-primary: #2a364c;
-  --border-secondary: #33435d;
+  --border-primary: #22304a;
+  --border-secondary: #2b3a57;
   --border-focus: #60a5fa;
   
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
@@ -109,38 +109,246 @@
   --shadow-lg: 0 12px 22px rgba(0, 0, 0, 0.55);
   --shadow-xl: 0 20px 32px rgba(0, 0, 0, 0.6);
   
-  --card-bg: #162033;
-  --card-border: #2a364c;
+  --card-bg: #121b2e;
+  --card-border: #22304a;
   --card-shadow: var(--shadow-md);
   
-  --input-bg: #141d2f;
-  --input-border: #33435d;
+  --input-bg: #0f172a;
+  --input-border: #22304a;
   --input-focus-border: #60a5fa;
   --input-placeholder: #7c8aa0;
   
-  --sidebar-bg: #131c2b;
-  --sidebar-border: #26344a;
-  --sidebar-hover: #1b263a;
-  --sidebar-active: #1f2a40;
-  --sidebar-text: #a3b0c2;
-  --sidebar-text-active: #93c5fd;
+  --sidebar-bg: #0f172a;
+  --sidebar-border: #1f2b44;
+  --sidebar-hover: #141e33;
+  --sidebar-active: #1a243a;
+  --sidebar-text: #cbd5e1;
+  --sidebar-text-active: #ffffff;
   
-  --header-bg: #131c2b;
-  --header-border: #26344a;
+  --header-bg: #0f172a;
+  --header-border: #1f2b44;
   
-  --modal-bg: #162033;
-  --modal-overlay: rgba(2, 6, 23, 0.72);
+  --modal-bg: #121b2e;
+  --modal-overlay: rgba(2, 6, 23, 0.78);
   
-  --table-header-bg: #1a2436;
-  --table-row-hover: #1f2a40;
-  --table-border: #2a364c;
+  --table-header-bg: #141e33;
+  --table-row-hover: #1a243a;
+  --table-border: #22304a;
   
-  --badge-bg: #243047;
-  --badge-text: #d5dbe6;
+  --badge-bg: #1a243a;
+  --badge-text: #f8fafc;
   
   --scrollbar-track: #141d2f;
   --scrollbar-thumb: #33435d;
   --scrollbar-thumb-hover: #526079;
+}
+
+/* Dark theme utility overrides for legacy classes */
+[data-theme="dark"] .bg-white {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .bg-gray-50,
+[data-theme="dark"] .bg-gray-100 {
+  background-color: #0f172a !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .bg-gray-200 {
+  background-color: #141e33 !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-gray-900,
+[data-theme="dark"] .text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-gray-700,
+[data-theme="dark"] .text-gray-600 {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .text-gray-500,
+[data-theme="dark"] .text-gray-400 {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme="dark"] .text-gray-300 {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .border-gray-50,
+[data-theme="dark"] .border-gray-100,
+[data-theme="dark"] .border-gray-200,
+[data-theme="dark"] .border-gray-300 {
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .border {
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .hover\\:bg-gray-50:hover,
+[data-theme="dark"] .hover\\:bg-gray-100:hover,
+[data-theme="dark"] .hover\\:bg-blue-50:hover,
+[data-theme="dark"] .hover\\:bg-red-50:hover,
+[data-theme="dark"] .hover\\:bg-white:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+[data-theme="dark"] .shadow-sm,
+[data-theme="dark"] .shadow,
+[data-theme="dark"] .shadow-md,
+[data-theme="dark"] .shadow-lg {
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* Dark premium overrides for legacy page styles */
+[data-theme="dark"] .view-toggle,
+[data-theme="dark"] .criticidade-legenda,
+[data-theme="dark"] .lista-container,
+[data-theme="dark"] .filters-bar {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="dark"] .esteira-coluna,
+[data-theme="dark"] .contrato-info-grid,
+[data-theme="dark"] .projeto-etapa-info,
+[data-theme="dark"] .project-item,
+[data-theme="dark"] .task-item {
+  background: var(--bg-tertiary) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .coluna-header,
+[data-theme="dark"] .lista-header {
+  background: var(--bg-tertiary) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme="dark"] .projeto-card,
+[data-theme="dark"] .contrato-card,
+[data-theme="dark"] .kpi-card,
+[data-theme="dark"] .chart-card,
+[data-theme="dark"] .projects-card,
+[data-theme="dark"] .tasks-card,
+[data-theme="dark"] .bottleneck-card {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--card-border) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+[data-theme="dark"] .lista-item {
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .lista-item:hover,
+[data-theme="dark"] .project-item:hover,
+[data-theme="dark"] .task-item:hover {
+  background: var(--bg-hover) !important;
+}
+
+[data-theme="dark"] .kpi-title,
+[data-theme="dark"] .project-etapa,
+[data-theme="dark"] .days-remaining,
+[data-theme="dark"] .task-responsible,
+[data-theme="dark"] .bottleneck-count,
+[data-theme="dark"] .legenda-title,
+[data-theme="dark"] .cliente-faculdade {
+  color: var(--text-tertiary) !important;
+}
+
+[data-theme="dark"] .project-name,
+[data-theme="dark"] .cliente-nome,
+[data-theme="dark"] .etapa-value,
+[data-theme="dark"] .card-title {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .progress-text,
+[data-theme="dark"] .progresso-text {
+  color: var(--accent-primary) !important;
+}
+
+/* Tailwind-like color helpers in dark mode */
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-red-50,
+[data-theme="dark"] .bg-blue-50,
+[data-theme="dark"] .bg-green-50,
+[data-theme="dark"] .bg-amber-50,
+[data-theme="dark"] .bg-yellow-50 {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .border-red-200,
+[data-theme="dark"] .border-blue-200,
+[data-theme="dark"] .border-green-200,
+[data-theme="dark"] .border-amber-200,
+[data-theme="dark"] .border-yellow-200 {
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .text-blue-700,
+[data-theme="dark"] .text-blue-600,
+[data-theme="dark"] .text-green-700,
+[data-theme="dark"] .text-amber-700,
+[data-theme="dark"] .text-red-700 {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-blue-500,
+[data-theme="dark"] .text-green-600,
+[data-theme="dark"] .text-amber-600,
+[data-theme="dark"] .text-red-600 {
+  color: var(--text-secondary) !important;
+}
+
+/* Dark premium blanket: remove white cards */
+[data-theme="dark"] .card,
+[data-theme="dark"] .template-card,
+[data-theme="dark"] .contrato-card,
+[data-theme="dark"] .user-card,
+[data-theme="dark"] .kpi-card,
+[data-theme="dark"] .project-item,
+[data-theme="dark"] .task-item,
+[data-theme="dark"] .filters-bar,
+[data-theme="dark"] .view-toggle,
+[data-theme="dark"] .criticidade-legenda,
+[data-theme="dark"] .lista-container,
+[data-theme="dark"] .dept-item,
+[data-theme="dark"] .etapas-section,
+[data-theme="dark"] .etapas-lista,
+[data-theme="dark"] .etapa-editor-item,
+[data-theme="dark"] .result-item,
+[data-theme="dark"] .etapa-gerada,
+[data-theme="dark"] .template-info-box,
+[data-theme="dark"] .result-header,
+[data-theme="dark"] .editor-modal,
+[data-theme="dark"] .app-dialog-content {
+  background: var(--card-bg) !important;
+  border-color: var(--card-border) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .project-item:hover,
+[data-theme="dark"] .task-item:hover,
+[data-theme="dark"] .lista-item:hover {
+  background: var(--bg-hover) !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--input-border) !important;
 }
 
 /* Global Styles */
@@ -214,15 +422,64 @@ button {
   cursor: pointer;
 }
 
+/* Neutral dark hover for ghost-style actions */
+.action-ghost {
+  border: 1px solid var(--border-primary);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.action-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+.action-ghost-blue {
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.action-ghost-blue:hover {
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+}
+
+.action-ghost-red {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.action-ghost-red:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
 /* Dialog Content - keep clear of navbar */
 .app-dialog-content {
-  max-height: calc(100vh - 140px) !important;
+  width: min(96vw, 760px) !important;
+  max-height: calc(100vh - 120px) !important;
   overflow-y: auto;
+  border-radius: 16px;
 }
 
 @media (max-width: 639px) {
   .app-dialog-content {
-    max-height: calc(100vh - 110px) !important;
+    width: min(94vw, 640px) !important;
+    max-height: calc(100vh - 100px) !important;
+  }
+}
+
+/* Modal positioning: safe centered (no navbar/sidebar overlap) */
+.dialog-safe-center {
+  width: min(98vw, 660px) !important;
+  max-height: calc(100vh - 160px) !important;
+}
+
+@media (max-width: 639px) {
+  .dialog-safe-center {
+    width: min(950vw, 640px) !important;
+    max-height: calc(100vh - 120px) !important;
   }
 }
 
@@ -418,3 +675,54 @@ td, th {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+/* Dark premium for Atendimento/Projetos */
+[data-theme="dark"] .department-header {
+  background: linear-gradient(180deg, #121b2e, #0f172a) !important;
+  border: 1px solid var(--border-primary) !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+[data-theme="dark"] .department-header h1 {
+  color: #7aa7ff !important;
+}
+
+[data-theme="dark"] .department-header p {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .tarefas-section,
+[data-theme="dark"] .tarefas-section .card {
+  background: var(--card-bg) !important;
+  border-color: var(--card-border) !important;
+}
+
+[data-theme="dark"] .tarefas-section .border,
+[data-theme="dark"] .tarefas-section .border-t {
+  border-color: var(--border-primary) !important;
+}
+
+[data-theme="dark"] .tarefas-section .bg-white,
+[data-theme="dark"] .tarefas-section .bg-gray-50 {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .contratos-container .contrato-card,
+[data-theme="dark"] .projetos-container .projeto-card {
+  background: var(--card-bg) !important;
+  border-color: var(--card-border) !important;
+}
+
+[data-theme="dark"] .projetos-container .lista-container,
+[data-theme="dark"] .projetos-container .lista-header,
+[data-theme="dark"] .projetos-container .lista-item {
+  background: var(--card-bg) !important;
+  border-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .projetos-container .lista-item:hover {
+  background: var(--bg-hover) !important;
+}
+

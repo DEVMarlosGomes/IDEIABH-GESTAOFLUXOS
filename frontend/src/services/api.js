@@ -248,6 +248,11 @@ export const cobrarOperador = async (data, userRole) => {
   return response.data;
 };
 
+export const responderCobranca = async (data) => {
+  const response = await api.post('/api/cobrancas/responder', data);
+  return response.data;
+};
+
 // ==========================================
 // Atribuição de Tarefas
 // ==========================================

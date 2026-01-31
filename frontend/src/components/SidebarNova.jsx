@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import ThemeToggle from './ThemeToggle';
 import {
   LayoutDashboard,
   Users,
@@ -11,8 +10,6 @@ import {
   FileText,
   UserCircle,
   Settings,
-  HelpCircle,
-  LogOut,
   ChevronRight,
   FolderKanban,
   X,
@@ -24,7 +21,24 @@ import './SidebarNova.css';
 const SidebarNova = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout, hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
+
+  const normalizeSetor = (setor) => {
+    if (!setor) return '';
+    const key = setor.toLowerCase().replace('-', '').replace('_', '').replace(' ', '');
+    const setorMap = {
+      'atendimento': 'atendimento',
+      'criacao': 'criacao',
+      'criação': 'criacao',
+      'preproducao': 'pre-producao',
+      'préproducao': 'pre-producao',
+      'pre-producao': 'pre-producao',
+      'pré-produção': 'pre-producao',
+      'producao': 'producao',
+      'produção': 'producao',
+    };
+    return setorMap[key] || setor;
+  };
 
   const menuPrincipal = [
     { 
@@ -104,12 +118,12 @@ const SidebarNova = ({ isOpen, onClose }) => {
     },
   ];
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
   const isActive = (path) => location.pathname === path;
+  const isOperador = user?.role === 'operador';
+  const setorOperador = normalizeSetor(user?.setor);
+  const departamentosVisiveis = isOperador
+    ? menuDepartamentos.filter(item => normalizeSetor(item.path.split('/').pop()) === setorOperador)
+    : menuDepartamentos;
 
   const MenuItem = ({ item }) => {
     const Icon = item.icon;
@@ -161,17 +175,19 @@ const SidebarNova = ({ isOpen, onClose }) => {
 
         <div className="nav-section">
           <span className="section-title">Departamentos</span>
-          {menuDepartamentos.map((item) => (
+          {departamentosVisiveis.map((item) => (
             <MenuItem key={item.path} item={item} />
           ))}
         </div>
 
-        <div className="nav-section">
-          <span className="section-title">Gestão</span>
-          {menuGestao.map((item) => (
-            <MenuItem key={item.path} item={item} />
-          ))}
-        </div>
+        {!isOperador && (
+          <div className="nav-section">
+            <span className="section-title">Gestão</span>
+            {menuGestao.map((item) => (
+              <MenuItem key={item.path} item={item} />
+            ))}
+          </div>
+        )}
 
         {hasPermission('admin') && (
           <div className="nav-section">
@@ -183,29 +199,9 @@ const SidebarNova = ({ isOpen, onClose }) => {
         )}
       </nav>
 
-      {/* Footer com Usuário */}
+      {/* Footer */}
       <div className="sidebar-footer">
-        <div className="theme-toggle-wrapper">
-          <ThemeToggle />
-        </div>
-        
-        <button className="help-button">
-          <HelpCircle size={18} />
-          <span>Ajuda</span>
-        </button>
-        
-        <div className="user-section">
-          <div className="user-avatar">
-            {user?.nome?.charAt(0) || 'U'}
-          </div>
-          <div className="user-info">
-            <span className="user-name">{user?.nome || 'Usuário'}</span>
-            <span className="user-role">{user?.departamento || user?.role || 'Operador'}</span>
-          </div>
-          <button className="logout-button" onClick={handleLogout} title="Sair">
-            <LogOut size={18} />
-          </button>
-        </div>
+        <div />
       </div>
     </aside>
   );

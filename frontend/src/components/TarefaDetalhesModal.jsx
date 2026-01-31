@@ -311,7 +311,7 @@ const TarefaDetalhesModal = ({
                           onAtribuir?.(tarefa);
                           onClose();
                         }}
-                        className="text-blue-600 hover:bg-blue-50"
+                        className="action-ghost action-ghost-blue"
                       >
                         <User size={16} className="mr-2" />
                         Atribuir
@@ -324,7 +324,7 @@ const TarefaDetalhesModal = ({
                         variant="outline"
                         size="sm"
                         onClick={handleExcluir}
-                        className="text-red-600 hover:bg-red-50"
+                        className="action-ghost action-ghost-red"
                       >
                         <Trash2 size={16} className="mr-2" />
                         Excluir

@@ -11,10 +11,10 @@ const ThemeToggle = ({ compact = false }) => {
       <button
         onClick={toggleTheme}
         className="theme-toggle-compact"
-        title={isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
-        aria-label={isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+        title={isDark ? 'Modo escuro' : 'Modo claro'}
+        aria-label={isDark ? 'Modo escuro' : 'Modo claro'}
       >
-        {isDark ? <Sun size={20} /> : <Moon size={20} />}
+        {isDark ? <Moon size={20} /> : <Sun size={20} />}
       </button>
     );
   }

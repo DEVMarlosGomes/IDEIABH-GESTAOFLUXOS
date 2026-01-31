@@ -346,7 +346,7 @@ const AdminUsersNovo = () => {
                 const RoleIcon = roleInfo.icon;
                 
                 return (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                  <div key={user.id} className="user-row flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
                         <RoleIcon className="text-blue-600" size={24} />
@@ -389,7 +389,7 @@ const AdminUsersNovo = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(user.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="action-ghost action-ghost-red"
                       >
                         <Trash2 size={16} />
                       </Button>

@@ -117,22 +117,13 @@ const Login = () => {
                   <input type="checkbox" />
                   <span>Lembrar-me</span>
                 </label>
-                <button type="button" className="forgot-password">Esqueci a senha</button>
               </div>
 
               <Button type="submit" className="login-button" disabled={loading}>
                 {loading ? 'Entrando...' : 'Entrar'}
               </Button>
 
-              <div className="register-link">
-                <span>Não tem uma conta?</span>
-                <Link to="/register">Criar conta</Link>
-              </div>
             </form>
-
-            <div className="demo-credentials">
-              <p><strong>Credenciais:</strong> admin / admin123</p>
-            </div>
           </CardContent>
         </Card>
       </div>

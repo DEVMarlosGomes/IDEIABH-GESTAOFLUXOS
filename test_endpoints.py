@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Script de verificação rápida dos endpoints do IDEIABH
 """
@@ -6,6 +6,7 @@ Script de verificação rápida dos endpoints do IDEIABH
 import requests
 import json
 from datetime import datetime
+import pytest
 
 class bcolors:
     OKGREEN = '\033[92m'
@@ -34,7 +35,8 @@ def print_success(text):
 def print_error(text):
     print(f"{bcolors.FAIL}✗ {text}{bcolors.ENDC}")
 
-def test_endpoint(method, endpoint, description):
+@pytest.mark.parametrize("endpoint,method,description", ENDPOINTS)
+def test_endpoint(endpoint, method, description):
     """Test a single endpoint"""
     url = f"{BACKEND_URL}{endpoint}"
     try:
@@ -42,49 +44,50 @@ def test_endpoint(method, endpoint, description):
             response = requests.get(url, timeout=5)
         else:
             response = requests.post(url, timeout=5)
-        
+
         if response.status_code == 200:
             print_success(f"{description}: {response.status_code}")
             try:
                 data = response.json()
                 print(f"  └─ Dados: {json.dumps(data, indent=2, default=str)[:200]}...")
-            except:
+            except Exception:
                 print(f"  └─ Response: {response.text[:200]}...")
-            return True
+            assert True
         else:
             print_error(f"{description}: {response.status_code}")
             print(f"  └─ Response: {response.text[:200]}")
-            return False
+            assert False, f"Status {response.status_code} para {endpoint}"
     except requests.exceptions.ConnectionError:
         print_error(f"{description}: Não conseguiu conectar em {url}")
-        return False
+        assert False, f"Não conseguiu conectar em {url}"
     except Exception as e:
         print_error(f"{description}: {str(e)}")
-        return False
+        assert False, str(e)
+
 
 def main():
     print_header("VERIFICAÇÃO DE ENDPOINTS - IDEIABH")
     print(f"Testando em: {BACKEND_URL}\n")
-    
+
     results = []
-    
+
     for endpoint, method, description in ENDPOINTS:
         print(f"Testando {method} {endpoint}...")
-        result = test_endpoint(method, endpoint, description)
+        result = test_endpoint(endpoint, method, description)
         results.append((description, result))
         print()
-    
+
     # Summary
     print_header("RESUMO")
     passed = sum(1 for _, r in results if r)
     total = len(results)
-    
+
     for description, result in results:
         status = "✓" if result else "✗"
         print(f"{status} {description}")
-    
+
     print(f"\n{bcolors.BOLD}Total: {passed}/{total} endpoints respondendo{bcolors.ENDC}\n")
-    
+
     if passed == total:
         print_success("Todos os endpoints estão funcionando!")
     else:

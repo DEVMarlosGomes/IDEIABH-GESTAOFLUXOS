@@ -3,11 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import SidebarNova from './SidebarNova';
 import ThemeToggle from './ThemeToggle';
-import { Bell, Search, Share2, ChevronDown, User, Settings, LogOut, Check, Menu, X } from 'lucide-react';
+import { Bell, Search, ChevronDown, Settings, LogOut, Check, Menu } from 'lucide-react';
 import { Badge } from './ui/badge';
+import { Button as UIButton } from './ui/button';
 import { Input } from './ui/input';
-import { mockNotificacoes } from '../data/mockNovo';
-import { getProjetos, getContratos } from '../services/api';
+import { getProjetos, getContratos, getNotificacoes, marcarNotificacaoLida, responderCobranca } from '../services/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Textarea } from './ui/textarea';
+import { toast } from 'sonner';
 import './LayoutNovo.css';
 
 const LayoutNovo = ({ children, title, subtitle }) => {
@@ -25,41 +28,37 @@ const LayoutNovo = ({ children, title, subtitle }) => {
   const [contratosCache, setContratosCache] = useState([]);
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const compactRoutes = new Set(['/contratos', '/contratos-old', '/templates-prazos']);
+  const compactRoutes = new Set(['/contratos-old']);
   const isCompactLayout = compactRoutes.has(location.pathname);
+  const disableNavbarAutoHideRoutes = new Set(['/templates-prazos']);
+  const disableNavbarAutoHide = disableNavbarAutoHideRoutes.has(location.pathname);
 
-  // Carregar notificações lidas do localStorage
-  const getReadNotificationIds = () => {
-    try {
-      const stored = localStorage.getItem('readNotificationIds');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  };
 
-  // Salvar notificações lidas no localStorage
-  const saveReadNotificationIds = (ids) => {
-    try {
-      localStorage.setItem('readNotificationIds', JSON.stringify(ids));
-    } catch (e) {
-      console.error('Erro ao salvar notificações:', e);
-    }
-  };
-
-  // Inicializar notificações com estado de lido do localStorage
-  const [notificacoes, setNotificacoes] = useState(() => {
-    const readIds = getReadNotificationIds();
-    return mockNotificacoes.map(n => ({
-      ...n,
-      lida: readIds.includes(n.id)
-    }));
-  });
+  const [notificacoes, setNotificacoes] = useState([]);
+  const [responderModalOpen, setResponderModalOpen] = useState(false);
+  const [respostaTexto, setRespostaTexto] = useState('');
+  const [cobrancaSelecionada, setCobrancaSelecionada] = useState(null);
+  const [enviandoResposta, setEnviandoResposta] = useState(false);
 
   const unreadCount = notificacoes.filter(n => !n.lida).length;
 
+  const carregarNotificacoes = async () => {
+    if (!user?.id) return;
+    try {
+      const data = await getNotificacoes(user.id, false);
+      setNotificacoes(data || []);
+    } catch (e) {
+      console.error('Erro ao carregar notificações:', e);
+    }
+  };
+
   // Auto-hide navbar on scroll
   useEffect(() => {
+    if (disableNavbarAutoHide) {
+      setIsNavbarVisible(true);
+      return;
+    }
+
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       
@@ -81,7 +80,14 @@ const LayoutNovo = ({ children, title, subtitle }) => {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, [lastScrollY, disableNavbarAutoHide]);
+
+  useEffect(() => {
+    carregarNotificacoes();
+    if (!user?.id) return;
+    const interval = setInterval(carregarNotificacoes, 30000);
+    return () => clearInterval(interval);
+  }, [user?.id]);
 
   // Search functionality
   useEffect(() => {
@@ -173,28 +179,25 @@ const LayoutNovo = ({ children, title, subtitle }) => {
     switch(tipo) {
       case 'alerta': return '⚠️';
       case 'sucesso': return '✅';
+      case 'cobranca': return '📣';
+      case 'resposta_cobranca': return '💬';
       default: return 'ℹ️';
     }
   };
 
-  const handleMarkAsRead = (notifId) => {
-    setNotificacoes(prev => {
-      const updated = prev.map(n => n.id === notifId ? { ...n, lida: true } : n);
-      // Salvar no localStorage
-      const readIds = updated.filter(n => n.lida).map(n => n.id);
-      saveReadNotificationIds(readIds);
-      return updated;
-    });
+  const handleMarkAsRead = async (notifId) => {
+    setNotificacoes(prev => prev.map(n => n.id === notifId ? { ...n, lida: true } : n));
+    try {
+      await marcarNotificacaoLida(notifId);
+    } catch (e) {
+      console.error('Erro ao marcar notificação como lida:', e);
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotificacoes(prev => {
-      const updated = prev.map(n => ({ ...n, lida: true }));
-      // Salvar no localStorage
-      const readIds = updated.map(n => n.id);
-      saveReadNotificationIds(readIds);
-      return updated;
-    });
+  const handleMarkAllAsRead = async () => {
+    const ids = notificacoes.filter(n => !n.lida).map(n => n.id);
+    setNotificacoes(prev => prev.map(n => ({ ...n, lida: true })));
+    await Promise.all(ids.map(id => marcarNotificacaoLida(id).catch(() => null)));
   };
 
   const handleNotificationClick = (notif) => {
@@ -209,6 +212,35 @@ const LayoutNovo = ({ children, title, subtitle }) => {
     else if (notif.tipo === 'alerta' && notif.mensagem.includes('atras')) {
       navigate('/projetos');
       setNotificacoesOpen(false);
+    }
+  };
+
+  const handleResponderCobranca = (notif) => {
+    setCobrancaSelecionada(notif);
+    setRespostaTexto('');
+    setResponderModalOpen(true);
+  };
+
+  const enviarResposta = async () => {
+    if (!respostaTexto.trim() || !cobrancaSelecionada) return;
+    setEnviandoResposta(true);
+    try {
+      await responderCobranca({
+        notificacao_id: cobrancaSelecionada.id,
+        resposta: respostaTexto.trim(),
+        operador_id: user?.id || 'unknown',
+        operador_nome: user?.nome || user?.username || 'Operador',
+      });
+      setResponderModalOpen(false);
+      setCobrancaSelecionada(null);
+      setRespostaTexto('');
+      await carregarNotificacoes();
+      toast.success('Resposta enviada ao gestor');
+    } catch (e) {
+      console.error('Erro ao responder cobrança:', e);
+      toast.error('Erro ao enviar resposta');
+    } finally {
+      setEnviandoResposta(false);
     }
   };
 
@@ -313,9 +345,6 @@ const LayoutNovo = ({ children, title, subtitle }) => {
             {/* Theme Toggle */}
             <ThemeToggle compact={true} />
             
-            <button className="topbar-btn share-btn mobile-hide">
-              <Share2 size={18} />
-            </button>
 
             <div className="notification-wrapper">
               <button 
@@ -354,6 +383,18 @@ const LayoutNovo = ({ children, title, subtitle }) => {
                             <span className="notification-title">{notif.titulo}</span>
                             <span className="notification-message">{notif.mensagem}</span>
                           </div>
+                          {user?.role === 'operador' && notif.tipo === 'cobranca' && (
+                            <button
+                              className="mark-read-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleResponderCobranca(notif);
+                              }}
+                              title="Responder cobrança"
+                            >
+                              <Check size={14} />
+                            </button>
+                          )}
                           {!notif.lida && (
                             <button 
                               className="mark-read-btn"
@@ -435,6 +476,33 @@ const LayoutNovo = ({ children, title, subtitle }) => {
           {children}
         </div>
       </main>
+
+      <Dialog open={responderModalOpen} onOpenChange={setResponderModalOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Responder cobrança</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Responda ao gestor/administrador sobre a cobrança recebida.
+            </p>
+            <Textarea
+              rows={5}
+              value={respostaTexto}
+              onChange={(e) => setRespostaTexto(e.target.value)}
+              placeholder="Digite sua resposta..."
+            />
+          </div>
+          <DialogFooter className="mt-4">
+            <UIButton variant="outline" onClick={() => setResponderModalOpen(false)} disabled={enviandoResposta}>
+              Cancelar
+            </UIButton>
+            <UIButton onClick={enviarResposta} disabled={enviandoResposta || !respostaTexto.trim()}>
+              {enviandoResposta ? 'Enviando...' : 'Enviar resposta'}
+            </UIButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
