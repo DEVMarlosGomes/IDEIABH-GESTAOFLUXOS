@@ -204,6 +204,18 @@ const ProjetoDetalhes = () => {
     );
   }
 
+  const sortKey = (tarefa) => {
+    const candidates = [tarefa.prazo_original, tarefa.prazo, tarefa.criado_em];
+    for (const value of candidates) {
+      if (!value) continue;
+      const dt = new Date(value);
+      if (!Number.isNaN(dt.getTime())) {
+        return dt.getTime();
+      }
+    }
+    return 0;
+  };
+
   const tarefasPorSetor = projeto.tarefas?.reduce((acc, tarefa) => {
     const setor = tarefa.setor || 'outros';
     if (!acc[setor]) {
@@ -212,6 +224,26 @@ const ProjetoDetalhes = () => {
     acc[setor].push(tarefa);
     return acc;
   }, {}) || {};
+
+  Object.keys(tarefasPorSetor).forEach((setor) => {
+    tarefasPorSetor[setor] = tarefasPorSetor[setor].sort((a, b) => {
+      const diff = sortKey(a) - sortKey(b);
+      if (diff !== 0) return diff;
+      const ta = (a.titulo || '').localeCompare(b.titulo || '');
+      if (ta !== 0) return ta;
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
+  });
+
+  const setorOrder = ['atendimento', 'criacao', 'criação', 'pre-producao', 'pré-producao', 'pré produção', 'pre producao', 'producao', 'produção'];
+  const setoresOrdenados = Object.keys(tarefasPorSetor).sort((a, b) => {
+    const ai = setorOrder.indexOf(a);
+    const bi = setorOrder.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
 
   return (
     <LayoutNovo>
@@ -343,19 +375,19 @@ const ProjetoDetalhes = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue={Object.keys(tarefasPorSetor)[0]}>
+            <Tabs defaultValue={setoresOrdenados[0]}>
               <TabsList className="grid w-full grid-cols-4 mb-6">
-                {Object.keys(tarefasPorSetor).map((setor) => (
+                {setoresOrdenados.map((setor) => (
                   <TabsTrigger key={setor} value={setor} className="capitalize">
                     {setor}
                   </TabsTrigger>
                 ))}
               </TabsList>
 
-              {Object.entries(tarefasPorSetor).map(([setor, tarefas]) => (
+              {setoresOrdenados.map((setor) => (
                 <TabsContent key={setor} value={setor}>
                   <div className="space-y-3">
-                    {tarefas.map((tarefa, index) => {
+                    {(tarefasPorSetor[setor] || []).map((tarefa, index) => {
                       const statusBadge = getStatusBadge(tarefa);
                       
                       return (
@@ -416,6 +448,22 @@ const ProjetoDetalhes = () => {
                               <strong>Observação:</strong> {tarefa.observacao_finalizacao}
                             </div>
                           )}
+
+                          {tarefa.historico && tarefa.historico.length > 0 && (
+                            <div className="mt-2 tarefa-historico-inline">
+                              <div className="tarefa-historico-inline-row">
+                                <Clock size={12} />
+                                <span>
+                                  Editado em: {new Date(tarefa.historico[tarefa.historico.length - 1].data).toLocaleString('pt-BR')}
+                                </span>
+                              </div>
+                              {(tarefa.historico[tarefa.historico.length - 1].detalhes || tarefa.historico[tarefa.historico.length - 1].observacao) && (
+                                <div className="tarefa-historico-inline-details">
+                                  {(tarefa.historico[tarefa.historico.length - 1].detalhes || tarefa.historico[tarefa.historico.length - 1].observacao)}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -432,7 +480,6 @@ const ProjetoDetalhes = () => {
         isOpen={showDetalhesModal}
         onClose={() => {
           setShowDetalhesModal(false);
-          setSelectedTarefa(null);
         }}
         tarefa={selectedTarefa}
         onEditar={handleEditar}

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { atualizarTarefa, listarUsuariosSetor } from '../services/api';
 import { DEPARTAMENTOS } from '../data/mockNovo';
 import { Loader2, AlertCircle, Edit } from 'lucide-react';
+import { toast } from 'sonner';
 
 const PRIORIDADES = [
   { value: 'baixa', label: 'Baixa', cor: '#10b981' },
@@ -33,7 +34,7 @@ const PRIORIDADES = [
 const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
   const { user, hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [savingError, setSavingError] = useState(false);
   const [usuariosSetor, setUsuariosSetor] = useState([]);
   const [loadingUsuarios, setLoadingUsuarios] = useState(false);
 
@@ -60,7 +61,7 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
         prazo: tarefa.prazo ? tarefa.prazo.split('T')[0] : '',
         prioridade: tarefa.prioridade || 'media',
       });
-      setError(null);
+      setSavingError(false);
     }
   }, [isOpen, tarefa]);
 
@@ -91,20 +92,44 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const responsavelOptions = useMemo(() => {
+    const list = Array.isArray(usuariosSetor) ? [...usuariosSetor] : [];
+    if (formData.responsavel_id && !list.find(u => u.id === formData.responsavel_id)) {
+      list.unshift({ id: formData.responsavel_id, nome: formData.responsavel_nome || 'Responsável atual' });
+    }
+    return list;
+  }, [usuariosSetor, formData.responsavel_id, formData.responsavel_nome]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!canEdit) {
-      setError('Você não tem permissão para editar tarefas');
+      toast.error('Você não tem permissão para editar tarefas');
+      return;
+    }
+
+    if (!tarefa?.id) {
+      toast.error('Tarefa inválida. Feche e abra novamente.');
+      return;
+    }
+
+    if (!formData.titulo?.trim()) {
+      toast.error('Informe o título da tarefa');
       return;
     }
 
     setLoading(true);
-    setError(null);
+    setSavingError(false);
 
     try {
       const updateData = {
-        ...formData,
+        titulo: formData.titulo.trim(),
+        descricao: formData.descricao,
+        setor: formData.setor,
+        responsavel_id: formData.responsavel_id || null,
+        responsavel_nome: formData.responsavel_nome || null,
+        prazo: formData.prazo || null,
+        prioridade: formData.prioridade || 'media',
         usuario_id: user?.id || 'unknown',
         usuario_nome: user?.nome || 'Usuário',
         usuario_setor: user?.setor || 'Geral',
@@ -113,11 +138,13 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
 
       await atualizarTarefa(tarefa.id, updateData);
 
+      toast.success('Tarefa atualizada com sucesso');
       onSuccess?.();
       onClose();
     } catch (err) {
       console.error('Error updating task:', err);
-      setError(err.response?.data?.detail || 'Erro ao atualizar tarefa');
+      setSavingError(true);
+      toast.error('Erro ao atualizar tarefa');
     } finally {
       setLoading(false);
     }
@@ -150,7 +177,7 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[550px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Edit size={20} className="text-blue-600" />
@@ -161,16 +188,15 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-              <AlertCircle size={18} />
-              <span>{error}</span>
-            </div>
-          )}
+        {savingError && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+            <AlertCircle size={18} />
+            <span>Não foi possível salvar. Tente novamente.</span>
+          </div>
+        )}
 
-          <div className="grid gap-4 py-4">
-            {/* Título */}
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 py-2">
             <div className="grid gap-2">
               <Label htmlFor="titulo">Título *</Label>
               <Input
@@ -182,7 +208,6 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
               />
             </div>
 
-            {/* Descrição */}
             <div className="grid gap-2">
               <Label htmlFor="descricao">Descrição</Label>
               <Textarea
@@ -194,7 +219,6 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
               />
             </div>
 
-            {/* Setor e Responsável */}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Setor</Label>
@@ -213,10 +237,7 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
                     {departamentos.map((dept) => (
                       <SelectItem key={dept.id} value={dept.id}>
                         <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: dept.cor }}
-                          />
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dept.cor }} />
                           {dept.nome}
                         </div>
                       </SelectItem>
@@ -230,7 +251,7 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
                 <Select
                   value={formData.responsavel_id || ''}
                   onValueChange={(value) => {
-                    const usuario = usuariosSetor.find((u) => u.id === value);
+                    const usuario = responsavelOptions.find((u) => u.id === value);
                     handleChange('responsavel_id', value);
                     handleChange('responsavel_nome', usuario?.nome || '');
                   }}
@@ -239,27 +260,21 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
                     <SelectValue placeholder={loadingUsuarios ? 'Carregando...' : 'Selecione...'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {usuariosSetor.length === 0 && (
+                    {responsavelOptions.length === 0 && (
                       <SelectItem value="__vazio" disabled>
                         {formData.setor ? 'Nenhum usuário no setor' : 'Selecione um setor'}
                       </SelectItem>
                     )}
-                    {usuariosSetor.map((usuario) => (
+                    {responsavelOptions.map((usuario) => (
                       <SelectItem key={usuario.id} value={usuario.id}>
                         {usuario.nome}
                       </SelectItem>
                     ))}
-                    {formData.responsavel_id && !usuariosSetor.find((u) => u.id === formData.responsavel_id) && (
-                      <SelectItem value={formData.responsavel_id}>
-                        {formData.responsavel_nome || 'Responsável atual'}
-                      </SelectItem>
-                    )}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Prioridade */}
             <div className="grid gap-2">
               <Label>Prioridade</Label>
               <Select
@@ -273,10 +288,7 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
                   {PRIORIDADES.map((p) => (
                     <SelectItem key={p.value} value={p.value}>
                       <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: p.cor }}
-                        />
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.cor }} />
                         {p.label}
                       </div>
                     </SelectItem>
@@ -285,7 +297,6 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
               </Select>
             </div>
 
-            {/* Prazo */}
             <div className="grid gap-2">
               <Label htmlFor="prazo">Prazo</Label>
               <Input
@@ -302,7 +313,7 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancelar
             </Button>

@@ -351,6 +351,30 @@
   border-color: var(--input-border) !important;
 }
 
+
+
+/* Projeto detalhes - hist?rico inline */
+.tarefa-historico-inline {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+}
+
+.tarefa-historico-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+}
+
+.tarefa-historico-inline-details {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 /* Global Styles */
 * {
   box-sizing: border-box;

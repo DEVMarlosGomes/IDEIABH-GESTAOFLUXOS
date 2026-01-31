@@ -776,6 +776,23 @@ async def atualizar_projeto_prazos(db: AsyncSession, projeto_id: str):
         hoje = datetime.now(timezone.utc).date()
         projeto.dias_restantes = max((last_date - hoje).days, 0)
 
+        # Atualizar contrato e prazo do contrato vinculados
+        if projeto.contrato_id:
+            contrato_result = await db.execute(
+                select(ContratoModel).where(ContratoModel.id == projeto.contrato_id)
+            )
+            contrato = contrato_result.scalar_one_or_none()
+            if contrato:
+                contrato.data_fim = last_date.isoformat()
+                contrato.atualizado_em = datetime.now(timezone.utc)
+
+            prazo_result = await db.execute(
+                select(PrazoContratoModel).where(PrazoContratoModel.contrato_id == projeto.contrato_id)
+            )
+            prazo = prazo_result.scalar_one_or_none()
+            if prazo:
+                prazo.data_fim_prevista = last_date.isoformat()
+
     if etapa_atual:
         projeto.etapa_atual = etapa_atual
         projeto.etapa_atual_ordem = etapa_ordem
@@ -1542,6 +1559,7 @@ async def atualizar_tarefa(
     if input.prazo and input.prazo != tarefa.prazo:
         prazo_anterior = tarefa.prazo
         tarefa.prazo = input.prazo
+        tarefa.prazo_original = input.prazo
         dias_atraso, atrasada = await calcular_dias_atraso(input.prazo)
         tarefa.dias_atraso = dias_atraso
         tarefa.atrasada = atrasada

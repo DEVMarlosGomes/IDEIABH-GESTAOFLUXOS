@@ -450,7 +450,6 @@ const DepartamentoView = ({ departamento }) => {
         isOpen={showDetalhesModal}
         onClose={() => {
           setShowDetalhesModal(false);
-          setSelectedTarefa(null);
         }}
         tarefa={selectedTarefa}
         onEditar={handleEditar}
