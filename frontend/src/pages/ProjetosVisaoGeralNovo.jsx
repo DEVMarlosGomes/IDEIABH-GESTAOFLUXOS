@@ -16,10 +16,12 @@ import {
 } from 'lucide-react';
 import { getProjetos } from '../services/api';
 import { toast } from 'sonner';
+import { useAuth } from '../context/AuthContext';
 import './ProjetosVisaoGeral.css';
 
 const ProjetosVisaoGeralNovo = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [projetos, setProjetos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,12 +30,17 @@ const ProjetosVisaoGeralNovo = () => {
 
   useEffect(() => {
     loadProjetos();
-  }, []);
+  }, [user?.role]);
 
   const loadProjetos = async () => {
+    if (!['admin', 'gerente'].includes(user?.role)) {
+      setProjetos([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
-      const data = await getProjetos();
+      const data = await getProjetos(user?.role || 'operador');
       setProjetos(data);
     } catch (error) {
       console.error('Erro ao carregar projetos:', error);
@@ -87,6 +94,22 @@ const ProjetosVisaoGeralNovo = () => {
       <LayoutNovo>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="animate-spin" size={48} />
+        </div>
+      </LayoutNovo>
+    );
+  }
+
+  if (!['admin', 'gerente'].includes(user?.role)) {
+    return (
+      <LayoutNovo>
+        <div className="projetos-visao-container">
+          <div className="empty-state-projetos">
+            <div className="empty-icon-projetos">
+              <LayoutGrid size={48} />
+            </div>
+            <h3>Acesso restrito</h3>
+            <p>Somente administradores e gerentes podem ver a visao geral de projetos.</p>
+          </div>
         </div>
       </LayoutNovo>
     );

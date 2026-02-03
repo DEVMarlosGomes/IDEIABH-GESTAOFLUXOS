@@ -47,6 +47,9 @@ export const getTarefas = async (filters = {}) => {
   if (filters.responsavel_id) params.append('responsavel_id', filters.responsavel_id);
   if (filters.finalizada !== undefined) params.append('finalizada', filters.finalizada);
   if (filters.atrasada !== undefined) params.append('atrasada', filters.atrasada);
+  if (filters.usuario_role) params.append('usuario_role', filters.usuario_role);
+  if (filters.usuario_setor) params.append('usuario_setor', filters.usuario_setor);
+  if (filters.usuario_id) params.append('usuario_id', filters.usuario_id);
   
   const response = await api.get(`/api/tarefas?${params.toString()}`);
   return response.data;
@@ -214,13 +217,13 @@ export const deletarContrato = async (contratoId, userRole) => {
 // Projetos
 // ==========================================
 
-export const getProjetos = async () => {
-  const response = await api.get('/api/projetos');
+export const getProjetos = async (userRole) => {
+  const response = await api.get(`/api/projetos?user_role=${userRole}`);
   return response.data;
 };
 
-export const getProjeto = async (projetoId) => {
-  const response = await api.get(`/api/projetos/${projetoId}`);
+export const getProjeto = async (projetoId, userRole) => {
+  const response = await api.get(`/api/projetos/${projetoId}?user_role=${userRole}`);
   return response.data;
 };
 

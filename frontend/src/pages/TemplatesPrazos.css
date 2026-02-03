@@ -92,6 +92,22 @@
   margin-top: 4px;
 }
 
+.template-criador {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 6px;
+}
+
+.template-criador-display {
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
 .prazo-total-badge {
   display: flex;
   align-items: center;
@@ -738,6 +754,16 @@
 
 [data-theme="dark"] .template-descricao {
   color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .template-criador {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .template-criador-display {
+  background: var(--bg-tertiary);
+  border-color: var(--border-primary);
+  color: var(--text-primary);
 }
 
 [data-theme="dark"] .dept-item {

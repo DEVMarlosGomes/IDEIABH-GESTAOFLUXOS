@@ -6,9 +6,12 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { ScrollArea } from '../components/ui/scroll-area';
+import { Switch } from '../components/ui/switch';
+import { Checkbox } from '../components/ui/checkbox';
 import {
   Plus,
   Search,
@@ -19,10 +22,7 @@ import {
   Play,
   Eye,
   Calendar,
-  DollarSign,
   Building2,
-  Clock,
-  AlertCircle,
   Loader2,
   CheckCircle2,
   ClipboardList,
@@ -34,7 +34,8 @@ import {
   criarContrato, 
   atualizarContrato, 
   deletarContrato,
-  getTemplatesPrazos 
+  getTemplatesPrazos,
+  listarUsuariosSetor
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
@@ -53,15 +54,23 @@ const ContratosListaNova = () => {
   const [viewContrato, setViewContrato] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [operadoresAtendimento, setOperadoresAtendimento] = useState([]);
+  const [operadoresCriacao, setOperadoresCriacao] = useState([]);
+  const [operadoresLoading, setOperadoresLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     cliente: '',
     faculdade: '',
+    curso: '',
     numero_contrato: '',
-    valor: '',
+    pago: false,
     data_inicio: '',
     data_fim: '',
-    template_id: ''
+    observacao: '',
+    template_id: '',
+    atribuir_operadores: false,
+    responsavel_atendimento_id: '',
+    responsavel_criacao_id: ''
   });
 
   useEffect(() => {
@@ -85,6 +94,31 @@ const ContratosListaNova = () => {
     }
   };
 
+  const loadOperadores = async () => {
+    if (!user?.role) return;
+    setOperadoresLoading(true);
+    try {
+      const [atendimento, criacao] = await Promise.all([
+        listarUsuariosSetor('atendimento', user.role, user.setor),
+        listarUsuariosSetor('criacao', user.role, user.setor)
+      ]);
+      setOperadoresAtendimento(atendimento || []);
+      setOperadoresCriacao(criacao || []);
+    } catch (error) {
+      console.error('Erro ao carregar operadores:', error);
+      setOperadoresAtendimento([]);
+      setOperadoresCriacao([]);
+    } finally {
+      setOperadoresLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isModalOpen && !editingContrato && !operadoresLoading) {
+      loadOperadores();
+    }
+  }, [isModalOpen, editingContrato, user]);
+
   const filteredContratos = contratos.filter(contrato => {
     const matchesSearch = contrato.cliente?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           contrato.numero_contrato?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -103,16 +137,17 @@ const ContratosListaNova = () => {
     return colors[status] || { bg: '#f1f5f9', color: '#475569' };
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
   const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const formatTemplateCreator = (criador) => {
+    if (!criador) return '-';
+    const normalized = String(criador).toLowerCase();
+    if (normalized === 'admin' || normalized === 'adm') return 'Adm';
+    if (normalized === 'gerente') return 'Gerente';
+    return criador;
   };
 
   const handleOpenModal = (contrato = null) => {
@@ -121,11 +156,16 @@ const ContratosListaNova = () => {
       setFormData({
         cliente: contrato.cliente,
         faculdade: contrato.faculdade,
+        curso: contrato.curso || '',
         numero_contrato: contrato.numero_contrato,
-        valor: contrato.valor.toString(),
+        pago: !!contrato.pago,
         data_inicio: contrato.data_inicio,
         data_fim: contrato.data_fim || '',
-        template_id: contrato.template_id || ''
+        observacao: contrato.observacao || '',
+        template_id: contrato.template_id || '',
+        atribuir_operadores: false,
+        responsavel_atendimento_id: '',
+        responsavel_criacao_id: ''
       });
       if (contrato.template_id) {
         const template = templates.find(t => t.id === contrato.template_id);
@@ -136,11 +176,16 @@ const ContratosListaNova = () => {
       setFormData({
         cliente: '',
         faculdade: '',
+        curso: '',
         numero_contrato: '',
-        valor: '',
+        pago: false,
         data_inicio: new Date().toISOString().split('T')[0],
         data_fim: '',
-        template_id: ''
+        observacao: '',
+        template_id: '',
+        atribuir_operadores: false,
+        responsavel_atendimento_id: '',
+        responsavel_criacao_id: ''
       });
       setSelectedTemplate(null);
     }
@@ -168,7 +213,7 @@ const ContratosListaNova = () => {
   const handleSave = async () => {
     // Validação
     if (!formData.cliente || !formData.faculdade || !formData.numero_contrato || 
-        !formData.valor || !formData.data_inicio || !formData.template_id) {
+        !formData.data_inicio || !formData.template_id) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
@@ -181,10 +226,12 @@ const ContratosListaNova = () => {
         const updated = await atualizarContrato(editingContrato.id, {
           cliente: formData.cliente,
           faculdade: formData.faculdade,
+          curso: formData.curso,
           numero_contrato: formData.numero_contrato,
-          valor: parseFloat(formData.valor),
+          pago: formData.pago,
           data_inicio: formData.data_inicio,
-          data_fim: formData.data_fim
+          data_fim: formData.data_fim,
+          observacao: formData.observacao
         });
         setContratos(contratos.map(c => c.id === editingContrato.id ? updated : c));
         toast.success('Contrato atualizado com sucesso!');
@@ -193,11 +240,16 @@ const ContratosListaNova = () => {
         const result = await criarContrato({
           cliente: formData.cliente,
           faculdade: formData.faculdade,
+          curso: formData.curso,
           numero_contrato: formData.numero_contrato,
-          valor: parseFloat(formData.valor),
+          pago: formData.pago,
           data_inicio: formData.data_inicio,
           data_fim: formData.data_fim,
+          observacao: formData.observacao,
           template_id: formData.template_id,
+          atribuir_operadores: formData.atribuir_operadores,
+          responsavel_atendimento_id: formData.responsavel_atendimento_id || null,
+          responsavel_criacao_id: formData.responsavel_criacao_id || null,
           criado_por: user?.nome || user?.username || 'sistema'
         });
         
@@ -232,6 +284,11 @@ const ContratosListaNova = () => {
       toast.success('Contrato deletado com sucesso');
     } catch (error) {
       console.error('Erro ao deletar contrato:', error);
+      if (error?.response?.status === 404) {
+        await loadData();
+        toast.error('Contrato não encontrado. Lista atualizada.');
+        return;
+      }
       toast.error('Erro ao deletar contrato');
     }
   };
@@ -320,7 +377,11 @@ const ContratosListaNova = () => {
 
         {/* Contratos Grid/List */}
         <div className={`contratos-grid ${viewMode === 'list' ? 'list-view' : ''}`}>
-          {filteredContratos.map((contrato) => (
+          {filteredContratos.map((contrato) => {
+            const templateInfo = templates.find(t => t.id === contrato.template_id);
+            const templateCreator = formatTemplateCreator(templateInfo?.criado_por);
+            
+            return (
             <Card key={contrato.id} className="contrato-card">
               <CardHeader className="contrato-card-header">
                 <div className="contrato-header-top">
@@ -343,10 +404,10 @@ const ContratosListaNova = () => {
               <CardContent className="contrato-card-content">
                 <div className="contrato-info-grid">
                   <div className="info-item">
-                    <DollarSign size={16} />
+                    <CheckCircle size={16} />
                     <div>
-                      <span className="info-label">Valor</span>
-                      <span className="info-value">{formatCurrency(contrato.valor)}</span>
+                      <span className="info-label">Pagamento</span>
+                      <span className="info-value">{contrato.pago ? 'Pago' : 'Nao pago'}</span>
                     </div>
                   </div>
                   <div className="info-item">
@@ -362,6 +423,7 @@ const ContratosListaNova = () => {
                       <div>
                         <span className="info-label">Template</span>
                         <span className="info-value text-xs">{contrato.template_nome}</span>
+                        <span className="info-subvalue">Criador: {templateCreator}</span>
                       </div>
                     </div>
                   )}
@@ -399,7 +461,8 @@ const ContratosListaNova = () => {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
 
         {filteredContratos.length === 0 && (
@@ -420,12 +483,15 @@ const ContratosListaNova = () => {
             </DialogHeader>
             
             <Tabs defaultValue="dados" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="dados">Dados do Contrato</TabsTrigger>
-                <TabsTrigger value="template" disabled={editingContrato}>
-                  Template e Prazos
-                </TabsTrigger>
-              </TabsList>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="dados">Dados do Contrato</TabsTrigger>
+              <TabsTrigger value="template" disabled={editingContrato}>
+                Template e Prazos
+              </TabsTrigger>
+              <TabsTrigger value="atribuicoes" disabled={editingContrato}>
+                Atribuicoes
+              </TabsTrigger>
+            </TabsList>
               
               <TabsContent value="dados" className="space-y-4">
                 <div className="modal-form">
@@ -447,31 +513,29 @@ const ContratosListaNova = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="form-row">
                     <div className="form-group flex-1">
-                      <Label>Número do Contrato *</Label>
+                      <Label>Curso</Label>
+                      <Input
+                        value={formData.curso}
+                        onChange={(e) => setFormData({...formData, curso: e.target.value})}
+                        placeholder="Ex: Medicina"
+                      />
+                    </div>
+                    <div className="form-group flex-1">
+                      <Label>Numero do Contrato *</Label>
                       <Input
                         value={formData.numero_contrato}
                         onChange={(e) => setFormData({...formData, numero_contrato: e.target.value})}
                         placeholder="Ex: 2025-001"
                       />
                     </div>
-                    <div className="form-group flex-1">
-                      <Label>Valor (R$) *</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={formData.valor}
-                        onChange={(e) => setFormData({...formData, valor: e.target.value})}
-                        placeholder="0.00"
-                      />
-                    </div>
                   </div>
-                  
+
                   <div className="form-row">
                     <div className="form-group flex-1">
-                      <Label>Data de Início *</Label>
+                      <Label>Data de Inicio *</Label>
                       <Input
                         type="date"
                         value={formData.data_inicio}
@@ -485,14 +549,14 @@ const ContratosListaNova = () => {
                             setFormData(prev => ({ 
                               ...prev, 
                               data_inicio: e.target.value,
-                              data_fim: dataFim.toISOString().split('T')[0]
+                              data_fim: dataFim.toISOString().split("T")[0]
                             }));
                           }
                         }}
                       />
                     </div>
                     <div className="form-group flex-1">
-                      <Label>Data de Término (Prevista)</Label>
+                      <Label>Data de Termino (Prevista)</Label>
                       <Input
                         type="date"
                         value={formData.data_fim}
@@ -500,6 +564,31 @@ const ContratosListaNova = () => {
                         className="bg-gray-50"
                       />
                     </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group flex-1">
+                      <Label>Pago</Label>
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={formData.pago}
+                          onCheckedChange={(checked) => setFormData(prev => ({ ...prev, pago: checked }))}
+                        />
+                        <span className="text-sm text-gray-600">
+                          {formData.pago ? "Pago" : "Nao pago"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <Label>Observacao</Label>
+                    <Textarea
+                      value={formData.observacao}
+                      onChange={(e) => setFormData({...formData, observacao: e.target.value})}
+                      placeholder="Observacoes sobre o contrato..."
+                      rows={3}
+                    />
                   </div>
                 </div>
               </TabsContent>
@@ -573,6 +662,72 @@ const ContratosListaNova = () => {
                       </CardContent>
                     </Card>
                   )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="atribuicoes" className="space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={formData.atribuir_operadores}
+                      onCheckedChange={(checked) => setFormData(prev => ({ ...prev, atribuir_operadores: !!checked }))}
+                    />
+                    <Label>Atribuir etapas automaticamente</Label>
+                  </div>
+
+                  <div className="form-group">
+                    <Label>Operador de Atendimento</Label>
+                    <Select
+                      value={formData.responsavel_atendimento_id}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, responsavel_atendimento_id: value }))}
+                      disabled={!formData.atribuir_operadores}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o operador..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {operadoresLoading && (
+                          <SelectItem value="loading" disabled>Carregando...</SelectItem>
+                        )}
+                        {!operadoresLoading && operadoresAtendimento.length === 0 && (
+                          <SelectItem value="empty" disabled>Nenhum operador disponivel</SelectItem>
+                        )}
+                        {!operadoresLoading && operadoresAtendimento.map((op) => (
+                          <SelectItem key={op.id} value={op.id}>
+                            {op.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="form-group">
+                    <Label>Operador de Criacao</Label>
+                    <Select
+                      value={formData.responsavel_criacao_id}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, responsavel_criacao_id: value }))}
+                      disabled={!formData.atribuir_operadores}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o operador..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {operadoresLoading && (
+                          <SelectItem value="loading" disabled>Carregando...</SelectItem>
+                        )}
+                        {!operadoresLoading && operadoresCriacao.length === 0 && (
+                          <SelectItem value="empty" disabled>Nenhum operador disponivel</SelectItem>
+                        )}
+                        {!operadoresLoading && operadoresCriacao.map((op) => (
+                          <SelectItem key={op.id} value={op.id}>
+                            {op.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <p className="form-hint">Quando ativo, todas as etapas dos setores de atendimento e criacao serao atribuidas aos operadores escolhidos.</p>
                 </div>
               </TabsContent>
             </Tabs>

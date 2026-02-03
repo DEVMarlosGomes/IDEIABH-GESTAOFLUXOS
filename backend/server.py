@@ -278,10 +278,13 @@ class Contrato(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     cliente: str
     faculdade: str
+    curso: Optional[str] = None
     numero_contrato: str
     valor: float
+    pago: bool = False
     data_inicio: str
     data_fim: Optional[str] = None
+    observacao: Optional[str] = None
     status: str = "Ativo"
     template_id: Optional[str] = None
     template_nome: Optional[str] = None
@@ -294,21 +297,30 @@ class Contrato(BaseModel):
 class ContratoCreate(BaseModel):
     cliente: str
     faculdade: str
+    curso: Optional[str] = None
     numero_contrato: str
-    valor: float
+    valor: float = 0.0
+    pago: bool = False
     data_inicio: str
     data_fim: Optional[str] = None
+    observacao: Optional[str] = None
     template_id: str
     criado_por: str
+    atribuir_operadores: bool = False
+    responsavel_atendimento_id: Optional[str] = None
+    responsavel_criacao_id: Optional[str] = None
 
 
 class ContratoUpdate(BaseModel):
     cliente: Optional[str] = None
     faculdade: Optional[str] = None
+    curso: Optional[str] = None
     numero_contrato: Optional[str] = None
     valor: Optional[float] = None
+    pago: Optional[bool] = None
     data_inicio: Optional[str] = None
     data_fim: Optional[str] = None
+    observacao: Optional[str] = None
     status: Optional[str] = None
 
 
@@ -419,6 +431,7 @@ class TemplatePrazosCreate(BaseModel):
     nome: str
     descricao: Optional[str] = None
     etapas: List[dict] = []
+    criado_por: Optional[str] = None
 
 
 class TemplatePrazosUpdate(BaseModel):
@@ -1284,6 +1297,9 @@ async def listar_tarefas(
     responsavel_id: Optional[str] = None,
     finalizada: Optional[bool] = None,
     atrasada: Optional[bool] = None,
+    usuario_role: Optional[str] = None,
+    usuario_setor: Optional[str] = None,
+    usuario_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
 ):
     """Lista tarefas com filtros opcionais"""
@@ -1307,7 +1323,12 @@ async def listar_tarefas(
     
     if conditions:
         query = query.where(and_(*conditions))
-    
+
+    if usuario_role == "operador" and usuario_id and usuario_setor:
+        setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
+        if setor_norm in ["atendimento", "criacao"]:
+            query = query.where(TarefaModel.responsavel_id == usuario_id)
+
     query = query.order_by(TarefaModel.criado_em.desc())
     
     result = await db.execute(query)
@@ -1330,6 +1351,7 @@ async def listar_tarefas(
 async def listar_tarefas_por_acesso(
     usuario_role: str = Query(...),
     usuario_setor: str = Query(...),
+    usuario_id: str = Query(...),
     projeto_id: Optional[str] = None,
     contrato_id: Optional[str] = None,
     status_id: Optional[str] = None,
@@ -1358,7 +1380,12 @@ async def listar_tarefas_por_acesso(
     
     if conditions:
         query = query.where(and_(*conditions))
-    
+
+    if usuario_role == "operador" and usuario_id and usuario_setor:
+        setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
+        if setor_norm in ["atendimento", "criacao"]:
+            query = query.where(TarefaModel.responsavel_id == usuario_id)
+
     query = query.order_by(TarefaModel.criado_em.desc())
     
     result = await db.execute(query)
@@ -2227,7 +2254,7 @@ async def criar_template_prazo(
         descricao=input.descricao,
         etapas=input.etapas,
         prazo_total_dias=prazo_total,
-        criado_por=user_id
+        criado_por=input.criado_por or user_id
     )
     
     db.add(template_obj)
@@ -2739,10 +2766,13 @@ async def criar_contrato(input: ContratoCreate, db: AsyncSession = Depends(get_d
         id=contrato_id,
         cliente=input.cliente,
         faculdade=input.faculdade,
+        curso=input.curso,
         numero_contrato=input.numero_contrato,
-        valor=input.valor,
+        valor=input.valor or 0.0,
+        pago=input.pago,
         data_inicio=input.data_inicio,
         data_fim=input.data_fim,
+        observacao=input.observacao,
         template_id=input.template_id,
         template_nome=template.nome,
         criado_por=input.criado_por
@@ -2785,6 +2815,47 @@ async def criar_contrato(input: ContratoCreate, db: AsyncSession = Depends(get_d
     # Atualizar contrato com projeto_id
     contrato_obj.projeto_id = projeto_id
     
+    # Resolver responsÃ¡veis iniciais (atendimento / criaÃ§Ã£o)
+    def normalizar_setor(value: Optional[str]) -> Optional[str]:
+        if not value:
+            return None
+        value_norm = value.lower().replace("-", "").replace("_", "").replace(" ", "")
+        setor_map = {
+            "atendimento": "atendimento",
+            "criacao": "criacao",
+            "criaÃ§Ã£o": "criacao",
+            "preproducao": "pre-producao",
+            "prÃ©producao": "pre-producao",
+            "preproduÃ§Ã£o": "pre-producao",
+            "producao": "producao",
+            "produÃ§Ã£o": "producao",
+        }
+        return setor_map.get(value_norm, value)
+
+    responsavel_atendimento = None
+    responsavel_criacao = None
+
+    if input.atribuir_operadores:
+        if input.responsavel_atendimento_id:
+            result = await db.execute(
+                select(UserModel).where(UserModel.id == input.responsavel_atendimento_id)
+            )
+            responsavel_atendimento = result.scalar_one_or_none()
+            if responsavel_atendimento and not (responsavel_atendimento.ativo and responsavel_atendimento.aprovado):
+                responsavel_atendimento = None
+            if responsavel_atendimento and normalizar_setor(responsavel_atendimento.setor) != "atendimento":
+                responsavel_atendimento = None
+
+        if input.responsavel_criacao_id:
+            result = await db.execute(
+                select(UserModel).where(UserModel.id == input.responsavel_criacao_id)
+            )
+            responsavel_criacao = result.scalar_one_or_none()
+            if responsavel_criacao and not (responsavel_criacao.ativo and responsavel_criacao.aprovado):
+                responsavel_criacao = None
+            if responsavel_criacao and normalizar_setor(responsavel_criacao.setor) != "criacao":
+                responsavel_criacao = None
+
     # Criar todas as tarefas (etapas) do template
     status_list = await get_status_padrao(db)
     status_pendente = status_list[0] if status_list else {"id": str(uuid.uuid4()), "nome": "Pendente"}
@@ -2807,6 +2878,27 @@ async def criar_contrato(input: ContratoCreate, db: AsyncSession = Depends(get_d
             "detalhes": f"Etapa criada automaticamente do template {template.nome}"
         }]
         
+        responsavel_id = None
+        responsavel_nome = None
+        setor_norm = normalizar_setor(etapa.get("departamento", "atendimento"))
+        if responsavel_atendimento and setor_norm == "atendimento":
+            responsavel_id = responsavel_atendimento.id
+            responsavel_nome = responsavel_atendimento.nome
+        if responsavel_criacao and setor_norm == "criacao":
+            responsavel_id = responsavel_criacao.id
+            responsavel_nome = responsavel_criacao.nome
+
+        if responsavel_nome:
+            historico.append({
+                "id": str(uuid.uuid4()),
+                "acao": "atribuida",
+                "usuario_id": "sistema",
+                "usuario_nome": "Sistema",
+                "setor": "sistema",
+                "data": datetime.now(timezone.utc).isoformat(),
+                "detalhes": f"ResponsÃ¡vel inicial definido: {responsavel_nome}"
+            })
+
         tarefa_obj = TarefaModel(
             id=tarefa_id,
             titulo=etapa.get("etapa_nome"),
@@ -2814,8 +2906,8 @@ async def criar_contrato(input: ContratoCreate, db: AsyncSession = Depends(get_d
             projeto_id=projeto_id,
             contrato_id=contrato_id,
             setor=etapa.get("departamento", "atendimento"),
-            responsavel_id=None,
-            responsavel_nome=None,
+            responsavel_id=responsavel_id,
+            responsavel_nome=responsavel_nome,
             status_id=status_pendente["id"],
             status_nome="Pendente",
             prazo=data_fim_etapa.isoformat(),
@@ -2912,8 +3004,10 @@ async def deletar_contrato(
 # ==========================================
 
 @api_router.get("/projetos", response_model=List[dict])
-async def listar_projetos(db: AsyncSession = Depends(get_db)):
+async def listar_projetos(user_role: str = Query(...), db: AsyncSession = Depends(get_db)):
     """Lista todos os projetos"""
+    if user_role not in ["admin", "gerente"]:
+        raise HTTPException(status_code=403, detail="Acesso restrito a Admin/Gerente")
     result = await db.execute(
         select(ProjetoModel).order_by(ProjetoModel.criado_em.desc())
     )
@@ -2966,8 +3060,10 @@ async def listar_projetos(db: AsyncSession = Depends(get_db)):
 
 
 @api_router.get("/projetos/{projeto_id}", response_model=dict)
-async def obter_projeto(projeto_id: str, db: AsyncSession = Depends(get_db)):
+async def obter_projeto(projeto_id: str, user_role: str = Query(...), db: AsyncSession = Depends(get_db)):
     """Obtém um projeto específico com detalhes"""
+    if user_role not in ["admin", "gerente"]:
+        raise HTTPException(status_code=403, detail="Acesso restrito a Admin/Gerente")
     result = await db.execute(
         select(ProjetoModel).where(ProjetoModel.id == projeto_id)
     )

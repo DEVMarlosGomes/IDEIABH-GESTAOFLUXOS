@@ -115,6 +115,7 @@ const ETAPAS_PADRAO = [
 const TemplatesPrazos = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const defaultCriador = user?.nome || user?.username || 'sistema';
   
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +131,8 @@ const TemplatesPrazos = () => {
   const [templateForm, setTemplateForm] = useState({
     nome: '',
     descricao: '',
-    etapas: []
+    etapas: [],
+    criado_por: defaultCriador
   });
   
   // Aplicar state
@@ -176,6 +178,13 @@ const TemplatesPrazos = () => {
     loadTemplates();
   }, [loadTemplates]);
 
+  useEffect(() => {
+    setTemplateForm(prev => ({
+      ...prev,
+      criado_por: user?.nome || user?.username || 'sistema'
+    }));
+  }, [user]);
+
   // Calcular prazo total
   const calcularPrazoTotal = (etapas) => {
     return etapas.reduce((acc, e) => acc + (parseInt(e.prazo_dias) || 0), 0);
@@ -187,7 +196,8 @@ const TemplatesPrazos = () => {
     setTemplateForm({
       nome: usarPadrao ? 'Novo Template (Padrão)' : 'Novo Template',
       descricao: '',
-      etapas: usarPadrao ? JSON.parse(JSON.stringify(ETAPAS_PADRAO)) : []
+      etapas: usarPadrao ? JSON.parse(JSON.stringify(ETAPAS_PADRAO)) : [],
+      criado_por: defaultCriador
     });
     setShowEditorModal(true);
   };
@@ -198,7 +208,8 @@ const TemplatesPrazos = () => {
     setTemplateForm({
       nome: template.nome,
       descricao: template.descricao || '',
-      etapas: JSON.parse(JSON.stringify(template.etapas || []))
+      etapas: JSON.parse(JSON.stringify(template.etapas || [])),
+      criado_por: template.criado_por || defaultCriador
     });
     setShowEditorModal(true);
   };
@@ -209,7 +220,8 @@ const TemplatesPrazos = () => {
     setTemplateForm({
       nome: `${template.nome} (Cópia)`,
       descricao: template.descricao || '',
-      etapas: JSON.parse(JSON.stringify(template.etapas || []))
+      etapas: JSON.parse(JSON.stringify(template.etapas || [])),
+      criado_por: template.criado_por || defaultCriador
     });
     setShowEditorModal(true);
   };
@@ -291,6 +303,10 @@ const TemplatesPrazos = () => {
           etapa_id: e.etapa_id || idx + 1
         }))
       };
+      
+      if (!editingTemplate && templateForm.criado_por) {
+        data.criado_por = templateForm.criado_por;
+      }
 
       if (editingTemplate) {
         await atualizarTemplatePrazo(editingTemplate.id, data, user?.role || 'admin');
@@ -370,6 +386,8 @@ const TemplatesPrazos = () => {
   };
 
   const departamentos = Object.values(DEPARTAMENTOS);
+  
+  const formatCriador = (criador) => criador || 'N/D';
 
   return (
     <LayoutNovo 
@@ -441,6 +459,9 @@ const TemplatesPrazos = () => {
                         {template.descricao && (
                           <p className="template-descricao">{template.descricao}</p>
                         )}
+                        <p className="template-criador">
+                          Criador: {formatCriador(template.criado_por)}
+                        </p>
                       </div>
                       <Badge variant="outline" className="prazo-total-badge">
                         <Clock size={14} className="mr-1" />
@@ -580,6 +601,14 @@ const TemplatesPrazos = () => {
                     placeholder="Descrição opcional do template..."
                     rows={2}
                   />
+                </div>
+
+                <div className="form-group">
+                  <Label>Criador</Label>
+                  <div className="template-criador-display">
+                    {templateForm.criado_por || 'sistema'}
+                  </div>
+                  <p className="form-hint">Criador definido automaticamente pelo usuario logado.</p>
                 </div>
               </div>
 

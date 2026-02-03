@@ -83,10 +83,26 @@ const DepartamentoViewNovo = ({ departamento }) => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const tarefasData = await getTarefas({ 
+      const filters = { 
         setor: departamento,
-        finalizada: false 
-      });
+        finalizada: false,
+        usuario_role: user?.role,
+        usuario_setor: user?.setor,
+        usuario_id: user?.id
+      };
+      
+      const departamentoNorm = (departamento || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase();
+      if (
+        user?.role === 'operador' &&
+        ['atendimento', 'criacao'].includes(departamentoNorm)
+      ) {
+        filters.responsavel_id = user?.id;
+      }
+
+      const tarefasData = await getTarefas(filters);
       
       // Ordenar por prazo
       const sorted = tarefasData.sort((a, b) => {

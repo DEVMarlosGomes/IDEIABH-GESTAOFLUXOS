@@ -50,7 +50,7 @@ const ProjetoDetalhes = () => {
   const loadProjeto = async () => {
     try {
       setLoading(true);
-      const data = await getProjeto(id);
+      const data = await getProjeto(id, user?.role || 'operador');
       setProjeto(data);
     } catch (error) {
       console.error('Erro ao carregar projeto:', error);

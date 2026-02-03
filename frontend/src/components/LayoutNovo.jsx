@@ -104,8 +104,12 @@ const LayoutNovo = ({ children, title, subtitle }) => {
         let contratos = contratosCache;
 
         if (!projetos.length) {
-          projetos = await getProjetos();
-          setProjetosCache(projetos || []);
+          try {
+            projetos = await getProjetos(user?.role || 'operador');
+            setProjetosCache(projetos || []);
+          } catch (err) {
+            projetos = [];
+          }
         }
         if (!contratos.length) {
           contratos = await getContratos();

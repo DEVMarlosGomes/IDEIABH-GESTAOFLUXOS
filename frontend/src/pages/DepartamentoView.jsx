@@ -83,7 +83,25 @@ const DepartamentoView = ({ departamento }) => {
     setLoading(true);
     try {
       const [tarefasData, statusData, atrasosData] = await Promise.all([
-        getTarefas({ setor: departamento }),
+        getTarefas({
+          setor: departamento,
+          usuario_role: user?.role,
+          usuario_setor: user?.setor,
+          usuario_id: user?.id,
+          ...(() => {
+            const departamentoNorm = (departamento || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toLowerCase();
+            if (
+              user?.role === 'operador' &&
+              ['atendimento', 'criacao'].includes(departamentoNorm)
+            ) {
+              return { responsavel_id: user?.id };
+            }
+            return {};
+          })()
+        }),
         getStatusTarefas(),
         getAtrasosPorSetor()
       ]);

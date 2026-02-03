@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -20,11 +21,58 @@ import {
   User
 } from 'lucide-react';
 import { mockProjetos, mockContratos, DEPARTAMENTOS, TODAS_ETAPAS } from '../data/mockNovo';
+import { getTarefas, getContratos } from '../services/api';
 import './DashboardNovo.css';
 
 const DashboardNovo = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [projetoSelecionado, setProjetoSelecionado] = useState(null);
+  const [operatorLoading, setOperatorLoading] = useState(false);
+  const [operatorTasks, setOperatorTasks] = useState([]);
+  const [operatorContracts, setOperatorContracts] = useState([]);
+  const [taskFilters, setTaskFilters] = useState({ status: 'todas', setor: 'todos' });
+
+  useEffect(() => {
+    if (user?.role === 'operador') {
+      loadOperatorData();
+      loadOperatorContracts();
+    }
+  }, [user?.id, user?.role]);
+
+  
+  const loadOperatorContracts = async () => {
+    setOperatorLoading(true);
+    try {
+      const data = await getContratos();
+      setOperatorContracts(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar contratos:', err);
+      setOperatorContracts([]);
+    } finally {
+      setOperatorLoading(false);
+    }
+  };
+
+  const loadOperatorData = async () => {
+    if (!user?.id) return;
+    setOperatorLoading(true);
+    try {
+      const data = await getTarefas({
+        responsavel_id: user.id,
+        usuario_role: user.role,
+        usuario_setor: user.setor,
+        usuario_id: user.id
+      });
+      setOperatorTasks(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar tarefas do operador:', err);
+      setOperatorTasks([]);
+    } finally {
+      setOperatorLoading(false);
+    }
+  };
+
 
   // Calcular KPIs corretos
   const kpis = {
@@ -86,6 +134,52 @@ const DashboardNovo = () => {
 
   const responsaveis = cargaPorResponsavel();
 
+
+  const operatorStats = {
+    em_andamento: operatorTasks.filter(t => !t.finalizada && t.status_nome === 'Em Andamento').length,
+    atrasadas: operatorTasks.filter(t => !t.finalizada && t.atrasada).length,
+    concluidas: operatorTasks.filter(t => t.finalizada).length,
+    projetos: new Set(operatorTasks.map(t => t.projeto_id).filter(Boolean)).size
+  };
+
+
+  const contractById = operatorContracts.reduce((acc, c) => {
+    acc[c.id] = c;
+    return acc;
+  }, {});
+
+  const setorOptions = Array.from(new Set(operatorTasks.map(t => t.setor).filter(Boolean)));
+
+  const filteredOperatorTasks = operatorTasks.filter((t) => {
+    const statusOk = taskFilters.status === 'todas'
+      ? true
+      : taskFilters.status === 'atrasadas'
+        ? t.atrasada
+        : taskFilters.status === 'em_andamento'
+          ? (!t.finalizada && t.status_nome === 'Em Andamento')
+          : taskFilters.status === 'pendentes'
+            ? (!t.finalizada && (t.status_nome === 'Pendente' || !t.status_nome))
+            : taskFilters.status === 'concluidas'
+              ? t.finalizada
+              : true;
+    const setorOk = taskFilters.setor === 'todos' ? true : t.setor === taskFilters.setor;
+    return statusOk && setorOk;
+  });
+
+  const operatorUpcoming = filteredOperatorTasks
+    .filter(t => !t.finalizada)
+    .sort((a, b) => {
+      const da = a.prazo ? new Date(a.prazo).getTime() : Number.MAX_SAFE_INTEGER;
+      const db = b.prazo ? new Date(b.prazo).getTime() : Number.MAX_SAFE_INTEGER;
+      return da - db;
+    })
+    .slice(0, 6);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
   const handleKpiClick = (tipo) => {
     navigate('/projetos', { state: { filtro: tipo } });
   };
@@ -145,6 +239,151 @@ const DashboardNovo = () => {
       onClick: () => handleKpiClick('concluido')
     }
   ];
+
+  if (user?.role === 'operador') {
+    return (
+      <LayoutNovo title="Dashboard" subtitle="Suas tarefas e responsabilidades">
+        <div className="dashboard-novo-container">
+          <div className="kpi-grid-novo">
+            <Card className="kpi-card-novo">
+              <CardContent className="kpi-content-novo">
+                <div className="kpi-icon-novo" style={{ backgroundColor: '#e0f2fe' }}>
+                  <Clock size={24} style={{ color: '#0284c7' }} />
+                </div>
+                <div className="kpi-info-novo">
+                  <span className="kpi-value-novo" style={{ color: '#0284c7' }}>{operatorStats.em_andamento}</span>
+                  <span className="kpi-title-novo">Em andamento</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="kpi-card-novo">
+              <CardContent className="kpi-content-novo">
+                <div className="kpi-icon-novo" style={{ backgroundColor: '#fee2e2' }}>
+                  <AlertTriangle size={24} style={{ color: '#dc2626' }} />
+                </div>
+                <div className="kpi-info-novo">
+                  <span className="kpi-value-novo" style={{ color: '#dc2626' }}>{operatorStats.atrasadas}</span>
+                  <span className="kpi-title-novo">Atrasadas</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="kpi-card-novo">
+              <CardContent className="kpi-content-novo">
+                <div className="kpi-icon-novo" style={{ backgroundColor: '#dcfce7' }}>
+                  <CheckCircle2 size={24} style={{ color: '#16a34a' }} />
+                </div>
+                <div className="kpi-info-novo">
+                  <span className="kpi-value-novo" style={{ color: '#16a34a' }}>{operatorStats.concluidas}</span>
+                  <span className="kpi-title-novo">Concluidas</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="kpi-card-novo">
+              <CardContent className="kpi-content-novo">
+                <div className="kpi-icon-novo" style={{ backgroundColor: '#eef2ff' }}>
+                  <FolderKanban size={24} style={{ color: '#4f46e5' }} />
+                </div>
+                <div className="kpi-info-novo">
+                  <span className="kpi-value-novo" style={{ color: '#4f46e5' }}>{operatorStats.projetos}</span>
+                  <span className="kpi-title-novo">Projetos sob responsabilidade</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="dashboard-grid-novo">
+            <Card className="dashboard-card-novo full-width">
+              <CardContent style={{ padding: '24px' }}>
+
+                <div className="task-filter-bar">
+                  <div className="task-filter-group">
+                    <Button
+                      variant={taskFilters.status === 'todas' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTaskFilters(prev => ({ ...prev, status: 'todas' }))}
+                    >
+                      Todas
+                    </Button>
+                    <Button
+                      variant={taskFilters.status === 'em_andamento' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTaskFilters(prev => ({ ...prev, status: 'em_andamento' }))}
+                    >
+                      Em andamento
+                    </Button>
+                    <Button
+                      variant={taskFilters.status === 'atrasadas' ? 'destructive' : 'outline'}
+                      size="sm"
+                      onClick={() => setTaskFilters(prev => ({ ...prev, status: 'atrasadas' }))}
+                    >
+                      Atrasadas
+                    </Button>
+                    <Button
+                      variant={taskFilters.status === 'concluidas' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setTaskFilters(prev => ({ ...prev, status: 'concluidas' }))}
+                    >
+                      Concluidas
+                    </Button>
+                  </div>
+                  <div className="task-filter-group">
+                    <select
+                      className="task-filter-select"
+                      value={taskFilters.setor}
+                      onChange={(e) => setTaskFilters(prev => ({ ...prev, setor: e.target.value }))}
+                    >
+                      <option value="todos">Todos os setores</option>
+                      {setorOptions.map((setor) => (
+                        <option key={setor} value={setor}>{setor}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="card-header-novo">
+                  <h3>Proximas tarefas</h3>
+                  <Badge variant="secondary">{operatorUpcoming.length}</Badge>
+                </div>
+
+                {operatorLoading ? (
+                  <div className="empty-state-novo">
+                    <Loader2 size={28} className="animate-spin" />
+                    <p>Carregando tarefas...</p>
+                  </div>
+                ) : operatorUpcoming.length === 0 ? (
+                  <div className="empty-state-novo">
+                    <CheckCircle2 size={32} style={{ color: '#10b981' }} />
+                    <p>Nenhuma tarefa pendente</p>
+                  </div>
+                ) : (
+                  <div className="projetos-list-novo">
+                    {operatorUpcoming.map((tarefa) => (
+                      <div key={tarefa.id} className="projeto-item-novo">
+                        <div className="projeto-info-novo">
+                          <div className="projeto-header-info">
+                            <h4>{tarefa.titulo}</h4>
+                            <Badge variant={tarefa.atrasada ? 'destructive' : 'secondary'}>
+                              {tarefa.atrasada ? 'Atrasada' : (tarefa.status_nome || 'Pendente')}
+                            </Badge>
+                          </div>
+                          <p className="projeto-instituicao">Contrato: {(contractById[tarefa.contrato_id]?.numero_contrato || tarefa.contrato_id || '-')}</p>
+                          <div className="projeto-meta-novo">
+                            <span className="progresso-text">Prazo: {formatDate(tarefa.prazo)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </LayoutNovo>
+    );
+  }
 
   return (
     <LayoutNovo 

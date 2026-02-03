@@ -62,7 +62,7 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
         
         // Fetch projetos from API
         try {
-          const projetosData = await getProjetos();
+          const projetosData = await getProjetos(user?.role || 'operador');
           setProjetos(projetosData || []);
         } catch (err) {
           console.error('Error loading projetos:', err);

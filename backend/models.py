@@ -86,10 +86,13 @@ class Contrato(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     cliente = Column(String(255), nullable=False)
     faculdade = Column(String(255), nullable=False)
+    curso = Column(String(255), nullable=True)
     numero_contrato = Column(String(100), nullable=False)
     valor = Column(Float, nullable=False)
+    pago = Column(Boolean, default=False)
     data_inicio = Column(String(50), nullable=False)  # ISO date string
     data_fim = Column(String(50), nullable=True)
+    observacao = Column(Text, nullable=True)
     status = Column(String(50), default="Ativo")  # Ativo, Em Andamento, Em Produção, Finalizado, Entregue
     template_id = Column(String(36), nullable=True)
     template_nome = Column(String(255), nullable=True)
