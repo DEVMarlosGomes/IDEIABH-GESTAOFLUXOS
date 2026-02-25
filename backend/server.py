@@ -8,7 +8,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Set, Tuple
 import uuid
 from datetime import datetime, timezone, timedelta, date
 from enum import Enum
@@ -26,6 +26,11 @@ from models import (
     TemplatePrazos as TemplatePrazosModel,
     PrazoContrato as PrazoContratoModel,
     StatusCheck as StatusCheckModel
+)
+from access_control import (
+    normalize_setor,
+    operador_tem_acesso_tarefa,
+    validar_contexto_finalizacao_operador,
 )
 
 ROOT_DIR = Path(__file__).parent
@@ -258,6 +263,7 @@ class TarefaFinalizar(BaseModel):
     usuario_nome: str
     usuario_setor: str
     usuario_role: str = "operador"
+    contrato_id_selecionado: Optional[str] = None
 
 
 class TarefaAlterarStatus(BaseModel):
@@ -265,6 +271,8 @@ class TarefaAlterarStatus(BaseModel):
     usuario_id: str
     usuario_nome: str
     usuario_setor: str
+    usuario_role: Optional[str] = None
+    contrato_id_selecionado: Optional[str] = None
     observacao: Optional[str] = None
 
 
@@ -456,79 +464,77 @@ SETORES_ORDEM = {
 def verificar_acesso_setor(usuario_role: str, usuario_setor: str, setor_tarefa: str) -> bool:
     """
     Verifica se o operador tem acesso ao setor da tarefa.
-    - Admin e gerente têm acesso a todos os setores
-    - Operador só pode acessar seu setor ou o setor anterior no fluxo
+    - Admin e gerente tem acesso a todos os setores
+    - Operador so pode acessar seu setor ou o setor anterior no fluxo
     """
     if usuario_role in ["admin", "gerente"]:
         return True
-    
-    if usuario_role == "operador":
-        # Normalizar nomes de setores
-        usuario_setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
-        setor_tarefa_norm = setor_tarefa.lower().replace("-", "").replace("_", "").replace(" ", "")
-        
-        # Mapear para nomes padronizados
-        setor_map = {
-            "atendimento": "atendimento",
-            "criacao": "criacao",
-            "criação": "criacao",
-            "preproducao": "pre-producao",
-            "préproducao": "pre-producao",
-            "pre-producao": "pre-producao",
-            "pré-produção": "pre-producao",
-            "producao": "producao",
-            "produção": "producao",
-        }
-        
-        usuario_setor_padrao = setor_map.get(usuario_setor_norm, usuario_setor.lower())
-        setor_tarefa_padrao = setor_map.get(setor_tarefa_norm, setor_tarefa.lower())
-        
-        ordem_usuario = SETORES_ORDEM.get(usuario_setor_padrao, 0)
-        ordem_tarefa = SETORES_ORDEM.get(setor_tarefa_padrao, 0)
-        
-        # Operador pode acessar seu setor ou o setor anterior
-        if ordem_usuario == ordem_tarefa or ordem_usuario == ordem_tarefa + 1:
-            return True
-        
+
+    if usuario_role != "operador":
         return False
-    
-    return False
+
+    usuario_setor_padrao = normalize_setor(usuario_setor)
+    setor_tarefa_padrao = normalize_setor(setor_tarefa)
+
+    ordem_usuario = SETORES_ORDEM.get(usuario_setor_padrao, 0)
+    ordem_tarefa = SETORES_ORDEM.get(setor_tarefa_padrao, 0)
+
+    # Operador pode acessar seu setor ou o setor anterior
+    return ordem_usuario == ordem_tarefa or ordem_usuario == ordem_tarefa + 1
 
 
 def verificar_pode_finalizar_tarefa(usuario_role: str, usuario_setor: str, setor_tarefa: str) -> bool:
     """
     Verifica se o operador pode finalizar a tarefa.
     - Admin e gerente podem finalizar qualquer tarefa
-    - Operador só pode finalizar tarefas do seu próprio setor
+    - Operador so pode finalizar tarefas do seu proprio setor
     """
     if usuario_role in ["admin", "gerente"]:
         return True
-    
-    if usuario_role == "operador":
-        # Normalizar nomes de setores
-        usuario_setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
-        setor_tarefa_norm = setor_tarefa.lower().replace("-", "").replace("_", "").replace(" ", "")
-        
-        # Mapear para nomes padronizados
-        setor_map = {
-            "atendimento": "atendimento",
-            "criacao": "criacao",
-            "criação": "criacao",
-            "preproducao": "pre-producao",
-            "préproducao": "pre-producao",
-            "pre-producao": "pre-producao",
-            "pré-produção": "pre-producao",
-            "producao": "producao",
-            "produção": "producao",
-        }
-        
-        usuario_setor_padrao = setor_map.get(usuario_setor_norm, usuario_setor.lower())
-        setor_tarefa_padrao = setor_map.get(setor_tarefa_norm, setor_tarefa.lower())
-        
-        # Operador só pode finalizar tarefas do seu setor
-        return usuario_setor_padrao == setor_tarefa_padrao
-    
-    return False
+
+    if usuario_role != "operador":
+        return False
+
+    return normalize_setor(usuario_setor) == normalize_setor(setor_tarefa)
+
+
+def validar_contexto_usuario_operador(usuario_id: Optional[str], usuario_setor: Optional[str]) -> None:
+    if not usuario_id or not usuario_setor:
+        raise HTTPException(
+            status_code=400,
+            detail="Operador deve informar usuario_id e usuario_setor.",
+        )
+
+
+async def obter_ids_atribuicoes_operador(
+    db: AsyncSession,
+    usuario_id: str,
+    usuario_setor: str,
+) -> Tuple[Set[str], Set[str]]:
+    """
+    Retorna IDs de projetos e contratos com tarefas atribuidas ao operador
+    no mesmo setor do operador logado.
+    """
+    query = select(
+        TarefaModel.projeto_id,
+        TarefaModel.contrato_id,
+        TarefaModel.setor,
+    ).where(TarefaModel.responsavel_id == usuario_id)
+    result = await db.execute(query)
+
+    projetos_ids: Set[str] = set()
+    contratos_ids: Set[str] = set()
+    setor_operador = normalize_setor(usuario_setor)
+
+    for projeto_id, contrato_id, setor_tarefa in result.all():
+        if normalize_setor(setor_tarefa) != setor_operador:
+            continue
+        if projeto_id:
+            projetos_ids.add(projeto_id)
+        if contrato_id:
+            contratos_ids.add(contrato_id)
+
+    return projetos_ids, contratos_ids
 
 
 def model_to_dict(obj) -> dict:
@@ -906,6 +912,17 @@ async def health_check():
 # ROUTES - Status de Tarefas
 # ==========================================
 
+def _normalizar_texto_status(nome: Optional[str]) -> str:
+    if not nome:
+        return ""
+    return "".join(ch for ch in nome.lower() if ch.isalnum())
+
+
+def _status_teste_postgres(nome: Optional[str]) -> bool:
+    normalizado = _normalizar_texto_status(nome)
+    return normalizado.startswith("statustestepostgre")
+
+
 @api_router.get("/status-tarefas", response_model=List[dict])
 async def listar_status_tarefas(db: AsyncSession = Depends(get_db)):
     """Lista todos os status de tarefas ativos"""
@@ -915,7 +932,8 @@ async def listar_status_tarefas(db: AsyncSession = Depends(get_db)):
         .where(StatusTarefaModel.ativo == True)
         .order_by(StatusTarefaModel.ordem)
     )
-    return [model_to_dict(s) for s in result.scalars().all()]
+    status = [model_to_dict(s) for s in result.scalars().all()]
+    return [s for s in status if not _status_teste_postgres(s.get("nome"))]
 
 
 @api_router.post("/status-tarefas", response_model=dict)
@@ -1304,7 +1322,7 @@ async def listar_tarefas(
 ):
     """Lista tarefas com filtros opcionais"""
     query = select(TarefaModel)
-    
+
     conditions = []
     if projeto_id:
         conditions.append(TarefaModel.projeto_id == projeto_id)
@@ -1320,30 +1338,49 @@ async def listar_tarefas(
         conditions.append(TarefaModel.finalizada == finalizada)
     if atrasada is not None:
         conditions.append(TarefaModel.atrasada == atrasada)
-    
+
     if conditions:
         query = query.where(and_(*conditions))
 
-    if usuario_role == "operador" and usuario_id and usuario_setor:
-        setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
-        if setor_norm in ["atendimento", "criacao"]:
-            query = query.where(TarefaModel.responsavel_id == usuario_id)
+    projetos_ids_operador: Set[str] = set()
+    contratos_ids_operador: Set[str] = set()
+
+    if usuario_role == "operador":
+        validar_contexto_usuario_operador(usuario_id, usuario_setor)
+        projetos_ids_operador, contratos_ids_operador = await obter_ids_atribuicoes_operador(
+            db,
+            usuario_id,
+            usuario_setor,
+        )
+        if projeto_id and projeto_id not in projetos_ids_operador:
+            raise HTTPException(status_code=403, detail="Projeto nao atribuido ao operador logado")
+        if contrato_id and contrato_id not in contratos_ids_operador:
+            raise HTTPException(status_code=403, detail="Contrato nao atribuido ao operador logado")
+        query = query.where(TarefaModel.responsavel_id == usuario_id)
 
     query = query.order_by(TarefaModel.criado_em.desc())
-    
+
     result = await db.execute(query)
     tarefas = result.scalars().all()
-    
-    # Update delay status for each task
+
     result_list = []
     for tarefa in tarefas:
+        if usuario_role == "operador":
+            if not operador_tem_acesso_tarefa(
+                tarefa_operador_id=tarefa.responsavel_id,
+                tarefa_setor=tarefa.setor,
+                usuario_id=usuario_id,
+                usuario_setor=usuario_setor,
+            ):
+                continue
+
         tarefa_dict = model_to_dict(tarefa)
         if not tarefa.finalizada:
             dias_atraso, atrasada_calc = await calcular_dias_atraso(tarefa.prazo)
             tarefa_dict["dias_atraso"] = dias_atraso
             tarefa_dict["atrasada"] = atrasada_calc
         result_list.append(tarefa_dict)
-    
+
     return result_list
 
 
@@ -1360,12 +1397,12 @@ async def listar_tarefas_por_acesso(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Lista tarefas filtradas pelo acesso do usuário.
+    Lista tarefas filtradas pelo acesso do usuario.
     - Admin e gerente veem todas as tarefas
-    - Operador vê apenas tarefas do seu setor ou do setor anterior no fluxo
+    - Operador ve apenas tarefas atribuidas para ele, no seu setor
     """
     query = select(TarefaModel)
-    
+
     conditions = []
     if projeto_id:
         conditions.append(TarefaModel.projeto_id == projeto_id)
@@ -1377,37 +1414,54 @@ async def listar_tarefas_por_acesso(
         conditions.append(TarefaModel.responsavel_id == responsavel_id)
     if finalizada is not None:
         conditions.append(TarefaModel.finalizada == finalizada)
-    
+
     if conditions:
         query = query.where(and_(*conditions))
 
-    if usuario_role == "operador" and usuario_id and usuario_setor:
-        setor_norm = usuario_setor.lower().replace("-", "").replace("_", "").replace(" ", "")
-        if setor_norm in ["atendimento", "criacao"]:
-            query = query.where(TarefaModel.responsavel_id == usuario_id)
+    if usuario_role == "operador":
+        validar_contexto_usuario_operador(usuario_id, usuario_setor)
+        projetos_ids_operador, contratos_ids_operador = await obter_ids_atribuicoes_operador(
+            db,
+            usuario_id,
+            usuario_setor,
+        )
+        if projeto_id and projeto_id not in projetos_ids_operador:
+            raise HTTPException(status_code=403, detail="Projeto nao atribuido ao operador logado")
+        if contrato_id and contrato_id not in contratos_ids_operador:
+            raise HTTPException(status_code=403, detail="Contrato nao atribuido ao operador logado")
+        query = query.where(TarefaModel.responsavel_id == usuario_id)
 
     query = query.order_by(TarefaModel.criado_em.desc())
-    
+
     result = await db.execute(query)
     tarefas = result.scalars().all()
-    
-    # Filtrar por acesso do usuário
+
     result_list = []
     for tarefa in tarefas:
-        # Verificar se o usuário tem acesso a esta tarefa
-        if verificar_acesso_setor(usuario_role, usuario_setor, tarefa.setor):
-            tarefa_dict = model_to_dict(tarefa)
-            if not tarefa.finalizada:
-                dias_atraso, atrasada_calc = await calcular_dias_atraso(tarefa.prazo)
-                tarefa_dict["dias_atraso"] = dias_atraso
-                tarefa_dict["atrasada"] = atrasada_calc
-            
-            # Adicionar flag se pode finalizar
-            tarefa_dict["pode_finalizar"] = verificar_pode_finalizar_tarefa(
-                usuario_role, usuario_setor, tarefa.setor
-            )
-            result_list.append(tarefa_dict)
-    
+        if usuario_role == "operador":
+            if not operador_tem_acesso_tarefa(
+                tarefa_operador_id=tarefa.responsavel_id,
+                tarefa_setor=tarefa.setor,
+                usuario_id=usuario_id,
+                usuario_setor=usuario_setor,
+            ):
+                continue
+        elif not verificar_acesso_setor(usuario_role, usuario_setor, tarefa.setor):
+            continue
+
+        tarefa_dict = model_to_dict(tarefa)
+        if not tarefa.finalizada:
+            dias_atraso, atrasada_calc = await calcular_dias_atraso(tarefa.prazo)
+            tarefa_dict["dias_atraso"] = dias_atraso
+            tarefa_dict["atrasada"] = atrasada_calc
+
+        tarefa_dict["pode_finalizar"] = verificar_pode_finalizar_tarefa(
+            usuario_role,
+            usuario_setor,
+            tarefa.setor,
+        )
+        result_list.append(tarefa_dict)
+
     return result_list
 
 
@@ -1463,22 +1517,38 @@ async def obter_setores_acessiveis(
 
 
 @api_router.get("/tarefas/{tarefa_id}", response_model=dict)
-async def obter_tarefa(tarefa_id: str, db: AsyncSession = Depends(get_db)):
-    """Obtém uma tarefa específica"""
+async def obter_tarefa(
+    tarefa_id: str,
+    usuario_role: Optional[str] = None,
+    usuario_setor: Optional[str] = None,
+    usuario_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Obtem uma tarefa especifica"""
     result = await db.execute(
         select(TarefaModel).where(TarefaModel.id == tarefa_id)
     )
     tarefa = result.scalar_one_or_none()
-    
+
     if not tarefa:
-        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    
+        raise HTTPException(status_code=404, detail="Tarefa nao encontrada")
+
+    if usuario_role == "operador":
+        validar_contexto_usuario_operador(usuario_id, usuario_setor)
+        if not operador_tem_acesso_tarefa(
+            tarefa_operador_id=tarefa.responsavel_id,
+            tarefa_setor=tarefa.setor,
+            usuario_id=usuario_id,
+            usuario_setor=usuario_setor,
+        ):
+            raise HTTPException(status_code=403, detail="Tarefa nao atribuida ao operador logado")
+
     tarefa_dict = model_to_dict(tarefa)
     if not tarefa.finalizada:
         dias_atraso, atrasada = await calcular_dias_atraso(tarefa.prazo)
         tarefa_dict["dias_atraso"] = dias_atraso
         tarefa_dict["atrasada"] = atrasada
-    
+
     return tarefa_dict
 
 
@@ -1638,36 +1708,53 @@ async def finalizar_tarefa(
     input: TarefaFinalizar,
     db: AsyncSession = Depends(get_db)
 ):
-    """Finaliza uma tarefa com observação obrigatória e recalcula prazos das próximas etapas"""
+    """Finaliza uma tarefa com observacao obrigatoria e recalcula prazos das proximas etapas"""
     result = await db.execute(
         select(TarefaModel).where(TarefaModel.id == tarefa_id)
     )
     tarefa = result.scalar_one_or_none()
-    
+
     if not tarefa:
-        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    
+        raise HTTPException(status_code=404, detail="Tarefa nao encontrada")
+
     if tarefa.finalizada:
-        raise HTTPException(status_code=400, detail="Tarefa já está finalizada")
-    
-    # Verificar se operador pode finalizar esta tarefa (apenas seu próprio setor)
+        raise HTTPException(status_code=400, detail="Tarefa ja esta finalizada")
+
+    # Operador deve finalizar apenas tarefa atribuida, no setor e contrato corretos
+    if input.usuario_role == "operador":
+        valido, mensagem_erro = validar_contexto_finalizacao_operador(
+            tarefa_operador_id=tarefa.responsavel_id,
+            tarefa_setor=tarefa.setor,
+            tarefa_contrato_id=tarefa.contrato_id,
+            usuario_id=input.usuario_id,
+            usuario_setor=input.usuario_setor,
+            contrato_id_selecionado=input.contrato_id_selecionado,
+        )
+        if not valido:
+            raise HTTPException(status_code=403, detail=mensagem_erro)
+    elif input.contrato_id_selecionado and input.contrato_id_selecionado != tarefa.contrato_id:
+        raise HTTPException(status_code=400, detail="Contrato selecionado nao corresponde ao contrato da tarefa")
+
     if not verificar_pode_finalizar_tarefa(input.usuario_role, input.usuario_setor, tarefa.setor):
         raise HTTPException(
-            status_code=403, 
-            detail=f"Operadores só podem finalizar tarefas do seu próprio setor ({input.usuario_setor}). Esta tarefa pertence ao setor {tarefa.setor}."
+            status_code=403,
+            detail=(
+                f"Operadores so podem finalizar tarefas do proprio setor ({input.usuario_setor}). "
+                f"Esta tarefa pertence ao setor {tarefa.setor}."
+            ),
         )
-    
-    # Get "Concluído" status
+
+    # Get "Concluido" status
     result = await db.execute(
         select(StatusTarefaModel).where(StatusTarefaModel.nome == "Concluído")
     )
     status_concluido = result.scalar_one_or_none()
-    
+
     if not status_concluido:
-        raise HTTPException(status_code=500, detail="Status 'Concluído' não encontrado")
-    
+        raise HTTPException(status_code=500, detail="Status 'Concluido' nao encontrado")
+
     now = datetime.now(timezone.utc)
-    
+
     historico = tarefa.historico or []
     historico.append({
         "id": str(uuid.uuid4()),
@@ -1677,9 +1764,12 @@ async def finalizar_tarefa(
         "setor": input.usuario_setor,
         "data": now.isoformat(),
         "observacao": input.observacao,
-        "detalhes": f"Tarefa finalizada por {input.usuario_nome} ({input.usuario_setor})"
+        "detalhes": (
+            f"Tarefa finalizada por {input.usuario_nome} ({input.usuario_setor}) "
+            f"no contrato {tarefa.contrato_id}"
+        ),
     })
-    
+
     tarefa.finalizada = True
     tarefa.data_finalizacao = now
     tarefa.observacao_finalizacao = input.observacao
@@ -1687,25 +1777,30 @@ async def finalizar_tarefa(
     tarefa.status_nome = "Concluído"
     tarefa.atualizado_em = now
     tarefa.historico = historico
-    
+
     await db.commit()
-    
-    logger.info(f"Tarefa finalizada: {tarefa_id} por {input.usuario_nome} ({input.usuario_setor})")
-    
-    # Recalcular prazos das próximas tarefas do projeto
+
+    logger.info(
+        f"Tarefa finalizada: {tarefa_id} por {input.usuario_nome} "
+        f"({input.usuario_setor}) no contrato {tarefa.contrato_id}"
+    )
+
+    # Recalcular prazos das proximas tarefas do projeto
     prazos_recalculados = []
     if tarefa.projeto_id:
         prazos_recalculados = await recalcular_prazos_projeto(
             db, tarefa.projeto_id, tarefa_id, now
         )
         if prazos_recalculados:
-            logger.info(f"Prazos recalculados para {len(prazos_recalculados)} tarefas do projeto {tarefa.projeto_id}")
+            logger.info(
+                f"Prazos recalculados para {len(prazos_recalculados)} tarefas do projeto {tarefa.projeto_id}"
+            )
         await atualizar_projeto_prazos(db, tarefa.projeto_id)
-    
+
     await db.refresh(tarefa)
     result_dict = model_to_dict(tarefa)
     result_dict["prazos_recalculados"] = prazos_recalculados
-    
+
     return result_dict
 
 
@@ -1720,23 +1815,37 @@ async def alterar_status_tarefa(
         select(TarefaModel).where(TarefaModel.id == tarefa_id)
     )
     tarefa = result.scalar_one_or_none()
-    
+
     if not tarefa:
-        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    
+        raise HTTPException(status_code=404, detail="Tarefa nao encontrada")
+
     if tarefa.finalizada:
-        raise HTTPException(status_code=400, detail="Não é possível alterar status de tarefa finalizada")
-    
+        raise HTTPException(status_code=400, detail="Nao e possivel alterar status de tarefa finalizada")
+
+    if input.usuario_role == "operador":
+        if not operador_tem_acesso_tarefa(
+            tarefa_operador_id=tarefa.responsavel_id,
+            tarefa_setor=tarefa.setor,
+            usuario_id=input.usuario_id,
+            usuario_setor=input.usuario_setor,
+        ):
+            raise HTTPException(status_code=403, detail="Tarefa nao atribuida ao operador logado")
+        contrato_referencia = input.contrato_id_selecionado or tarefa.contrato_id
+        if contrato_referencia != tarefa.contrato_id:
+            raise HTTPException(status_code=403, detail="Tarefa fora do contrato selecionado")
+    elif input.contrato_id_selecionado and input.contrato_id_selecionado != tarefa.contrato_id:
+        raise HTTPException(status_code=400, detail="Contrato selecionado nao corresponde ao contrato da tarefa")
+
     result = await db.execute(
         select(StatusTarefaModel).where(StatusTarefaModel.id == input.status_id)
     )
     status = result.scalar_one_or_none()
-    
+
     if not status:
-        raise HTTPException(status_code=400, detail="Status não encontrado")
-    
+        raise HTTPException(status_code=400, detail="Status nao encontrado")
+
     now = datetime.now(timezone.utc)
-    
+
     historico = tarefa.historico or []
     historico.append({
         "id": str(uuid.uuid4()),
@@ -1746,17 +1855,20 @@ async def alterar_status_tarefa(
         "setor": input.usuario_setor,
         "data": now.isoformat(),
         "observacao": input.observacao,
-        "detalhes": f"Status alterado de '{tarefa.status_nome}' para '{status.nome}'"
+        "detalhes": (
+            f"Status alterado de '{tarefa.status_nome}' para '{status.nome}' "
+            f"no contrato {tarefa.contrato_id}"
+        ),
     })
-    
+
     tarefa.status_id = input.status_id
     tarefa.status_nome = status.nome
     tarefa.atualizado_em = now
     tarefa.historico = historico
-    
+
     await db.commit()
     await db.refresh(tarefa)
-    
+
     return model_to_dict(tarefa)
 
 
@@ -2725,26 +2837,50 @@ async def relatorio_mensal(db: AsyncSession = Depends(get_db)):
 # ==========================================
 
 @api_router.get("/contratos", response_model=List[dict])
-async def listar_contratos(db: AsyncSession = Depends(get_db)):
-    """Lista todos os contratos"""
-    result = await db.execute(
-        select(ContratoModel).order_by(ContratoModel.criado_em.desc())
-    )
+async def listar_contratos(
+    user_role: Optional[str] = None,
+    user_id: Optional[str] = None,
+    user_setor: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Lista contratos respeitando regras de acesso do operador."""
+    query = select(ContratoModel)
+
+    if user_role == "operador":
+        validar_contexto_usuario_operador(user_id, user_setor)
+        _, contratos_ids = await obter_ids_atribuicoes_operador(db, user_id, user_setor)
+        if not contratos_ids:
+            return []
+        query = query.where(ContratoModel.id.in_(contratos_ids))
+
+    result = await db.execute(query.order_by(ContratoModel.criado_em.desc()))
     contratos = result.scalars().all()
     return [model_to_dict(c) for c in contratos]
 
 
 @api_router.get("/contratos/{contrato_id}", response_model=dict)
-async def obter_contrato(contrato_id: str, db: AsyncSession = Depends(get_db)):
-    """Obtém um contrato específico"""
+async def obter_contrato(
+    contrato_id: str,
+    user_role: Optional[str] = None,
+    user_id: Optional[str] = None,
+    user_setor: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Obtem um contrato especifico com controle de acesso por operador."""
+    if user_role == "operador":
+        validar_contexto_usuario_operador(user_id, user_setor)
+        _, contratos_ids = await obter_ids_atribuicoes_operador(db, user_id, user_setor)
+        if contrato_id not in contratos_ids:
+            raise HTTPException(status_code=403, detail="Contrato nao atribuido ao operador logado")
+
     result = await db.execute(
         select(ContratoModel).where(ContratoModel.id == contrato_id)
     )
     contrato = result.scalar_one_or_none()
-    
+
     if not contrato:
-        raise HTTPException(status_code=404, detail="Contrato não encontrado")
-    
+        raise HTTPException(status_code=404, detail="Contrato nao encontrado")
+
     return model_to_dict(contrato)
 
 
@@ -3004,82 +3140,176 @@ async def deletar_contrato(
 # ==========================================
 
 @api_router.get("/projetos", response_model=List[dict])
-async def listar_projetos(user_role: str = Query(...), db: AsyncSession = Depends(get_db)):
-    """Lista todos os projetos"""
-    if user_role not in ["admin", "gerente"]:
-        raise HTTPException(status_code=403, detail="Acesso restrito a Admin/Gerente")
-    result = await db.execute(
-        select(ProjetoModel).order_by(ProjetoModel.criado_em.desc())
-    )
+async def listar_projetos(
+    user_role: str = Query(...),
+    user_id: Optional[str] = None,
+    user_setor: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Lista projetos conforme role e atribuicoes do operador."""
+    if user_role not in ["admin", "gerente", "operador"]:
+        raise HTTPException(status_code=403, detail="Acesso restrito")
+
+    if user_role == "operador":
+        validar_contexto_usuario_operador(user_id, user_setor)
+        projetos_ids_operador, _ = await obter_ids_atribuicoes_operador(db, user_id, user_setor)
+        if not projetos_ids_operador:
+            return []
+        query = select(ProjetoModel).where(ProjetoModel.id.in_(projetos_ids_operador))
+    else:
+        query = select(ProjetoModel)
+
+    result = await db.execute(query.order_by(ProjetoModel.criado_em.desc()))
     projetos = result.scalars().all()
-    
+
     result_list = []
     for projeto in projetos:
         projeto_dict = model_to_dict(projeto)
-        
-        # Calcular progresso baseado nas tarefas
+
+        contrato_result = await db.execute(
+            select(ContratoModel).where(ContratoModel.id == projeto.contrato_id)
+        )
+        contrato = contrato_result.scalar_one_or_none()
+        if contrato:
+            projeto_dict["contratos"] = [{
+                "id": contrato.id,
+                "numero_contrato": contrato.numero_contrato,
+                "cliente": contrato.cliente,
+                "status": contrato.status,
+            }]
+        else:
+            projeto_dict["contratos"] = []
+
         tarefas_result = await db.execute(
             select(TarefaModel).where(TarefaModel.projeto_id == projeto.id)
         )
         tarefas = tarefas_result.scalars().all()
-        
-        if tarefas:
-            total_tarefas = len(tarefas)
-            tarefas_concluidas = sum(1 for t in tarefas if t.finalizada)
-            projeto_dict["progresso"] = round((tarefas_concluidas / total_tarefas) * 100, 1)
-            
-            # Calcular risco baseado em atrasos
-            tarefas_atrasadas = 0
-            total_dias_atraso = 0
-            for tarefa in tarefas:
-                if not tarefa.finalizada:
-                    dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
-                    if is_atrasada:
-                        tarefas_atrasadas += 1
-                        total_dias_atraso += dias_atraso
-            
-            # Definir nível de risco
-            if tarefas_atrasadas == 0:
-                projeto_dict["risco"] = "baixo"
-            elif tarefas_atrasadas <= 2 and total_dias_atraso < 7:
-                projeto_dict["risco"] = "medio"
-            elif tarefas_atrasadas <= 5 or total_dias_atraso < 15:
-                projeto_dict["risco"] = "alto"
-            else:
-                projeto_dict["risco"] = "critico"
-            
-            # Atualizar etapa atual
-            for tarefa in tarefas:
-                if not tarefa.finalizada:
-                    projeto_dict["etapa_atual"] = tarefa.titulo
-                    break
-        
+
+        if user_role == "operador":
+            tarefas = [
+                t for t in tarefas
+                if operador_tem_acesso_tarefa(
+                    tarefa_operador_id=t.responsavel_id,
+                    tarefa_setor=t.setor,
+                    usuario_id=user_id,
+                    usuario_setor=user_setor,
+                )
+            ]
+            if not tarefas:
+                continue
+
+        tarefas_atrasadas = 0
+        total_dias_atraso = 0
+        tarefas_list = []
+        for tarefa in tarefas:
+            tarefa_dict = model_to_dict(tarefa)
+            if not tarefa.finalizada:
+                dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
+                tarefa_dict["dias_atraso"] = dias_atraso
+                tarefa_dict["atrasada"] = is_atrasada
+                if is_atrasada:
+                    tarefas_atrasadas += 1
+                    total_dias_atraso += dias_atraso
+            tarefas_list.append(tarefa_dict)
+
+        total_tarefas = len(tarefas)
+        tarefas_concluidas = sum(1 for t in tarefas if t.finalizada)
+        tarefas_em_andamento = sum(
+            1 for t in tarefas if not t.finalizada and t.status_nome == "Em Andamento"
+        )
+        tarefas_pendentes = sum(
+            1 for t in tarefas if not t.finalizada and t.status_nome != "Em Andamento"
+        )
+
+        projeto_dict["total_tarefas"] = total_tarefas
+        projeto_dict["tarefas_concluidas"] = tarefas_concluidas
+        projeto_dict["tarefas_em_andamento"] = tarefas_em_andamento
+        projeto_dict["tarefas_pendentes"] = tarefas_pendentes
+        projeto_dict["tarefas_atrasadas"] = tarefas_atrasadas
+        projeto_dict["progresso"] = round((tarefas_concluidas / total_tarefas) * 100, 1) if total_tarefas else 0
+
+        if tarefas_atrasadas == 0:
+            projeto_dict["risco"] = "baixo"
+        elif tarefas_atrasadas <= 2 and total_dias_atraso < 7:
+            projeto_dict["risco"] = "medio"
+        elif tarefas_atrasadas <= 5 or total_dias_atraso < 15:
+            projeto_dict["risco"] = "alto"
+        else:
+            projeto_dict["risco"] = "critico"
+
+        for tarefa in tarefas:
+            if not tarefa.finalizada:
+                projeto_dict["etapa_atual"] = tarefa.titulo
+                break
+
+        if user_role == "operador":
+            projeto_dict["tarefas_operador"] = tarefas_list
+
         result_list.append(projeto_dict)
-    
+
     return result_list
 
 
 @api_router.get("/projetos/{projeto_id}", response_model=dict)
-async def obter_projeto(projeto_id: str, user_role: str = Query(...), db: AsyncSession = Depends(get_db)):
-    """Obtém um projeto específico com detalhes"""
-    if user_role not in ["admin", "gerente"]:
-        raise HTTPException(status_code=403, detail="Acesso restrito a Admin/Gerente")
+async def obter_projeto(
+    projeto_id: str,
+    user_role: str = Query(...),
+    user_id: Optional[str] = None,
+    user_setor: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """Obtem um projeto especifico com regras de acesso por operador."""
+    if user_role not in ["admin", "gerente", "operador"]:
+        raise HTTPException(status_code=403, detail="Acesso restrito")
+
+    if user_role == "operador":
+        validar_contexto_usuario_operador(user_id, user_setor)
+        projetos_ids_operador, _ = await obter_ids_atribuicoes_operador(db, user_id, user_setor)
+        if projeto_id not in projetos_ids_operador:
+            raise HTTPException(status_code=403, detail="Projeto nao atribuido ao operador logado")
+
     result = await db.execute(
         select(ProjetoModel).where(ProjetoModel.id == projeto_id)
     )
     projeto = result.scalar_one_or_none()
-    
+
     if not projeto:
-        raise HTTPException(status_code=404, detail="Projeto não encontrado")
-    
+        raise HTTPException(status_code=404, detail="Projeto nao encontrado")
+
     projeto_dict = model_to_dict(projeto)
-    
-    # Buscar tarefas do projeto
+
+    contrato_result = await db.execute(
+        select(ContratoModel).where(ContratoModel.id == projeto.contrato_id)
+    )
+    contrato = contrato_result.scalar_one_or_none()
+    if contrato:
+        projeto_dict["contratos"] = [{
+            "id": contrato.id,
+            "numero_contrato": contrato.numero_contrato,
+            "cliente": contrato.cliente,
+            "status": contrato.status,
+        }]
+    else:
+        projeto_dict["contratos"] = []
+
     tarefas_result = await db.execute(
         select(TarefaModel).where(TarefaModel.projeto_id == projeto_id)
     )
     tarefas = tarefas_result.scalars().all()
-    
+
+    if user_role == "operador":
+        tarefas = [
+            t for t in tarefas
+            if operador_tem_acesso_tarefa(
+                tarefa_operador_id=t.responsavel_id,
+                tarefa_setor=t.setor,
+                usuario_id=user_id,
+                usuario_setor=user_setor,
+            )
+        ]
+        if not tarefas:
+            raise HTTPException(status_code=403, detail="Projeto nao possui tarefas atribuidas ao operador")
+
     tarefas_list = []
     for tarefa in tarefas:
         tarefa_dict = model_to_dict(tarefa)
@@ -3088,17 +3318,19 @@ async def obter_projeto(projeto_id: str, user_role: str = Query(...), db: AsyncS
             tarefa_dict["dias_atraso"] = dias_atraso
             tarefa_dict["atrasada"] = atrasada
         tarefas_list.append(tarefa_dict)
-    
+
     projeto_dict["tarefas"] = tarefas_list
     projeto_dict["total_tarefas"] = len(tarefas)
     projeto_dict["tarefas_concluidas"] = sum(1 for t in tarefas if t.finalizada)
-    
+    projeto_dict["tarefas_em_andamento"] = sum(
+        1 for t in tarefas if not t.finalizada and t.status_nome == "Em Andamento"
+    )
+    projeto_dict["tarefas_pendentes"] = sum(
+        1 for t in tarefas if not t.finalizada and t.status_nome != "Em Andamento"
+    )
+
     return projeto_dict
 
-
-# ==========================================
-# ROUTES - Notificações
-# ==========================================
 
 @api_router.get("/notificacoes/{usuario_id}", response_model=List[dict])
 async def listar_notificacoes(
@@ -3258,13 +3490,39 @@ async def responder_cobranca(
 # ==========================================
 
 @api_router.get("/dashboard-avancado", response_model=dict)
-async def dashboard_avancado(db: AsyncSession = Depends(get_db)):
+async def dashboard_avancado(
+    user_role: Optional[str] = None,
+    user_id: Optional[str] = None,
+    user_setor: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
     """Dashboard com informações detalhadas para gestores"""
-    projetos_result = await db.execute(select(ProjetoModel))
-    projetos = projetos_result.scalars().all()
-    
-    tarefas_result = await db.execute(select(TarefaModel))
-    tarefas = tarefas_result.scalars().all()
+    if user_role == "operador":
+        validar_contexto_usuario_operador(user_id, user_setor)
+        projetos_ids_operador, _ = await obter_ids_atribuicoes_operador(db, user_id, user_setor)
+        if projetos_ids_operador:
+            projetos_result = await db.execute(
+                select(ProjetoModel).where(ProjetoModel.id.in_(projetos_ids_operador))
+            )
+            tarefas_result = await db.execute(
+                select(TarefaModel).where(
+                    and_(
+                        TarefaModel.projeto_id.in_(projetos_ids_operador),
+                        TarefaModel.responsavel_id == user_id
+                    )
+                )
+            )
+            projetos = projetos_result.scalars().all()
+            tarefas = tarefas_result.scalars().all()
+        else:
+            projetos = []
+            tarefas = []
+    else:
+        projetos_result = await db.execute(select(ProjetoModel))
+        projetos = projetos_result.scalars().all()
+        
+        tarefas_result = await db.execute(select(TarefaModel))
+        tarefas = tarefas_result.scalars().all()
     
     total_projetos = len(projetos)
     projetos_em_andamento = sum(1 for p in projetos if p.status == "Em Andamento")
@@ -3275,6 +3533,15 @@ async def dashboard_avancado(db: AsyncSession = Depends(get_db)):
     for tarefa in tarefas:
         if tarefa.finalizada:
             continue
+        
+        if user_role == "operador":
+            if not operador_tem_acesso_tarefa(
+                tarefa_operador_id=tarefa.responsavel_id,
+                tarefa_setor=tarefa.setor,
+                usuario_id=user_id,
+                usuario_setor=user_setor,
+            ):
+                continue
         
         responsavel = tarefa.responsavel_nome or "Não atribuído"
         dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)

@@ -15,7 +15,7 @@ import { finalizarTarefa } from '../services/api';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import './FinalizarTarefaModal.css';
 
-const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
+const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess, contratoSelecionadoId = null }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -39,6 +39,7 @@ const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
         usuario_nome: user?.nome || 'Usuário',
         usuario_setor: user?.setor || 'Geral',
         usuario_role: user?.role || 'operador',
+        contrato_id_selecionado: contratoSelecionadoId || tarefa?.contrato_id || null,
       });
       
       setObservacao('');
@@ -78,6 +79,7 @@ const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess }) => {
               {/* Info da tarefa */}
               <div className="mb-4 p-3 bg-gray-50 rounded-lg space-y-1 text-sm">
                 <div><strong>Setor:</strong> {tarefa?.setor}</div>
+                <div><strong>Contrato:</strong> {tarefa?.contrato_id || '-'}</div>
                 <div><strong>Responsável:</strong> {tarefa?.responsavel_nome || 'Não definido'}</div>
                 <div><strong>Criada por:</strong> {tarefa?.criado_por_nome} ({tarefa?.criado_por_setor})</div>
                 {tarefa?.prazo && (

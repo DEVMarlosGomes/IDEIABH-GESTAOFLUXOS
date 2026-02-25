@@ -62,7 +62,11 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
         
         // Fetch projetos from API
         try {
-          const projetosData = await getProjetos(user?.role || 'operador');
+          const projetosData = await getProjetos(
+            user?.role || 'operador',
+            user?.id || null,
+            user?.setor || null
+          );
           setProjetos(projetosData || []);
         } catch (err) {
           console.error('Error loading projetos:', err);
@@ -71,7 +75,11 @@ const TarefaModal = ({ isOpen, onClose, onSuccess, projetoId = null, contratoId 
         
         // Fetch contratos from API
         try {
-          const contratosData = await getContratos();
+          const contratosData = await getContratos({
+            user_role: user?.role || 'operador',
+            user_id: user?.id || null,
+            user_setor: user?.setor || null
+          });
           setContratos(contratosData || []);
         } catch (err) {
           console.error('Error loading contratos:', err);

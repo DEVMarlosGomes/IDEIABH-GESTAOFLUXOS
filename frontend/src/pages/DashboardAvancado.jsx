@@ -57,15 +57,20 @@ const DashboardAvancado = () => {
   };
 
   useEffect(() => {
+    if (!user?.role) return;
     loadDashboard();
     // Atualizar a cada 30 segundos
     const interval = setInterval(loadDashboard, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user?.role, user?.id, user?.setor]);
 
   const loadDashboard = async () => {
     try {
-      const data = await getDashboardAvancado();
+      const data = await getDashboardAvancado({
+        user_role: user?.role || 'operador',
+        user_id: user?.id || null,
+        user_setor: user?.setor || null
+      });
       setDashboardData(data);
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
@@ -195,12 +200,23 @@ const DashboardAvancado = () => {
           projeto.etapa_atual_setor ||
           projeto.departamento ||
           projeto.setor_atual;
-        return projetoSetor ? setorMatches(projetoSetor) : false;
+        return projetoSetor ? setorMatches(projetoSetor) : true;
       })
     : projetosEmAndamentoRaw;
 
+  const atrasoPertenceAoOperador = (atraso) => {
+    if (atraso?.responsavel_id && user?.id) {
+      return atraso.responsavel_id === user.id;
+    }
+    const nomeUsuario = (user?.nome || user?.username || '').trim().toLowerCase();
+    if (nomeUsuario && atraso?.responsavel) {
+      return atraso.responsavel.trim().toLowerCase() === nomeUsuario;
+    }
+    return false;
+  };
+
   const alertas_atrasos = isOperador
-    ? alertasAtrasosRaw.filter((atraso) => setorMatches(atraso.setor))
+    ? alertasAtrasosRaw.filter((atraso) => atrasoPertenceAoOperador(atraso))
     : alertasAtrasosRaw;
 
   const carga_por_responsavel = isOperador
@@ -218,9 +234,7 @@ const DashboardAvancado = () => {
         total_projetos: projetos_em_andamento.length,
         projetos_em_andamento: projetos_em_andamento.length,
         total_tarefas_atrasadas: alertas_atrasos.length,
-        responsaveis_com_atraso: new Set(
-          alertas_atrasos.map((a) => a.responsavel).filter(Boolean)
-        ).size,
+        responsaveis_com_atraso: 0,
       }
     : dashboardData.resumo;
 
@@ -246,13 +260,13 @@ const DashboardAvancado = () => {
       color: '#ef4444',
       bgColor: '#fef2f2'
     },
-    {
+    ...(!isOperador ? [{
       title: 'Responsáveis com Atraso',
       value: resumo.responsaveis_com_atraso,
       icon: Users,
       color: '#f59e0b',
       bgColor: '#fffbeb'
-    }
+    }] : [])
   ];
 
   const podeCobrar = user?.role === 'admin' || user?.role === 'gerente';
@@ -341,7 +355,7 @@ const DashboardAvancado = () => {
             <CardHeader>
               <CardTitle className="card-title text-red-600">
                 <AlertTriangle size={20} />
-                Alertas de Atrasos
+                {isOperador ? 'Minhas Demandas em Atraso' : 'Alertas de Atrasos'}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -351,9 +365,11 @@ const DashboardAvancado = () => {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <p className="font-semibold text-sm">{atraso.titulo}</p>
-                        <p className="text-xs text-gray-600 mt-1">
-                          {atraso.responsavel || 'Não atribuído'}
-                        </p>
+                        {!isOperador && (
+                          <p className="text-xs text-gray-600 mt-1">
+                            {atraso.responsavel || 'Não atribuído'}
+                          </p>
+                        )}
                         <p className="text-xs text-gray-500 mt-1 capitalize">
                           {atraso.setor}
                         </p>
@@ -391,7 +407,7 @@ const DashboardAvancado = () => {
           </Card>
         </div>
 
-        {/* Carga por Responsável */}
+        {!isOperador && (
         <Card className="load-card mt-6">
           <CardHeader>
             <CardTitle className="card-title">
@@ -471,6 +487,7 @@ const DashboardAvancado = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Modal de Cobrança */}
         <Dialog open={cobrancaModal} onOpenChange={setCobrancaModal}>

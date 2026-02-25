@@ -13,9 +13,16 @@ const api = axios.create({
 // Status de Tarefas
 // ==========================================
 
+const isStatusTestePostgre = (nome = '') => {
+  const normalizado = String(nome || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+  return normalizado.startsWith('statustestepostgre');
+};
+
 export const getStatusTarefas = async () => {
   const response = await api.get('/api/status-tarefas');
-  return response.data;
+  return (response.data || []).filter((status) => !isStatusTestePostgre(status?.nome));
 };
 
 export const criarStatusTarefa = async (data, userRole, userId) => {
@@ -55,8 +62,13 @@ export const getTarefas = async (filters = {}) => {
   return response.data;
 };
 
-export const getTarefa = async (tarefaId) => {
-  const response = await api.get(`/api/tarefas/${tarefaId}`);
+export const getTarefa = async (tarefaId, context = {}) => {
+  const params = new URLSearchParams();
+  if (context.usuario_role) params.append('usuario_role', context.usuario_role);
+  if (context.usuario_setor) params.append('usuario_setor', context.usuario_setor);
+  if (context.usuario_id) params.append('usuario_id', context.usuario_id);
+  const query = params.toString();
+  const response = await api.get(`/api/tarefas/${tarefaId}${query ? `?${query}` : ''}`);
   return response.data;
 };
 
@@ -188,13 +200,23 @@ export const getRelatorioMensal = async () => {
 // Contratos
 // ==========================================
 
-export const getContratos = async () => {
-  const response = await api.get('/api/contratos');
+export const getContratos = async (context = {}) => {
+  const params = new URLSearchParams();
+  if (context.user_role) params.append('user_role', context.user_role);
+  if (context.user_id) params.append('user_id', context.user_id);
+  if (context.user_setor) params.append('user_setor', context.user_setor);
+  const query = params.toString();
+  const response = await api.get(`/api/contratos${query ? `?${query}` : ''}`);
   return response.data;
 };
 
-export const getContrato = async (contratoId) => {
-  const response = await api.get(`/api/contratos/${contratoId}`);
+export const getContrato = async (contratoId, context = {}) => {
+  const params = new URLSearchParams();
+  if (context.user_role) params.append('user_role', context.user_role);
+  if (context.user_id) params.append('user_id', context.user_id);
+  if (context.user_setor) params.append('user_setor', context.user_setor);
+  const query = params.toString();
+  const response = await api.get(`/api/contratos/${contratoId}${query ? `?${query}` : ''}`);
   return response.data;
 };
 
@@ -217,13 +239,21 @@ export const deletarContrato = async (contratoId, userRole) => {
 // Projetos
 // ==========================================
 
-export const getProjetos = async (userRole) => {
-  const response = await api.get(`/api/projetos?user_role=${userRole}`);
+export const getProjetos = async (userRole, userId = null, userSetor = null) => {
+  const params = new URLSearchParams();
+  params.append('user_role', userRole);
+  if (userId) params.append('user_id', userId);
+  if (userSetor) params.append('user_setor', userSetor);
+  const response = await api.get(`/api/projetos?${params.toString()}`);
   return response.data;
 };
 
-export const getProjeto = async (projetoId, userRole) => {
-  const response = await api.get(`/api/projetos/${projetoId}?user_role=${userRole}`);
+export const getProjeto = async (projetoId, userRole, userId = null, userSetor = null) => {
+  const params = new URLSearchParams();
+  params.append('user_role', userRole);
+  if (userId) params.append('user_id', userId);
+  if (userSetor) params.append('user_setor', userSetor);
+  const response = await api.get(`/api/projetos/${projetoId}?${params.toString()}`);
   return response.data;
 };
 
@@ -299,8 +329,13 @@ export const atribuirTarefa = async (
 // Dashboard Avançado
 // ==========================================
 
-export const getDashboardAvancado = async () => {
-  const response = await api.get('/api/dashboard-avancado');
+export const getDashboardAvancado = async (context = {}) => {
+  const params = new URLSearchParams();
+  if (context.user_role) params.append('user_role', context.user_role);
+  if (context.user_id) params.append('user_id', context.user_id);
+  if (context.user_setor) params.append('user_setor', context.user_setor);
+  const query = params.toString();
+  const response = await api.get(`/api/dashboard-avancado${query ? `?${query}` : ''}`);
   return response.data;
 };
 

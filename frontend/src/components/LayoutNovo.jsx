@@ -105,14 +105,22 @@ const LayoutNovo = ({ children, title, subtitle }) => {
 
         if (!projetos.length) {
           try {
-            projetos = await getProjetos(user?.role || 'operador');
+            projetos = await getProjetos(
+              user?.role || 'operador',
+              user?.id || null,
+              user?.setor || null
+            );
             setProjetosCache(projetos || []);
           } catch (err) {
             projetos = [];
           }
         }
         if (!contratos.length) {
-          contratos = await getContratos();
+          contratos = await getContratos({
+            user_role: user?.role || 'operador',
+            user_id: user?.id || null,
+            user_setor: user?.setor || null
+          });
           setContratosCache(contratos || []);
         }
 
@@ -254,6 +262,13 @@ const LayoutNovo = ({ children, title, subtitle }) => {
   };
 
   const handleSearchResultClick = (result) => {
+    if (user?.role === 'operador') {
+      navigate('/projetos');
+      setSearchTerm('');
+      setShowSearchResults(false);
+      return;
+    }
+
     if (result.type === 'projeto') {
       navigate('/projetos');
     } else {

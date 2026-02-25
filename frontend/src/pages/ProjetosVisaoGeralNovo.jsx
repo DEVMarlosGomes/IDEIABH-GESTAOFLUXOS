@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent } from '../components/ui/card';
@@ -12,12 +12,20 @@ import {
   FileText,
   Loader2,
   LayoutGrid,
-  List
+  List,
+  Filter,
 } from 'lucide-react';
 import { getProjetos } from '../services/api';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import './ProjetosVisaoGeral.css';
+
+const statusFiltroDaTarefa = (tarefa) => {
+  if (tarefa?.finalizada) return 'concluida';
+  const status = (tarefa?.status_nome || '').toLowerCase();
+  if (status.includes('andamento')) return 'em_andamento';
+  return 'pendente';
+};
 
 const ProjetosVisaoGeralNovo = () => {
   const navigate = useNavigate();
@@ -26,53 +34,120 @@ const ProjetosVisaoGeralNovo = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
-  const [viewMode, setViewMode] = useState('grid'); // grid ou list
+  const [viewMode, setViewMode] = useState('grid');
+
+  const [filtroContrato, setFiltroContrato] = useState('todos');
+  const [filtroStatusTarefa, setFiltroStatusTarefa] = useState('todos');
+  const [filtroData, setFiltroData] = useState('');
+  const [filtroPrioridade, setFiltroPrioridade] = useState('todos');
+
+  const isOperador = user?.role === 'operador';
 
   useEffect(() => {
     loadProjetos();
-  }, [user?.role]);
+  }, [user?.role, user?.id, user?.setor]);
 
   const loadProjetos = async () => {
-    if (!['admin', 'gerente'].includes(user?.role)) {
-      setProjetos([]);
-      setLoading(false);
-      return;
-    }
     try {
       setLoading(true);
-      const data = await getProjetos(user?.role || 'operador');
-      setProjetos(data);
+      const data = await getProjetos(
+        user?.role || 'operador',
+        user?.id || null,
+        user?.setor || null
+      );
+      setProjetos(data || []);
     } catch (error) {
       console.error('Erro ao carregar projetos:', error);
-      toast.error('Erro ao carregar projetos');
+      toast.error(error?.response?.data?.detail || 'Erro ao carregar projetos');
+      setProjetos([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filtrar projetos
-  const projetosFiltrados = projetos.filter(projeto => {
-    const matchSearch = projeto.cliente?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    let matchStatus = true;
-    if (filterStatus === 'ativos') {
-      matchStatus = projeto.status === 'Em Andamento' && !projeto.atrasado;
-    } else if (filterStatus === 'atrasados') {
-      matchStatus = projeto.tarefas_atrasadas > 0;
-    } else if (filterStatus === 'concluidos') {
-      matchStatus = projeto.progresso === 100;
-    }
-    
-    return matchSearch && matchStatus;
-  });
+  const contratosDisponiveis = useMemo(() => {
+    const mapa = new Map();
+    (projetos || []).forEach((projeto) => {
+      (projeto.contratos || []).forEach((contrato) => {
+        if (!contrato?.id) return;
+        if (!mapa.has(contrato.id)) {
+          mapa.set(contrato.id, contrato);
+        }
+      });
+    });
+    return Array.from(mapa.values());
+  }, [projetos]);
 
-  // Contar por status
-  const counts = {
-    todos: projetos.length,
-    ativos: projetos.filter(p => p.status === 'Em Andamento' && p.tarefas_atrasadas === 0).length,
-    atrasados: projetos.filter(p => p.tarefas_atrasadas > 0).length,
-    concluidos: projetos.filter(p => p.progresso === 100).length
-  };
+  const projetosComContexto = useMemo(() => {
+    return (projetos || []).map((projeto) => {
+      const tarefasOperador = projeto.tarefas_operador || [];
+      const tarefasNoContexto = tarefasOperador.filter((tarefa) => {
+        if (filtroContrato !== 'todos' && tarefa.contrato_id !== filtroContrato) {
+          return false;
+        }
+
+        if (filtroStatusTarefa !== 'todos' && statusFiltroDaTarefa(tarefa) !== filtroStatusTarefa) {
+          return false;
+        }
+
+        if (filtroData) {
+          const dataPrazo = tarefa?.prazo ? new Date(tarefa.prazo).toISOString().slice(0, 10) : '';
+          if (dataPrazo !== filtroData) {
+            return false;
+          }
+        }
+
+        if (filtroPrioridade !== 'todos' && (tarefa?.prioridade || 'media') !== filtroPrioridade) {
+          return false;
+        }
+
+        return true;
+      });
+
+      return {
+        ...projeto,
+        _tarefasNoContexto: tarefasNoContexto,
+      };
+    });
+  }, [projetos, filtroContrato, filtroStatusTarefa, filtroData, filtroPrioridade]);
+
+  const projetosFiltrados = useMemo(() => {
+    return projetosComContexto.filter((projeto) => {
+      const matchSearch =
+        (projeto.cliente || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (projeto.contratos || []).some((c) =>
+          (c.numero_contrato || '').toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+      if (!matchSearch) return false;
+
+      let matchStatus = true;
+      if (filterStatus === 'ativos') {
+        matchStatus = projeto.status === 'Em Andamento' && (projeto.tarefas_atrasadas || 0) === 0;
+      } else if (filterStatus === 'atrasados') {
+        matchStatus = (projeto.tarefas_atrasadas || 0) > 0;
+      } else if (filterStatus === 'concluidos') {
+        matchStatus = (projeto.progresso || 0) === 100;
+      }
+
+      if (!matchStatus) return false;
+
+      if (isOperador) {
+        return (projeto._tarefasNoContexto || []).length > 0;
+      }
+
+      return true;
+    });
+  }, [projetosComContexto, searchTerm, filterStatus, isOperador]);
+
+  const counts = useMemo(() => {
+    return {
+      todos: projetos.length,
+      ativos: projetos.filter((p) => p.status === 'Em Andamento' && (p.tarefas_atrasadas || 0) === 0).length,
+      atrasados: projetos.filter((p) => (p.tarefas_atrasadas || 0) > 0).length,
+      concluidos: projetos.filter((p) => (p.progresso || 0) === 100).length,
+    };
+  }, [projetos]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -80,10 +155,24 @@ const ProjetosVisaoGeralNovo = () => {
   };
 
   const getStatusBadge = (projeto) => {
-    if (projeto.progresso === 100) {
-      return { label: 'Concluído', className: 'status-badge-novo concluido' };
+    if (isOperador) {
+      const tarefas = projeto._tarefasNoContexto || projeto.tarefas_operador || [];
+      if (tarefas.length && tarefas.every((t) => t.finalizada)) {
+        return { label: 'Concluido', className: 'status-badge-novo concluido' };
+      }
+      if (tarefas.some((t) => t.atrasada)) {
+        return { label: 'Atrasado', className: 'status-badge-novo atrasado' };
+      }
+      if (tarefas.some((t) => (t.status_nome || '').toLowerCase() === 'em andamento')) {
+        return { label: 'Em andamento', className: 'status-badge-novo ativo' };
+      }
+      return { label: 'Pendente', className: 'status-badge-novo ativo' };
     }
-    if (projeto.tarefas_atrasadas > 0) {
+
+    if ((projeto.progresso || 0) === 100) {
+      return { label: 'Concluido', className: 'status-badge-novo concluido' };
+    }
+    if ((projeto.tarefas_atrasadas || 0) > 0) {
       return { label: 'Atrasado', className: 'status-badge-novo atrasado' };
     }
     return { label: 'Ativo', className: 'status-badge-novo ativo' };
@@ -99,40 +188,23 @@ const ProjetosVisaoGeralNovo = () => {
     );
   }
 
-  if (!['admin', 'gerente'].includes(user?.role)) {
-    return (
-      <LayoutNovo>
-        <div className="projetos-visao-container">
-          <div className="empty-state-projetos">
-            <div className="empty-icon-projetos">
-              <LayoutGrid size={48} />
-            </div>
-            <h3>Acesso restrito</h3>
-            <p>Somente administradores e gerentes podem ver a visao geral de projetos.</p>
-          </div>
-        </div>
-      </LayoutNovo>
-    );
-  }
-
   return (
     <LayoutNovo>
       <div className="projetos-visao-container">
-        {/* Header */}
         <div className="visao-header">
           <div>
-            <h1 className="page-title">Visão Geral de Projetos</h1>
-            <p className="page-description">Acompanhe o status e atrasos de todos os projetos</p>
+            <h1 className="page-title">{isOperador ? 'Meus Projetos' : 'Visao Geral de Projetos'}</h1>
+            <p className="page-description">
+              {isOperador
+                ? 'Projetos e contratos atribuidos ao operador logado'
+                : 'Acompanhe o status e atrasos de todos os projetos'}
+            </p>
           </div>
         </div>
 
-        {/* Controls */}
         <div className="visao-controls">
           <div className="search-wrapper-projetos">
-            <Search
-              className={`search-icon-projetos ${searchTerm ? 'is-hidden' : ''}`}
-              size={18}
-            />
+            <Search className={`search-icon-projetos ${searchTerm ? 'is-hidden' : ''}`} size={18} />
             <Input
               type="text"
               placeholder=""
@@ -143,29 +215,17 @@ const ProjetosVisaoGeralNovo = () => {
           </div>
 
           <div className="filtros-status">
-            <button
-              onClick={() => setFilterStatus('todos')}
-              className={`filtro-btn ${filterStatus === 'todos' ? 'active' : ''}`}
-            >
+            <button onClick={() => setFilterStatus('todos')} className={`filtro-btn ${filterStatus === 'todos' ? 'active' : ''}`}>
               Todos ({counts.todos})
             </button>
-            <button
-              onClick={() => setFilterStatus('ativos')}
-              className={`filtro-btn em-dia ${filterStatus === 'ativos' ? 'active' : ''}`}
-            >
+            <button onClick={() => setFilterStatus('ativos')} className={`filtro-btn em-dia ${filterStatus === 'ativos' ? 'active' : ''}`}>
               Ativos ({counts.ativos})
             </button>
-            <button
-              onClick={() => setFilterStatus('atrasados')}
-              className={`filtro-btn atrasados ${filterStatus === 'atrasados' ? 'active' : ''}`}
-            >
+            <button onClick={() => setFilterStatus('atrasados')} className={`filtro-btn atrasados ${filterStatus === 'atrasados' ? 'active' : ''}`}>
               Atrasados ({counts.atrasados})
             </button>
-            <button
-              onClick={() => setFilterStatus('concluidos')}
-              className={`filtro-btn concluidos ${filterStatus === 'concluidos' ? 'active' : ''}`}
-            >
-              Concluídos ({counts.concluidos})
+            <button onClick={() => setFilterStatus('concluidos')} className={`filtro-btn concluidos ${filterStatus === 'concluidos' ? 'active' : ''}`}>
+              Concluidos ({counts.concluidos})
             </button>
           </div>
 
@@ -187,11 +247,67 @@ const ProjetosVisaoGeralNovo = () => {
           </div>
         </div>
 
-        {/* Projects Grid */}
+        {isOperador && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3 text-sm font-medium text-gray-700">
+                <Filter size={16} />
+                Filtros essenciais do operador
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <select
+                  className="w-full border rounded-md px-2 py-2 text-sm bg-white"
+                  value={filtroContrato}
+                  onChange={(e) => setFiltroContrato(e.target.value)}
+                >
+                  <option value="todos">Contrato: Todos</option>
+                  {contratosDisponiveis.map((contrato) => (
+                    <option key={contrato.id} value={contrato.id}>
+                      {contrato.numero_contrato || contrato.id}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="w-full border rounded-md px-2 py-2 text-sm bg-white"
+                  value={filtroStatusTarefa}
+                  onChange={(e) => setFiltroStatusTarefa(e.target.value)}
+                >
+                  <option value="todos">Status: Todos</option>
+                  <option value="pendente">Pendente</option>
+                  <option value="em_andamento">Em andamento</option>
+                  <option value="concluida">Concluida</option>
+                </select>
+
+                <input
+                  type="date"
+                  className="w-full border rounded-md px-2 py-2 text-sm bg-white"
+                  value={filtroData}
+                  onChange={(e) => setFiltroData(e.target.value)}
+                />
+
+                <select
+                  className="w-full border rounded-md px-2 py-2 text-sm bg-white"
+                  value={filtroPrioridade}
+                  onChange={(e) => setFiltroPrioridade(e.target.value)}
+                >
+                  <option value="todos">Prioridade: Todas</option>
+                  <option value="baixa">Baixa</option>
+                  <option value="media">Media</option>
+                  <option value="alta">Alta</option>
+                  <option value="critica">Critica</option>
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className={`projetos-grid ${viewMode === 'list' ? 'list-view' : ''}`}>
           {projetosFiltrados.map((projeto) => {
             const statusBadge = getStatusBadge(projeto);
-            
+            const contratoPrincipal = (projeto.contratos || [])[0];
+            const tarefasNoContexto = projeto._tarefasNoContexto || projeto.tarefas_operador || [];
+
             return (
               <Card key={projeto.id} className="projeto-card-novo">
                 <CardContent className="projeto-card-content-novo">
@@ -200,7 +316,11 @@ const ProjetosVisaoGeralNovo = () => {
                       <h3 className="cliente-nome">{projeto.cliente}</h3>
                       <div className="instituicao">
                         <Building2 size={16} />
-                        <span>UFMG</span>
+                        <span>
+                          {contratoPrincipal?.numero_contrato
+                            ? `Contrato ${contratoPrincipal.numero_contrato}`
+                            : `Projeto ${projeto.id}`}
+                        </span>
                       </div>
                     </div>
                     <span className={statusBadge.className}>{statusBadge.label}</span>
@@ -218,23 +338,26 @@ const ProjetosVisaoGeralNovo = () => {
 
                   <div className="progresso-section">
                     <div className="progresso-header">
-                      <span className="progresso-label">Progresso geral</span>
-                      <span className="progresso-value">{projeto.progresso}%</span>
+                      <span className="progresso-label">Progresso</span>
+                      <span className="progresso-value">{projeto.progresso || 0}%</span>
                     </div>
-                    <div className={`progresso-bar ${projeto.tarefas_atrasadas > 0 ? 'atrasado' : ''}`}>
-                      <div className="progress-indicator" style={{ width: `${projeto.progresso}%` }} />
+                    <div className={`progresso-bar ${(projeto.tarefas_atrasadas || 0) > 0 ? 'atrasado' : ''}`}>
+                      <div className="progress-indicator" style={{ width: `${projeto.progresso || 0}%` }} />
                     </div>
                   </div>
+
+                  {isOperador && (
+                    <div className="text-sm text-gray-600 mb-2">
+                      Tarefas no contexto: <strong>{tarefasNoContexto.length}</strong>
+                    </div>
+                  )}
 
                   <div className="card-footer-novo">
                     <div className="prazo-info">
                       <Calendar size={16} />
                       <span>Entrega: {formatDate(projeto.data_fim_prevista)}</span>
                     </div>
-                    <Button
-                      className="ver-detalhes-btn"
-                      onClick={() => navigate(`/projetos/${projeto.id}`)}
-                    >
+                    <Button className="ver-detalhes-btn" onClick={() => navigate(`/projetos/${projeto.id}`)}>
                       Ver detalhes
                       <ChevronRight size={16} />
                     </Button>
@@ -255,7 +378,6 @@ const ProjetosVisaoGeralNovo = () => {
           </div>
         )}
       </div>
-
     </LayoutNovo>
   );
 };

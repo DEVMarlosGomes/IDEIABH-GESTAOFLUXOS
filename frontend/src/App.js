@@ -155,7 +155,7 @@ function AppRoutes() {
       <Route
         path="/projetos"
         element={
-          <RoleRoute allowRoles={["admin", "gerente"]}>
+          <RoleRoute allowRoles={["admin", "gerente", "operador"]}>
             <ProjetosVisaoGeralNovo />
           </RoleRoute>
         }
@@ -163,7 +163,7 @@ function AppRoutes() {
       <Route
         path="/projetos/:id"
         element={
-          <RoleRoute allowRoles={["admin", "gerente"]}>
+          <RoleRoute allowRoles={["admin", "gerente", "operador"]}>
             <ProjetoDetalhes />
           </RoleRoute>
         }

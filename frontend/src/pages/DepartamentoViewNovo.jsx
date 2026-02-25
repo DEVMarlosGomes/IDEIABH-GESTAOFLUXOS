@@ -290,7 +290,8 @@ Data: ${new Date().toLocaleString('pt-BR')}
         usuario_id: user?.id || 'sistema',
         usuario_nome: user?.nome || user?.username || 'Sistema',
         usuario_setor: user?.setor || 'desconhecido',
-        usuario_role: user?.role || 'operador'
+        usuario_role: user?.role || 'operador',
+        contrato_id_selecionado: tarefaSelecionada?.contrato_id || null
       });
 
       // Buscar próxima tarefa do projeto

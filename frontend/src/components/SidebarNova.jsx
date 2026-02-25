@@ -118,6 +118,14 @@ const SidebarNova = ({ isOpen, onClose }) => {
     },
   ];
 
+  const menuOperadorProjetos = [
+    {
+      icon: FolderKanban,
+      label: 'Projetos',
+      path: '/projetos'
+    }
+  ];
+
   const isActive = (path) => location.pathname === path;
   const isOperador = user?.role === 'operador';
   const setorOperador = normalizeSetor(user?.setor);
@@ -179,6 +187,15 @@ const SidebarNova = ({ isOpen, onClose }) => {
             <MenuItem key={item.path} item={item} />
           ))}
         </div>
+
+        {isOperador && (
+          <div className="nav-section">
+            <span className="section-title">Projetos</span>
+            {menuOperadorProjetos.map((item) => (
+              <MenuItem key={item.path} item={item} />
+            ))}
+          </div>
+        )}
 
         {!isOperador && (
           <div className="nav-section">
