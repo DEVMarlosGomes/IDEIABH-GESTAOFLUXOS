@@ -100,10 +100,29 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-sm);
   width: 100%;
+  flex-wrap: wrap;
+}
+
+.semestre-filter-select {
+  min-width: 190px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+}
+
+.semestre-filter-select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
 .filtros-status.filtros-contratos .filtro-btn {
-  flex: 1 1 0;
+  flex: 1 1 120px;
   text-align: center;
   padding: 8px 12px;
 }
@@ -125,6 +144,10 @@
   }
   .view-toggle {
     justify-self: flex-start;
+  }
+
+  .semestre-filter-select {
+    width: 100%;
   }
 }
 
@@ -276,6 +299,27 @@
   text-transform: uppercase;
 }
 
+.contrato-pessoa-comissao {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  max-width: 70%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contrato-titulo-destaque {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+}
+
 .contrato-cliente {
   font-size: 18px;
   font-weight: 700;
@@ -289,6 +333,7 @@
   gap: 6px;
   font-size: 13px;
   color: var(--text-tertiary);
+  flex-wrap: wrap;
 }
 
 .contrato-card-content {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   User,
   Calendar,
+  Building2,
   ChevronRight,
   Loader2,
   Check,
@@ -45,11 +46,14 @@ const DepartamentoViewNovo = ({ departamento }) => {
   const [finalizando, setFinalizando] = useState(false);
   const [atribuirModalAberto, setAtribuirModalAberto] = useState(false);
   const [tarefaParaAtribuir, setTarefaParaAtribuir] = useState(null);
+  const [filtroResponsavel, setFiltroResponsavel] = useState('todos');
+  const [filtroContrato, setFiltroContrato] = useState('todos');
+  const [abaStatus, setAbaStatus] = useState('abertas');
   const [feedbackForm, setFeedbackForm] = useState({
     observacao: '',
     dificuldades: '',
     tempo_gasto: '',
-    qualidade_entrega: 'boa',
+    qualidade_entrega: '',
     proximos_passos: ''
   });
 
@@ -85,7 +89,6 @@ const DepartamentoViewNovo = ({ departamento }) => {
     try {
       const filters = { 
         setor: departamento,
-        finalizada: false,
         usuario_role: user?.role,
         usuario_setor: user?.setor,
         usuario_id: user?.id
@@ -118,7 +121,7 @@ const DepartamentoViewNovo = ({ departamento }) => {
     } finally {
       setLoading(false);
     }
-  }, [departamento]);
+  }, [departamento, user?.id, user?.role, user?.setor]);
 
   const loadEquipe = useCallback(async () => {
     if (!user?.role) return;
@@ -147,20 +150,65 @@ const DepartamentoViewNovo = ({ departamento }) => {
     loadEquipe();
   }, [loadEquipe]);
 
+  const contratosDisponiveis = useMemo(() => {
+    const mapa = new Map();
+    (tarefas || []).forEach((tarefa) => {
+      const key = tarefa.contrato_id || tarefa.contrato_numero;
+      if (!key || mapa.has(key)) return;
+      mapa.set(key, {
+        id: tarefa.contrato_id,
+        label: tarefa.contrato_resumo || tarefa.contrato_numero || tarefa.contrato_id,
+      });
+    });
+    return Array.from(mapa.values());
+  }, [tarefas]);
+
+  const tarefasFiltradas = useMemo(() => (
+    (tarefas || []).filter((tarefa) => {
+      if (filtroResponsavel !== 'todos' && tarefa.responsavel_id !== filtroResponsavel) {
+        return false;
+      }
+      if (filtroContrato !== 'todos' && tarefa.contrato_id !== filtroContrato) {
+        return false;
+      }
+      return true;
+    })
+  ), [filtroContrato, filtroResponsavel, tarefas]);
+
+  const tarefasAbertas = useMemo(
+    () => tarefasFiltradas.filter((tarefa) => !tarefa.finalizada),
+    [tarefasFiltradas]
+  );
+
+  const tarefasFinalizadas = useMemo(
+    () => tarefasFiltradas.filter((tarefa) => tarefa.finalizada),
+    [tarefasFiltradas]
+  );
+
+  const tarefasFinalizadasRecentes = useMemo(
+    () => [...tarefasFinalizadas]
+      .sort((a, b) => new Date(b.data_finalizacao || 0) - new Date(a.data_finalizacao || 0))
+      .slice(0, 5),
+    [tarefasFinalizadas]
+  );
+
+  const tarefasVisiveis = abaStatus === 'finalizadas' ? tarefasFinalizadas : tarefasAbertas;
+
   // Estatísticas
   const stats = {
-    total: tarefas.length,
-    pendentes: tarefas.filter(t => t.status_nome === 'Pendente').length,
-    emAndamento: tarefas.filter(t => t.status_nome === 'Em Andamento').length,
-    atrasadas: tarefas.filter(t => t.atrasada).length,
+    total: tarefasVisiveis.length,
+    pendentes: tarefasVisiveis.filter(t => t.status_nome === 'Pendente').length,
+    emAndamento: tarefasVisiveis.filter(t => t.status_nome === 'Em Andamento').length,
+    atrasadas: tarefasVisiveis.filter(t => t.atrasada).length,
+    finalizadas: tarefasFinalizadas.length,
     prazoMedio: Math.round(
-      tarefas.reduce((acc, t) => {
+      tarefasVisiveis.reduce((acc, t) => {
         if (t.prazo) {
           const dias = Math.ceil((new Date(t.prazo) - new Date()) / (1000 * 60 * 60 * 24));
           return acc + dias;
         }
         return acc;
-      }, 0) / (tarefas.length || 1)
+      }, 0) / (tarefasVisiveis.length || 1)
     )
   };
 
@@ -201,7 +249,7 @@ const DepartamentoViewNovo = ({ departamento }) => {
       observacao: '',
       dificuldades: '',
       tempo_gasto: '',
-      qualidade_entrega: 'boa',
+      qualidade_entrega: '',
       proximos_passos: ''
     });
     setFinalizarModal(true);
@@ -248,45 +296,39 @@ const DepartamentoViewNovo = ({ departamento }) => {
   };
 
   const handleFinalizar = async () => {
-    // Validação
-    if (!feedbackForm.observacao || feedbackForm.observacao.length < 10) {
-      toast.error('Por favor, descreva como foi a execução da tarefa (mínimo 10 caracteres)');
-      return;
+    const observacao = feedbackForm.observacao.trim();
+    const dificuldades = feedbackForm.dificuldades.trim();
+    const tempoGasto = feedbackForm.tempo_gasto.trim();
+    const proximosPassos = feedbackForm.proximos_passos.trim();
+
+    const blocos = [];
+    if (observacao) {
+      blocos.push(`EXECUCAO DA TAREFA:\n${observacao}`);
+    }
+    if (dificuldades) {
+      blocos.push(`DIFICULDADES ENCONTRADAS:\n${dificuldades}`);
+    }
+    if (tempoGasto) {
+      blocos.push(`TEMPO GASTO:\n${tempoGasto}`);
+    }
+    if (feedbackForm.qualidade_entrega) {
+      blocos.push(`QUALIDADE DA ENTREGA:\n${feedbackForm.qualidade_entrega}`);
+    }
+    if (proximosPassos) {
+      blocos.push(`PROXIMOS PASSOS SUGERIDOS:\n${proximosPassos}`);
     }
 
-    if (!feedbackForm.dificuldades) {
-      toast.error('Por favor, informe se houve dificuldades ou escreva "Nenhuma"');
-      return;
+    if (blocos.length > 0) {
+      blocos.push(
+        `Finalizado por: ${user?.nome || user?.username}\nData: ${new Date().toLocaleString('pt-BR')}`
+      );
     }
 
     try {
       setFinalizando(true);
-      
-      // Montar observação completa
-      const observacaoCompleta = `
-EXECUÇÃO DA TAREFA:
-${feedbackForm.observacao}
 
-DIFICULDADES ENCONTRADAS:
-${feedbackForm.dificuldades}
-
-TEMPO GASTO:
-${feedbackForm.tempo_gasto || 'Não informado'}
-
-QUALIDADE DA ENTREGA:
-${feedbackForm.qualidade_entrega}
-
-PRÓXIMOS PASSOS SUGERIDOS:
-${feedbackForm.proximos_passos || 'Nenhum'}
-
----
-Finalizado por: ${user?.nome || user?.username}
-Data: ${new Date().toLocaleString('pt-BR')}
-      `.trim();
-
-      // Finalizar tarefa
       await finalizarTarefa(tarefaSelecionada.id, {
-        observacao: observacaoCompleta,
+        observacao: blocos.length > 0 ? blocos.join('\n\n---\n\n') : null,
         usuario_id: user?.id || 'sistema',
         usuario_nome: user?.nome || user?.username || 'Sistema',
         usuario_setor: user?.setor || 'desconhecido',
@@ -294,22 +336,20 @@ Data: ${new Date().toLocaleString('pt-BR')}
         contrato_id_selecionado: tarefaSelecionada?.contrato_id || null
       });
 
-      // Buscar próxima tarefa do projeto
       const tarefasDoProjeto = tarefas.filter(t => 
         t.projeto_id === tarefaSelecionada.projeto_id && 
         !t.finalizada &&
         t.id !== tarefaSelecionada.id
       );
 
-      // Se houver próxima tarefa e tiver responsável, notificar
       if (tarefasDoProjeto.length > 0) {
         const proximaTarefa = tarefasDoProjeto[0];
         if (proximaTarefa.responsavel_id) {
           try {
             await criarNotificacao({
               tipo: 'finalizacao',
-              titulo: 'Nova etapa disponível',
-              mensagem: `A etapa "${tarefaSelecionada.titulo}" foi finalizada. A tarefa "${proximaTarefa.titulo}" está aguardando sua ação.`,
+              titulo: 'Nova etapa disponivel',
+              mensagem: `A etapa "${tarefaSelecionada.titulo}" foi finalizada. A tarefa "${proximaTarefa.titulo}" esta aguardando sua acao.`,
               de_usuario_id: user?.id || 'sistema',
               de_usuario_nome: user?.nome || user?.username || 'Sistema',
               para_usuario_id: proximaTarefa.responsavel_id,
@@ -318,7 +358,7 @@ Data: ${new Date().toLocaleString('pt-BR')}
               projeto_id: proximaTarefa.projeto_id
             });
           } catch (err) {
-            console.log('Erro ao notificar próximo responsável:', err);
+            console.log('Erro ao notificar proximo responsavel:', err);
           }
         }
       }
@@ -326,13 +366,15 @@ Data: ${new Date().toLocaleString('pt-BR')}
       toast.success(
         <div>
           <p className="font-semibold">Tarefa finalizada com sucesso!</p>
-          <p className="text-sm">O feedback foi registrado no histórico</p>
+          <p className="text-sm">
+            {blocos.length > 0 ? 'As observacoes foram registradas no historico.' : 'A etapa foi concluida sem observacao adicional.'}
+          </p>
         </div>
       );
 
       setFinalizarModal(false);
       setTarefaSelecionada(null);
-      loadData(); // Recarregar tarefas
+      loadData();
     } catch (error) {
       console.error('Erro ao finalizar tarefa:', error);
       toast.error('Erro ao finalizar tarefa');
@@ -369,6 +411,10 @@ Data: ${new Date().toLocaleString('pt-BR')}
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('pt-BR');
   };
+
+  const getContratoNumero = (tarefa) => tarefa?.contrato_numero || tarefa?.contrato_id || 'Sem contrato';
+  const getContratoFaculdade = (tarefa) => tarefa?.contrato_faculdade || 'Faculdade nao informada';
+  const getContratoCurso = (tarefa) => tarefa?.contrato_curso || null;
 
   if (loading) {
     return (
@@ -440,7 +486,15 @@ Data: ${new Date().toLocaleString('pt-BR')}
               </div>
               <AlertTriangle size={32} className="stat-icon stat-icon-danger" />
             </div>
-            
+
+            <div className="stat-item">
+              <div>
+                <span className="stat-label">Finalizadas</span>
+                <span className="stat-value">{stats.finalizadas}</span>
+              </div>
+              <CheckCircle2 size={32} className="stat-icon stat-icon-success" />
+            </div>
+             
             <div className="stat-item">
               <div>
                 <span className="stat-label">Prazo Médio</span>
@@ -449,6 +503,116 @@ Data: ${new Date().toLocaleString('pt-BR')}
               <TrendingUp size={32} className="stat-icon stat-icon-success" />
             </div>
           </div>
+
+          {['admin', 'gerente'].includes(user?.role) && (
+            <Card className="mb-6">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <select
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-white"
+                    value={filtroResponsavel}
+                    onChange={(e) => setFiltroResponsavel(e.target.value)}
+                  >
+                    <option value="todos">Todas as pessoas da equipe</option>
+                    {equipeUsuarios.map((usuario) => (
+                      <option key={usuario.id} value={usuario.id}>
+                        {usuario.nome}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    className="w-full border rounded-md px-3 py-2 text-sm bg-white"
+                    value={filtroContrato}
+                    onChange={(e) => setFiltroContrato(e.target.value)}
+                  >
+                    <option value="todos">Todos os contratos</option>
+                    {contratosDisponiveis.map((contrato) => (
+                      <option key={contrato.id} value={contrato.id}>
+                        {contrato.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className="mb-6">
+            <CardContent className="p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  type="button"
+                  variant={abaStatus === 'abertas' ? 'default' : 'outline'}
+                  onClick={() => setAbaStatus('abertas')}
+                >
+                  Em aberto ({tarefasAbertas.length})
+                </Button>
+                <Button
+                  type="button"
+                  variant={abaStatus === 'finalizadas' ? 'default' : 'outline'}
+                  onClick={() => setAbaStatus('finalizadas')}
+                >
+                  Finalizadas ({tarefasFinalizadas.length})
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 size={18} />
+                  Bloco de Finalizados
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAbaStatus('finalizadas')}
+                >
+                  Ver lista completa
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {tarefasFinalizadasRecentes.length === 0 ? (
+                <p className="text-sm text-gray-500">Nenhuma etapa finalizada no contexto atual.</p>
+              ) : (
+                <div className="space-y-3">
+                  {tarefasFinalizadasRecentes.map((tarefa) => (
+                    <div key={tarefa.id} className="rounded-lg border border-green-200 bg-green-50 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium text-sm text-green-900">{tarefa.titulo}</div>
+                          <div className="departamento-task-context mt-2">
+                            <div className="departamento-task-chip">
+                              <FileText size={12} />
+                              <span>Contrato: {getContratoNumero(tarefa)}</span>
+                            </div>
+                            <div className="departamento-task-chip secondary">
+                              <Building2 size={12} />
+                              <span>Faculdade: {getContratoFaculdade(tarefa)}</span>
+                            </div>
+                            {getContratoCurso(tarefa) && (
+                              <div className="departamento-task-chip secondary">
+                                <FileText size={12} />
+                                <span>Curso: {getContratoCurso(tarefa)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <Badge className="bg-green-100 text-green-800">
+                          Finalizada em {formatDate(tarefa.data_finalizacao)}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Lista de Tarefas */}
@@ -460,15 +624,19 @@ Data: ${new Date().toLocaleString('pt-BR')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {tarefas.length === 0 ? (
+            {tarefasVisiveis.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 <CheckCircle2 size={48} className="mx-auto mb-4 opacity-50" />
-                <p className="text-lg">Nenhuma tarefa pendente no momento</p>
+                <p className="text-lg">
+                  {abaStatus === 'finalizadas'
+                    ? 'Nenhuma tarefa finalizada encontrada'
+                    : 'Nenhuma tarefa em aberto no momento'}
+                </p>
                 <p className="text-sm mt-2">Parabéns! Todas as tarefas estão concluídas</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {tarefas.map((tarefa) => (
+                {tarefasVisiveis.map((tarefa) => (
                   <div 
                     key={tarefa.id}
                     className={`border rounded-lg p-4 transition-all hover:shadow-md ${
@@ -481,6 +649,23 @@ Data: ${new Date().toLocaleString('pt-BR')}
                         {tarefa.descricao && (
                           <p className="text-sm text-gray-600 mb-2">{tarefa.descricao}</p>
                         )}
+
+                        <div className="departamento-task-context">
+                          <div className="departamento-task-chip">
+                            <FileText size={12} />
+                            <span>Contrato: {getContratoNumero(tarefa)}</span>
+                          </div>
+                          <div className="departamento-task-chip secondary">
+                            <Building2 size={12} />
+                            <span>Faculdade: {getContratoFaculdade(tarefa)}</span>
+                          </div>
+                          {getContratoCurso(tarefa) && (
+                            <div className="departamento-task-chip secondary">
+                              <FileText size={12} />
+                              <span>Curso: {getContratoCurso(tarefa)}</span>
+                            </div>
+                          )}
+                        </div>
                         
                         <div className="flex flex-wrap gap-2 mt-2">
                           {getStatusBadge(tarefa)}
@@ -498,11 +683,18 @@ Data: ${new Date().toLocaleString('pt-BR')}
                               Prazo: {formatDate(tarefa.prazo)}
                             </Badge>
                           )}
+
+                          {tarefa.finalizada && tarefa.data_finalizacao && (
+                            <Badge className="bg-green-100 text-green-800">
+                              <CheckCircle2 size={12} className="mr-1" />
+                              Finalizada em {formatDate(tarefa.data_finalizacao)}
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      
+                       
                       <div className="ml-4 flex gap-2">
-                        {['admin', 'gerente'].includes(user?.role) && (
+                        {['admin', 'gerente'].includes(user?.role) && !tarefa.finalizada && (
                           <Button
                             onClick={() => handleAbrirAtribuir(tarefa)}
                             variant="outline"
@@ -512,13 +704,15 @@ Data: ${new Date().toLocaleString('pt-BR')}
                             Atribuir
                           </Button>
                         )}
-                        <Button
-                          onClick={() => handleAbrirFinalizar(tarefa)}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          <Check size={16} className="mr-2" />
-                          Finalizar Etapa
-                        </Button>
+                        {!tarefa.finalizada && (
+                          <Button
+                            onClick={() => handleAbrirFinalizar(tarefa)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <Check size={16} className="mr-2" />
+                            Finalizar Etapa
+                          </Button>
+                        )}
                       </div>
                     </div>
                     
@@ -547,7 +741,7 @@ Data: ${new Date().toLocaleString('pt-BR')}
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <CheckCircle2 className="text-green-600" />
-                Finalizar Etapa - Feedback Obrigatório
+                Finalizar Etapa
               </DialogTitle>
             </DialogHeader>
             
@@ -560,6 +754,22 @@ Data: ${new Date().toLocaleString('pt-BR')}
                     {tarefaSelecionada.descricao && (
                       <p className="text-sm text-blue-800">{tarefaSelecionada.descricao}</p>
                     )}
+                    <div className="departamento-task-context mt-3">
+                      <div className="departamento-task-chip">
+                        <FileText size={12} />
+                        <span>Contrato: {getContratoNumero(tarefaSelecionada)}</span>
+                      </div>
+                      <div className="departamento-task-chip secondary">
+                        <Building2 size={12} />
+                        <span>Faculdade: {getContratoFaculdade(tarefaSelecionada)}</span>
+                      </div>
+                      {getContratoCurso(tarefaSelecionada) && (
+                        <div className="departamento-task-chip secondary">
+                          <FileText size={12} />
+                          <span>Curso: {getContratoCurso(tarefaSelecionada)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 
@@ -567,10 +777,10 @@ Data: ${new Date().toLocaleString('pt-BR')}
                 <div className="space-y-4">
                   <div>
                     <Label className="text-base font-semibold">
-                      Como foi a execução desta tarefa? *
+                      Como foi a execucao desta tarefa? (opcional)
                     </Label>
                     <p className="text-xs text-gray-500 mb-2">
-                      Descreva o que foi realizado, resultados obtidos e qualquer informação relevante
+                      Registre o que foi feito, resultados e qualquer contexto importante, se quiser.
                     </p>
                     <Textarea
                       rows={4}
@@ -580,16 +790,16 @@ Data: ${new Date().toLocaleString('pt-BR')}
                       className="resize-none"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      {feedbackForm.observacao.length} caracteres (mínimo 10)
+                      {feedbackForm.observacao.length} caracteres preenchidos
                     </p>
                   </div>
 
                   <div>
                     <Label className="text-base font-semibold">
-                      Houve alguma dificuldade ou impedimento? *
+                      Houve alguma dificuldade ou impedimento? (opcional)
                     </Label>
                     <p className="text-xs text-gray-500 mb-2">
-                      Relate problemas encontrados ou escreva "Nenhuma" se não houve
+                      Use este campo apenas se quiser registrar algum ponto de atencao.
                     </p>
                     <Textarea
                       rows={3}
@@ -625,6 +835,7 @@ Data: ${new Date().toLocaleString('pt-BR')}
                       onChange={(e) => setFeedbackForm({...feedbackForm, qualidade_entrega: e.target.value})}
                       className="w-full px-3 py-2 border rounded-md mt-2"
                     >
+                      <option value="">Selecionar apenas se quiser classificar</option>
                       <option value="excelente">Excelente - Superou expectativas</option>
                       <option value="boa">Boa - Atendeu plenamente</option>
                       <option value="satisfatoria">Satisfatória - Atendeu minimamente</option>

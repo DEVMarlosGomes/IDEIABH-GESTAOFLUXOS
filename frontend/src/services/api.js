@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+export const API_BASE_URL = BACKEND_URL;
 
 const api = axios.create({
   baseURL: BACKEND_URL,
@@ -92,8 +93,42 @@ export const alterarStatusTarefa = async (tarefaId, data) => {
   return response.data;
 };
 
+export const reabrirTarefa = async (tarefaId, data) => {
+  const response = await api.post(`/api/tarefas/${tarefaId}/reabrir`, data);
+  return response.data;
+};
+
 export const deletarTarefa = async (tarefaId, userRole, userId) => {
   const response = await api.delete(`/api/tarefas/${tarefaId}?user_role=${userRole}&user_id=${userId}`);
+  return response.data;
+};
+
+export const uploadAnexoTarefa = async (tarefaId, file, context = {}) => {
+  const params = new URLSearchParams();
+  if (context.user_role) params.append('user_role', context.user_role);
+  if (context.user_id) params.append('user_id', context.user_id);
+  if (context.user_setor) params.append('user_setor', context.user_setor);
+  if (context.user_name) params.append('user_name', context.user_name);
+
+  const formData = new FormData();
+  formData.append('arquivo', file);
+
+  const response = await api.post(`/api/tarefas/${tarefaId}/anexos?${params.toString()}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
+
+export const removerAnexoTarefa = async (tarefaId, anexoId, context = {}) => {
+  const params = new URLSearchParams();
+  if (context.user_role) params.append('user_role', context.user_role);
+  if (context.user_id) params.append('user_id', context.user_id);
+  if (context.user_setor) params.append('user_setor', context.user_setor);
+  if (context.user_name) params.append('user_name', context.user_name);
+
+  const response = await api.delete(`/api/tarefas/${tarefaId}/anexos/${anexoId}?${params.toString()}`);
   return response.data;
 };
 
@@ -230,6 +265,19 @@ export const atualizarContrato = async (contratoId, data) => {
   return response.data;
 };
 
+export const registrarAditivoContrato = async (contratoId, dataAditivo, context = {}) => {
+  const params = new URLSearchParams();
+  if (context.user_role) params.append('user_role', context.user_role);
+  if (context.user_id) params.append('user_id', context.user_id);
+  if (context.user_setor) params.append('user_setor', context.user_setor);
+  const query = params.toString();
+  const response = await api.post(
+    `/api/contratos/${contratoId}/aditivo${query ? `?${query}` : ''}`,
+    { data_aditivo: dataAditivo }
+  );
+  return response.data;
+};
+
 export const deletarContrato = async (contratoId, userRole) => {
   const response = await api.delete(`/api/contratos/${contratoId}?user_role=${userRole}`);
   return response.data;
@@ -254,6 +302,16 @@ export const getProjeto = async (projetoId, userRole, userId = null, userSetor =
   if (userId) params.append('user_id', userId);
   if (userSetor) params.append('user_setor', userSetor);
   const response = await api.get(`/api/projetos/${projetoId}?${params.toString()}`);
+  return response.data;
+};
+
+export const atualizarResponsaveisProjeto = async (projetoId, data) => {
+  const response = await api.put(`/api/projetos/${projetoId}/responsaveis`, data);
+  return response.data;
+};
+
+export const atualizarPrazosProjeto = async (projetoId, data) => {
+  const response = await api.put(`/api/projetos/${projetoId}/prazos`, data);
   return response.data;
 };
 
@@ -283,6 +341,11 @@ export const cobrarOperador = async (data, userRole) => {
 
 export const responderCobranca = async (data) => {
   const response = await api.post('/api/cobrancas/responder', data);
+  return response.data;
+};
+
+export const recoverPassword = async (data) => {
+  const response = await api.post('/api/auth/recover-password', data);
   return response.data;
 };
 

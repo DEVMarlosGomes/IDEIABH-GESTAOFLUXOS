@@ -31,6 +31,15 @@ const PRIORIDADES = [
   { value: 'critica', label: 'Crítica', cor: '#7f1d1d' },
 ];
 
+const formatDateTimeLocal = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60000);
+  return localDate.toISOString().slice(0, 16);
+};
+
 const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
   const { user, hasPermission } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -48,6 +57,8 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
     responsavel_nome: '',
     prazo: '',
     prioridade: 'media',
+    observacao_finalizacao: '',
+    data_finalizacao: '',
   });
 
   useEffect(() => {
@@ -60,6 +71,8 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
         responsavel_nome: tarefa.responsavel_nome || '',
         prazo: tarefa.prazo ? tarefa.prazo.split('T')[0] : '',
         prioridade: tarefa.prioridade || 'media',
+        observacao_finalizacao: tarefa.observacao_finalizacao || '',
+        data_finalizacao: formatDateTimeLocal(tarefa.data_finalizacao),
       });
       setSavingError(false);
     }
@@ -134,6 +147,10 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
         usuario_nome: user?.nome || 'Usuário',
         usuario_setor: user?.setor || 'Geral',
         usuario_role: user?.role || 'operador',
+        observacao_finalizacao: tarefa?.finalizada ? (formData.observacao_finalizacao || null) : undefined,
+        data_finalizacao: tarefa?.finalizada
+          ? (formData.data_finalizacao ? new Date(formData.data_finalizacao).toISOString() : null)
+          : undefined,
       };
 
       await atualizarTarefa(tarefa.id, updateData);
@@ -197,6 +214,12 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-2">
+            {tarefa?.finalizada && (
+              <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                Esta tarefa já foi finalizada. Você pode corrigir os dados e ajustar a observação ou a data de finalização.
+              </div>
+            )}
+
             <div className="grid gap-2">
               <Label htmlFor="titulo">Título *</Label>
               <Input
@@ -311,6 +334,31 @@ const EditarTarefaModal = ({ isOpen, onClose, onSuccess, tarefa }) => {
                 </p>
               )}
             </div>
+
+            {tarefa?.finalizada && (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="observacao_finalizacao">Observação de finalização</Label>
+                  <Textarea
+                    id="observacao_finalizacao"
+                    value={formData.observacao_finalizacao}
+                    onChange={(e) => handleChange('observacao_finalizacao', e.target.value)}
+                    placeholder="Corrija ou complemente o registro da finalização"
+                    rows={4}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="data_finalizacao">Data de finalização</Label>
+                  <Input
+                    id="data_finalizacao"
+                    type="datetime-local"
+                    value={formData.data_finalizacao}
+                    onChange={(e) => handleChange('data_finalizacao', e.target.value)}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter className="mt-4">

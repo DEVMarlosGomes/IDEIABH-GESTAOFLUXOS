@@ -8,6 +8,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from access_control import validar_contexto_finalizacao_operador
+from access_control import operador_pode_visualizar_tarefa_compartilhada
 
 
 def test_operador_finalizacao_permitida_no_contrato_correto():
@@ -50,3 +51,23 @@ def test_operador_finalizacao_negada_para_outro_setor():
 
     assert permitido is False
     assert "setor" in mensagem.lower()
+
+
+def test_compartilhamento_entre_atendimento_e_criacao_exige_contrato_compartilhado():
+    permitido = operador_pode_visualizar_tarefa_compartilhada(
+        tarefa_setor="criacao",
+        usuario_setor="atendimento",
+        compartilha_contrato=False,
+    )
+
+    assert permitido is False
+
+
+def test_compartilhamento_entre_atendimento_e_criacao_e_permitido_no_mesmo_contrato():
+    permitido = operador_pode_visualizar_tarefa_compartilhada(
+        tarefa_setor="criacao",
+        usuario_setor="atendimento",
+        compartilha_contrato=True,
+    )
+
+    assert permitido is True

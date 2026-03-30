@@ -20,21 +20,20 @@ const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess, contratoSele
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [observacao, setObservacao] = useState('');
+  const contratoNumero = tarefa?.contrato_numero || tarefa?.contrato_id || '-';
+  const contratoCliente = tarefa?.contrato_cliente || 'Cliente nao informado';
+  const contratoFaculdade = tarefa?.contrato_faculdade || 'Faculdade nao informada';
+  const contratoCurso = tarefa?.contrato_curso || null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!observacao.trim()) {
-      setError('A observação é obrigatória para finalizar a tarefa');
-      return;
-    }
 
     setLoading(true);
     setError(null);
 
     try {
       await finalizarTarefa(tarefa.id, {
-        observacao: observacao.trim(),
+        observacao: observacao.trim() || null,
         usuario_id: user?.id || 'unknown',
         usuario_nome: user?.nome || 'Usuário',
         usuario_setor: user?.setor || 'Geral',
@@ -79,7 +78,10 @@ const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess, contratoSele
               {/* Info da tarefa */}
               <div className="mb-4 p-3 bg-gray-50 rounded-lg space-y-1 text-sm">
                 <div><strong>Setor:</strong> {tarefa?.setor}</div>
-                <div><strong>Contrato:</strong> {tarefa?.contrato_id || '-'}</div>
+                <div><strong>Contrato:</strong> {contratoNumero}</div>
+                <div><strong>Cliente:</strong> {contratoCliente}</div>
+                <div><strong>Faculdade:</strong> {contratoFaculdade}</div>
+                {contratoCurso && <div><strong>Curso:</strong> {contratoCurso}</div>}
                 <div><strong>Responsável:</strong> {tarefa?.responsavel_nome || 'Não definido'}</div>
                 <div><strong>Criada por:</strong> {tarefa?.criado_por_nome} ({tarefa?.criado_por_setor})</div>
                 {tarefa?.prazo && (
@@ -94,17 +96,16 @@ const FinalizarTarefaModal = ({ isOpen, onClose, tarefa, onSuccess, contratoSele
 
               {/* Observação */}
               <div className="grid gap-2">
-                <Label htmlFor="observacao">Observação *</Label>
+                <Label htmlFor="observacao">Observação</Label>
                 <Textarea
                   id="observacao"
                   value={observacao}
                   onChange={(e) => setObservacao(e.target.value)}
-                  placeholder="Descreva como a tarefa foi concluída, o que foi feito, observações importantes..."
+                  placeholder="Descreva como a tarefa foi concluída, se quiser registrar algo importante..."
                   rows={4}
-                  required
                 />
                 <p className="text-xs text-gray-500">
-                  A observação é obrigatória e ficará registrada no histórico da tarefa.
+                  Esse campo é opcional e será registrado no histórico apenas se preenchido.
                 </p>
               </div>
             </div>

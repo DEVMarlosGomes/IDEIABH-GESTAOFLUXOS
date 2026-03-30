@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -38,6 +38,9 @@ const DashboardAvancado = () => {
     enviar_email: true
   });
   const [enviandoCobranca, setEnviandoCobranca] = useState(false);
+  const [filtroSemestre, setFiltroSemestre] = useState('todos');
+  const [filtroRisco, setFiltroRisco] = useState('todos');
+  const [draggingProjectId, setDraggingProjectId] = useState(null);
 
   const normalizeSetor = (setor) => {
     if (!setor) return '';
@@ -56,15 +59,7 @@ const DashboardAvancado = () => {
     return setorMap[key] || setor;
   };
 
-  useEffect(() => {
-    if (!user?.role) return;
-    loadDashboard();
-    // Atualizar a cada 30 segundos
-    const interval = setInterval(loadDashboard, 30000);
-    return () => clearInterval(interval);
-  }, [user?.role, user?.id, user?.setor]);
-
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
       const data = await getDashboardAvancado({
         user_role: user?.role || 'operador',
@@ -74,11 +69,23 @@ const DashboardAvancado = () => {
       setDashboardData(data);
     } catch (error) {
       console.error('Erro ao carregar dashboard:', error);
-      toast.error('Erro ao carregar dashboard');
+      const backendMessage = error?.response?.data?.detail;
+      const networkMessage = !error?.response && error?.message === 'Network Error'
+        ? 'API indisponivel na porta 8001. Verifique se o backend terminou de subir.'
+        : null;
+      toast.error(backendMessage || networkMessage || 'Erro ao carregar dashboard');
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, user?.role, user?.setor]);
+
+  useEffect(() => {
+    if (!user?.role) return;
+    loadDashboard();
+    // Atualizar a cada 30 segundos
+    const interval = setInterval(loadDashboard, 30000);
+    return () => clearInterval(interval);
+  }, [loadDashboard, user?.role]);
 
   const handleCobrar = (atraso) => {
     if (!atraso.responsavel_id) {
@@ -155,31 +162,52 @@ const DashboardAvancado = () => {
     return colors[prioridade] || colors.media;
   };
 
-  if (loading) {
-    return (
-      <LayoutNovo>
-        <div className="flex items-center justify-center h-96">
-          <Loader2 className="animate-spin" size={48} />
-        </div>
-      </LayoutNovo>
-    );
-  }
+  const getTerminoContratoReferencia = (projeto) => (
+    projeto?.contrato_data_aditivo
+    || projeto?.contrato_data_fim
+    || projeto?.contrato_data_termino_referencia
+    || projeto?.data_fim_prevista
+    || null
+  );
 
-  if (!dashboardData) {
-    return (
-      <LayoutNovo>
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <AlertCircle size={48} className="mx-auto mb-4 text-gray-400" />
-            <p className="text-gray-600">Erro ao carregar dados do dashboard</p>
-            <Button onClick={loadDashboard} className="mt-4">
-              Tentar novamente
-            </Button>
-          </div>
-        </div>
-      </LayoutNovo>
-    );
-  }
+  const getSemestreProjeto = (projeto) => {
+    const referencia = getTerminoContratoReferencia(projeto) || projeto?.data_inicio || null;
+    if (!referencia) return 'Sem data';
+    const data = new Date(referencia);
+    if (Number.isNaN(data.getTime())) return 'Sem data';
+    const ano = data.getFullYear();
+    const semestre = data.getMonth() < 6 ? 1 : 2;
+    return `${ano}.${semestre}`;
+  };
+
+  const getRiscoPorTerminoContrato = (projeto) => {
+    const referencia = getTerminoContratoReferencia(projeto);
+    if (!referencia) return projeto?.risco || 'baixo';
+
+    const dataFim = new Date(referencia);
+    if (Number.isNaN(dataFim.getTime())) return projeto?.risco || 'baixo';
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    dataFim.setHours(0, 0, 0, 0);
+
+    const diasRestantes = Math.ceil((dataFim.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+    if (diasRestantes <= 7) return 'critico';
+    if (diasRestantes <= 21) return 'alto';
+    if (diasRestantes <= 45) return 'medio';
+    return 'baixo';
+  };
+
+  const handleDragContratoStart = (event, projetoId) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(projetoId));
+    event.dataTransfer.setData('application/x-ideiabh-projeto', String(projetoId));
+    setDraggingProjectId(String(projetoId));
+  };
+
+  const handleDragContratoEnd = () => {
+    setDraggingProjectId(null);
+  };
 
   const isOperador = user?.role === 'operador';
   const setorOperador = normalizeSetor(user?.setor);
@@ -189,9 +217,9 @@ const DashboardAvancado = () => {
     return normalizeSetor(value) === setorOperador;
   };
 
-  const projetosEmAndamentoRaw = dashboardData.projetos_em_andamento || [];
-  const alertasAtrasosRaw = dashboardData.alertas_atrasos || [];
-  const cargaResponsavelRaw = dashboardData.carga_por_responsavel || [];
+  const projetosEmAndamentoRaw = dashboardData?.projetos_em_andamento || [];
+  const alertasAtrasosRaw = dashboardData?.alertas_atrasos || [];
+  const cargaResponsavelRaw = dashboardData?.carga_por_responsavel || [];
 
   const projetos_em_andamento = isOperador
     ? projetosEmAndamentoRaw.filter((projeto) => {
@@ -203,6 +231,46 @@ const DashboardAvancado = () => {
         return projetoSetor ? setorMatches(projetoSetor) : true;
       })
     : projetosEmAndamentoRaw;
+
+  const semestresDisponiveis = useMemo(
+    () => Array.from(new Set(projetos_em_andamento.map((projeto) => getSemestreProjeto(projeto)))).sort(),
+    [projetos_em_andamento]
+  );
+
+  const projetosFiltradosDashboard = useMemo(() => (
+    projetos_em_andamento
+      .filter((projeto) => {
+        if (filtroSemestre !== 'todos' && getSemestreProjeto(projeto) !== filtroSemestre) {
+          return false;
+        }
+        if (filtroRisco !== 'todos' && getRiscoPorTerminoContrato(projeto) !== filtroRisco) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const dataA = getTerminoContratoReferencia(a);
+        const dataB = getTerminoContratoReferencia(b);
+        const sortA = dataA ? new Date(dataA).getTime() : Number.MAX_SAFE_INTEGER;
+        const sortB = dataB ? new Date(dataB).getTime() : Number.MAX_SAFE_INTEGER;
+        if (sortA !== sortB) return sortA - sortB;
+        return String(a.contrato_numero || a.contrato_id || a.id || '')
+          .localeCompare(String(b.contrato_numero || b.contrato_id || b.id || ''));
+      })
+  ), [filtroRisco, filtroSemestre, projetos_em_andamento]);
+
+  const projetosAgrupadosDashboard = useMemo(() => {
+    const grupos = projetosFiltradosDashboard.reduce((acc, projeto) => {
+      const semestre = getSemestreProjeto(projeto);
+      if (!acc[semestre]) {
+        acc[semestre] = [];
+      }
+      acc[semestre].push(projeto);
+      return acc;
+    }, {});
+
+    return Object.entries(grupos).sort(([a], [b]) => a.localeCompare(b));
+  }, [projetosFiltradosDashboard]);
 
   const atrasoPertenceAoOperador = (atraso) => {
     if (atraso?.responsavel_id && user?.id) {
@@ -236,7 +304,12 @@ const DashboardAvancado = () => {
         total_tarefas_atrasadas: alertas_atrasos.length,
         responsaveis_com_atraso: 0,
       }
-    : dashboardData.resumo;
+    : (dashboardData?.resumo || {
+        total_projetos: 0,
+        projetos_em_andamento: 0,
+        total_tarefas_atrasadas: 0,
+        responsaveis_com_atraso: 0,
+      });
 
   const kpiCards = [
     {
@@ -271,6 +344,32 @@ const DashboardAvancado = () => {
 
   const podeCobrar = user?.role === 'admin' || user?.role === 'gerente';
 
+  if (loading) {
+    return (
+      <LayoutNovo>
+        <div className="flex items-center justify-center h-96">
+          <Loader2 className="animate-spin" size={48} />
+        </div>
+      </LayoutNovo>
+    );
+  }
+
+  if (!dashboardData) {
+    return (
+      <LayoutNovo>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <AlertCircle size={48} className="mx-auto mb-4 text-gray-400" />
+            <p className="text-gray-600">Erro ao carregar dados do dashboard</p>
+            <Button onClick={loadDashboard} className="mt-4">
+              Tentar novamente
+            </Button>
+          </div>
+        </div>
+      </LayoutNovo>
+    );
+  }
+
   return (
     <LayoutNovo>
       <div className="dashboard-container">
@@ -301,19 +400,78 @@ const DashboardAvancado = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              <div className="dashboard-project-filters">
+                <div className="dashboard-filter-group">
+                  <label htmlFor="dashboard-semestre">Semestre</label>
+                  <select
+                    id="dashboard-semestre"
+                    value={filtroSemestre}
+                    onChange={(e) => setFiltroSemestre(e.target.value)}
+                  >
+                    <option value="todos">Todos</option>
+                    {semestresDisponiveis.map((semestre) => (
+                      <option key={semestre} value={semestre}>
+                        {semestre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="dashboard-filter-group">
+                  <label htmlFor="dashboard-risco">Risco</label>
+                  <select
+                    id="dashboard-risco"
+                    value={filtroRisco}
+                    onChange={(e) => setFiltroRisco(e.target.value)}
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="baixo">Baixo</option>
+                    <option value="medio">Medio</option>
+                    <option value="alto">Alto</option>
+                    <option value="critico">Critico</option>
+                  </select>
+                </div>
+                <p className="dashboard-filter-note">
+                  Risco calculado pela proximidade do termino do contrato e ordenado pelo fim mais proximo.
+                </p>
+              </div>
+
               <div className="projects-list space-y-3">
-                {projetos_em_andamento?.slice(0, 6).map((projeto) => (
-                  <div key={projeto.id} className="project-item border rounded-lg p-4">
+                {projetosAgrupadosDashboard.map(([semestre, projetosSemestre]) => (
+                  <div key={semestre} className="project-group">
+                    <div className="project-group-header">
+                      <span className="project-group-title">{semestre}</span>
+                      <span className="project-group-count">{projetosSemestre.length} contrato(s)</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {projetosSemestre.map((projeto) => (
+                  <div
+                    key={projeto.id}
+                    className={`project-item border rounded-lg p-4 ${draggingProjectId === String(projeto.id) ? 'dragging' : ''}`}
+                    draggable={isOperador}
+                    onDragStart={(event) => handleDragContratoStart(event, projeto.id)}
+                    onDragEnd={handleDragContratoEnd}
+                    title={isOperador ? 'Arraste este contrato para uma pasta na sidebar' : undefined}
+                  >
                     <div className="project-header flex items-center justify-between mb-2">
-                      <span className="project-name font-semibold text-lg">{projeto.cliente}</span>
+                      <div className="project-title-block">
+                        <span className="project-contract">
+                          {(projeto.contrato_numero || projeto.contrato_id || 'Sem contrato').toUpperCase()}
+                        </span>
+                        {(projeto.contrato_faculdade || projeto.contrato_curso) && (
+                          <span className="project-contract-meta">
+                            {[projeto.contrato_faculdade, projeto.contrato_curso].filter(Boolean).join(' - ')}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex gap-2">
                         <Badge 
                           style={{ 
-                            backgroundColor: getRiscoColor(projeto.risco).bg,
-                            color: getRiscoColor(projeto.risco).color
+                            backgroundColor: getRiscoColor(getRiscoPorTerminoContrato(projeto)).bg,
+                            color: getRiscoColor(getRiscoPorTerminoContrato(projeto)).color
                           }}
                         >
-                          Risco {projeto.risco}
+                          Risco {getRiscoPorTerminoContrato(projeto)}
                         </Badge>
                         {projeto.tarefas_atrasadas > 0 && (
                           <Badge className="bg-red-100 text-red-800">
@@ -335,15 +493,18 @@ const DashboardAvancado = () => {
                     </div>
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>{projeto.tarefas_concluidas} de {projeto.total_tarefas} tarefas concluídas</span>
-                      <span>Término: {new Date(projeto.data_fim_prevista).toLocaleDateString('pt-BR')}</span>
+                      <span>Término: {new Date(getTerminoContratoReferencia(projeto) || projeto.data_fim_prevista).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                  </div>
+                      ))}
                     </div>
                   </div>
                 ))}
                 
-                {(!projetos_em_andamento || projetos_em_andamento.length === 0) && (
+                {projetosFiltradosDashboard.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     <FileText size={48} className="mx-auto mb-2 opacity-50" />
-                    <p>Nenhum projeto em andamento</p>
+                    <p>Nenhum projeto encontrado para os filtros atuais</p>
                   </div>
                 )}
               </div>
@@ -365,6 +526,11 @@ const DashboardAvancado = () => {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <p className="font-semibold text-sm">{atraso.titulo}</p>
+                        {atraso.contrato_numero && (
+                          <p className="alert-contract">
+                            Contrato {atraso.contrato_numero}
+                          </p>
+                        )}
                         {!isOperador && (
                           <p className="text-xs text-gray-600 mt-1">
                             {atraso.responsavel || 'Não atribuído'}

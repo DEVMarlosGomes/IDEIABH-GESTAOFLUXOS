@@ -43,7 +43,11 @@ export const AuthProvider = ({ children }) => {
       return { success: true, user: userData };
     } catch (err) {
       console.error('AuthContext - Login error:', err);
-      const errorMsg = err.response?.data?.detail || 'Erro ao fazer login';
+      const backendMessage = err.response?.data?.detail;
+      const networkMessage = !err.response && err.message === 'Network Error'
+        ? 'API indisponivel na porta 8001. Verifique se o backend terminou de subir.'
+        : null;
+      const errorMsg = backendMessage || networkMessage || 'Erro ao fazer login';
       return { success: false, error: errorMsg };
     }
   };

@@ -66,6 +66,7 @@ class Tarefa(Base):
     finalizada = Column(Boolean, default=False)
     data_finalizacao = Column(DateTime(timezone=True), nullable=True)
     observacao_finalizacao = Column(Text, nullable=True)
+    anexos = Column(JSON, default=list)
     
     # Controle de criação
     criado_por_id = Column(String(36), nullable=False)
@@ -92,6 +93,7 @@ class Contrato(Base):
     pago = Column(Boolean, default=False)
     data_inicio = Column(String(50), nullable=False)  # ISO date string
     data_fim = Column(String(50), nullable=True)
+    data_aditivo = Column(String(50), nullable=True)
     observacao = Column(Text, nullable=True)
     status = Column(String(50), default="Ativo")  # Ativo, Em Andamento, Em Produção, Finalizado, Entregue
     template_id = Column(String(36), nullable=True)

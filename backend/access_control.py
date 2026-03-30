@@ -9,6 +9,8 @@ SETOR_ALIASES = {
     "producao": "producao",
 }
 
+SETORES_COMPARTILHADOS_OPERADOR = {"atendimento", "criacao"}
+
 
 def _setor_key(value: Optional[str]) -> str:
     if not value:
@@ -36,6 +38,24 @@ def operador_tem_acesso_tarefa(
     if not tarefa_operador_id or tarefa_operador_id != usuario_id:
         return False
     return normalize_setor(tarefa_setor) == normalize_setor(usuario_setor)
+
+
+def operador_pode_visualizar_tarefa_compartilhada(
+    *,
+    tarefa_setor: Optional[str],
+    usuario_setor: Optional[str],
+    compartilha_contrato: bool = False,
+) -> bool:
+    if not compartilha_contrato:
+        return False
+    setor_usuario = normalize_setor(usuario_setor)
+    setor_tarefa = normalize_setor(tarefa_setor)
+    if not setor_usuario or not setor_tarefa:
+        return False
+    return (
+        setor_usuario in SETORES_COMPARTILHADOS_OPERADOR
+        and setor_tarefa in SETORES_COMPARTILHADOS_OPERADOR
+    )
 
 
 def validar_contexto_finalizacao_operador(

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -35,11 +35,39 @@ import {
   atualizarContrato, 
   deletarContrato,
   getTemplatesPrazos,
-  listarUsuariosSetor
+  listarUsuariosSetor,
+  getProjeto,
+  atualizarResponsaveisProjeto
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import './ContratosLista.css';
+
+const getSemestrePeriodo = (dateValue) => {
+  const date = dateValue ? new Date(dateValue) : null;
+  if (!date || Number.isNaN(date.getTime())) return 'Sem semestre';
+  const semestre = date.getMonth() < 6 ? 1 : 2;
+  return `${date.getFullYear()}.${semestre}`;
+};
+
+const getSemestreSortValue = (periodo) => {
+  const match = /^(\d{4})\.(1|2)$/.exec(periodo || '');
+  if (!match) return -1;
+  return Number(match[1]) * 10 + Number(match[2]);
+};
+
+const getSemestreContrato = (contrato) => (
+  getSemestrePeriodo(contrato?.data_fim || contrato?.data_inicio)
+);
+
+const normalizeSetor = (setor) => {
+  if (!setor) return '';
+  return String(setor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[-_\s]/g, '');
+};
 
 const ContratosListaNova = () => {
   const { user } = useAuth();
@@ -48,6 +76,7 @@ const ContratosListaNova = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
+  const [filterSemestre, setFilterSemestre] = useState('todos');
   const [viewMode, setViewMode] = useState('grid');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContrato, setEditingContrato] = useState(null);
@@ -70,7 +99,8 @@ const ContratosListaNova = () => {
     template_id: '',
     atribuir_operadores: false,
     responsavel_atendimento_id: '',
-    responsavel_criacao_id: ''
+    responsavel_criacao_id: '',
+    aplicar_finalizadas: true
   });
 
   useEffect(() => {
@@ -94,7 +124,7 @@ const ContratosListaNova = () => {
     }
   };
 
-  const loadOperadores = async () => {
+  const loadOperadores = useCallback(async () => {
     if (!user?.role) return;
     setOperadoresLoading(true);
     try {
@@ -111,19 +141,23 @@ const ContratosListaNova = () => {
     } finally {
       setOperadoresLoading(false);
     }
-  };
+  }, [user?.role, user?.setor]);
 
   useEffect(() => {
-    if (isModalOpen && !editingContrato && !operadoresLoading) {
-      loadOperadores();
-    }
-  }, [isModalOpen, editingContrato, user]);
+    if (!isModalOpen) return;
+    loadOperadores();
+  }, [isModalOpen, loadOperadores]);
+
+  const semestresDisponiveis = Array.from(
+    new Set((contratos || []).map((contrato) => getSemestreContrato(contrato)))
+  ).sort((a, b) => getSemestreSortValue(b) - getSemestreSortValue(a));
 
   const filteredContratos = contratos.filter(contrato => {
     const matchesSearch = contrato.cliente?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           contrato.numero_contrato?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'todos' || contrato.status === filterStatus;
-    return matchesSearch && matchesFilter;
+    const matchesSemestre = filterSemestre === 'todos' || getSemestreContrato(contrato) === filterSemestre;
+    return matchesSearch && matchesFilter && matchesSemestre;
   });
 
   const getStatusColor = (status) => {
@@ -150,9 +184,10 @@ const ContratosListaNova = () => {
     return criador;
   };
 
-  const handleOpenModal = (contrato = null) => {
+  const handleOpenModal = async (contrato = null) => {
     if (contrato) {
       setEditingContrato(contrato);
+      setSelectedTemplate(contrato.template_id ? templates.find(t => t.id === contrato.template_id) : null);
       setFormData({
         cliente: contrato.cliente,
         faculdade: contrato.faculdade,
@@ -165,30 +200,73 @@ const ContratosListaNova = () => {
         template_id: contrato.template_id || '',
         atribuir_operadores: false,
         responsavel_atendimento_id: '',
-        responsavel_criacao_id: ''
+        responsavel_criacao_id: '',
+        aplicar_finalizadas: true
       });
-      if (contrato.template_id) {
-        const template = templates.find(t => t.id === contrato.template_id);
-        setSelectedTemplate(template);
+      setIsModalOpen(true);
+
+      let responsavelAtendimentoId = '';
+      let responsavelCriacaoId = '';
+
+      try {
+        await loadOperadores();
+        if (contrato.projeto_id) {
+          const projeto = await getProjeto(
+            contrato.projeto_id,
+            user?.role || 'gerente',
+            user?.id || null,
+            user?.setor || null
+          );
+          const tarefasProjeto = projeto?.tarefas || [];
+          responsavelAtendimentoId =
+            tarefasProjeto.find((tarefa) => (
+              normalizeSetor(tarefa.setor) === 'atendimento' && tarefa.responsavel_id
+            ))?.responsavel_id || '';
+          responsavelCriacaoId =
+            tarefasProjeto.find((tarefa) => (
+              normalizeSetor(tarefa.setor) === 'criacao' && tarefa.responsavel_id
+            ))?.responsavel_id || '';
+        }
+      } catch (error) {
+        console.error('Erro ao carregar atribuicoes atuais do contrato:', error);
+        toast.error('Nao foi possivel carregar os operadores atuais do contrato');
       }
-    } else {
-      setEditingContrato(null);
+
       setFormData({
-        cliente: '',
-        faculdade: '',
-        curso: '',
-        numero_contrato: '',
-        pago: false,
-        data_inicio: new Date().toISOString().split('T')[0],
-        data_fim: '',
-        observacao: '',
-        template_id: '',
-        atribuir_operadores: false,
-        responsavel_atendimento_id: '',
-        responsavel_criacao_id: ''
+        cliente: contrato.cliente,
+        faculdade: contrato.faculdade,
+        curso: contrato.curso || '',
+        numero_contrato: contrato.numero_contrato,
+        pago: !!contrato.pago,
+        data_inicio: contrato.data_inicio,
+        data_fim: contrato.data_fim || '',
+        observacao: contrato.observacao || '',
+        template_id: contrato.template_id || '',
+        atribuir_operadores: Boolean(responsavelAtendimentoId || responsavelCriacaoId),
+        responsavel_atendimento_id: responsavelAtendimentoId,
+        responsavel_criacao_id: responsavelCriacaoId,
+        aplicar_finalizadas: true
       });
-      setSelectedTemplate(null);
+      return;
     }
+
+    setEditingContrato(null);
+    setFormData({
+      cliente: '',
+      faculdade: '',
+      curso: '',
+      numero_contrato: '',
+      pago: false,
+      data_inicio: new Date().toISOString().split('T')[0],
+      data_fim: '',
+      observacao: '',
+      template_id: '',
+      atribuir_operadores: false,
+      responsavel_atendimento_id: '',
+      responsavel_criacao_id: '',
+      aplicar_finalizadas: true
+    });
+    setSelectedTemplate(null);
     setIsModalOpen(true);
   };
 
@@ -233,8 +311,25 @@ const ContratosListaNova = () => {
           data_fim: formData.data_fim,
           observacao: formData.observacao
         });
+
+        if (editingContrato.projeto_id) {
+          await atualizarResponsaveisProjeto(editingContrato.projeto_id, {
+            user_role: user?.role || 'gerente',
+            user_id: user?.id || null,
+            user_nome: user?.nome || user?.username || 'Sistema',
+            user_setor: user?.setor || null,
+            responsavel_atendimento_id: formData.atribuir_operadores
+              ? (formData.responsavel_atendimento_id || null)
+              : null,
+            responsavel_criacao_id: formData.atribuir_operadores
+              ? (formData.responsavel_criacao_id || null)
+              : null,
+            aplicar_finalizadas: !!formData.aplicar_finalizadas,
+          });
+        }
+
         setContratos(contratos.map(c => c.id === editingContrato.id ? updated : c));
-        toast.success('Contrato atualizado com sucesso!');
+        toast.success('Contrato e operadores atualizados com sucesso!');
       } else {
         // Criar novo contrato (que cria automaticamente o projeto e etapas)
         const result = await criarContrato({
@@ -363,6 +458,19 @@ const ContratosListaNova = () => {
           </div>
 
           <div className="filtros-status filtros-contratos">
+            <select
+              className="semestre-filter-select"
+              value={filterSemestre}
+              onChange={(e) => setFilterSemestre(e.target.value)}
+            >
+              <option value="todos">Todos os semestres</option>
+              {semestresDisponiveis.map((semestre) => (
+                <option key={semestre} value={semestre}>
+                  {semestre}
+                </option>
+              ))}
+            </select>
+
             {['todos', 'Ativo', 'Em Andamento', 'Finalizado'].map((status) => (
               <button
                 key={status}
@@ -385,7 +493,7 @@ const ContratosListaNova = () => {
             <Card key={contrato.id} className="contrato-card">
               <CardHeader className="contrato-card-header">
                 <div className="contrato-header-top">
-                  <span className="contrato-numero">{contrato.numero_contrato}</span>
+                  <span className="contrato-pessoa-comissao">{contrato.cliente}</span>
                   <Badge 
                     style={{ 
                       backgroundColor: getStatusColor(contrato.status).bg,
@@ -395,11 +503,15 @@ const ContratosListaNova = () => {
                     {contrato.status}
                   </Badge>
                 </div>
-                <CardTitle className="contrato-cliente">{contrato.cliente}</CardTitle>
-                <span className="contrato-faculdade">
-                  <Building2 size={14} />
-                  {contrato.faculdade}
-                </span>
+                <CardTitle className="contrato-titulo-destaque">
+                  {(contrato.numero_contrato || 'Sem contrato').toUpperCase()}
+                </CardTitle>
+                {(contrato.faculdade || contrato.curso) && (
+                  <span className="contrato-faculdade">
+                    <Building2 size={14} />
+                    {[contrato.faculdade, contrato.curso].filter(Boolean).join(' • ')}
+                  </span>
+                )}
               </CardHeader>
               <CardContent className="contrato-card-content">
                 <div className="contrato-info-grid">
@@ -483,15 +595,15 @@ const ContratosListaNova = () => {
             </DialogHeader>
             
             <Tabs defaultValue="dados" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="dados">Dados do Contrato</TabsTrigger>
-              <TabsTrigger value="template" disabled={editingContrato}>
-                Template e Prazos
-              </TabsTrigger>
-              <TabsTrigger value="atribuicoes" disabled={editingContrato}>
-                Atribuicoes
-              </TabsTrigger>
-            </TabsList>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="dados">Dados do Contrato</TabsTrigger>
+                <TabsTrigger value="template" disabled={editingContrato}>
+                  Template e Prazos
+                </TabsTrigger>
+                <TabsTrigger value="atribuicoes">
+                  Atribuicoes
+                </TabsTrigger>
+              </TabsList>
               
               <TabsContent value="dados" className="space-y-4">
                 <div className="modal-form">
@@ -672,7 +784,7 @@ const ContratosListaNova = () => {
                       checked={formData.atribuir_operadores}
                       onCheckedChange={(checked) => setFormData(prev => ({ ...prev, atribuir_operadores: !!checked }))}
                     />
-                    <Label>Atribuir etapas automaticamente</Label>
+                    <Label>{editingContrato ? 'Atualizar operadores do contrato' : 'Atribuir etapas automaticamente'}</Label>
                   </div>
 
                   <div className="form-group">
@@ -727,7 +839,22 @@ const ContratosListaNova = () => {
                     </Select>
                   </div>
 
-                  <p className="form-hint">Quando ativo, todas as etapas dos setores de atendimento e criacao serao atribuidas aos operadores escolhidos.</p>
+                  {editingContrato && (
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={formData.aplicar_finalizadas}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, aplicar_finalizadas: !!checked }))}
+                        disabled={!formData.atribuir_operadores}
+                      />
+                      <Label>Aplicar tambem nas etapas finalizadas</Label>
+                    </div>
+                  )}
+
+                  <p className="form-hint">
+                    {editingContrato
+                      ? 'Ao salvar, a troca replica o operador em lote nas tarefas de atendimento e criacao deste contrato.'
+                      : 'Quando ativo, todas as etapas dos setores de atendimento e criacao serao atribuidas aos operadores escolhidos.'}
+                  </p>
                 </div>
               </TabsContent>
             </Tabs>

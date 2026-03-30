@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -24,8 +24,10 @@ import {
 import {
   getProjeto,
   deletarTarefa,
-  getStatusTarefas,
-  alterarStatusTarefa,
+  registrarAditivoContrato,
+  listarUsuariosSetor,
+  atualizarResponsaveisProjeto,
+  atualizarPrazosProjeto,
 } from '../services/api';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
@@ -43,14 +45,32 @@ const statusFiltroDaTarefa = (tarefa) => {
 
 const prioridadeDaTarefa = (tarefa) => (tarefa?.prioridade || 'media').toLowerCase();
 
+const normalizeSetor = (setor = '') => String(setor)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .replace(/[^a-z]/g, '');
+
+const formatDateInput = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return parsed.toISOString().slice(0, 10);
+};
+
+const SETOR_ORDER = [
+  'atendimento',
+  'criacao',
+  'pre-producao',
+  'producao',
+];
+
 const ProjetoDetalhes = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAdminOrGerente } = useAuth();
   const [projeto, setProjeto] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [statusList, setStatusList] = useState([]);
-  const [atualizandoStatusId, setAtualizandoStatusId] = useState(null);
 
   const [filtroContrato, setFiltroContrato] = useState('todos');
   const [filtroStatus, setFiltroStatus] = useState('todos');
@@ -63,25 +83,52 @@ const ProjetoDetalhes = () => {
   const [showAtribuirModal, setShowAtribuirModal] = useState(false);
   const [selectedTarefa, setSelectedTarefa] = useState(null);
   const [tarefaParaAtribuir, setTarefaParaAtribuir] = useState(null);
+  const [aditivoDate, setAditivoDate] = useState('');
+  const [salvandoAditivo, setSalvandoAditivo] = useState(false);
+  const [operadoresAtendimento, setOperadoresAtendimento] = useState([]);
+  const [operadoresCriacao, setOperadoresCriacao] = useState([]);
+  const [responsaveisProjeto, setResponsaveisProjeto] = useState({
+    atendimento: '',
+    criacao: '',
+  });
+  const [aplicarResponsaveisEmFinalizadas, setAplicarResponsaveisEmFinalizadas] = useState(true);
+  const [salvandoResponsaveis, setSalvandoResponsaveis] = useState(false);
+  const [prazosProjeto, setPrazosProjeto] = useState([]);
+  const [salvandoPrazos, setSalvandoPrazos] = useState(false);
+
+  const canManageProjeto = isAdminOrGerente ? isAdminOrGerente() : false;
+  const setorUsuarioNormalizado = normalizeSetor(user?.setor);
+  const canManageSetorProjeto = useCallback((setor) => (
+    user?.role === 'admin' || setorUsuarioNormalizado === normalizeSetor(setor)
+  ), [setorUsuarioNormalizado, user?.role]);
 
   useEffect(() => {
-    loadProjeto();
-  }, [id, user?.role, user?.id, user?.setor]);
+    if (!canManageProjeto) return;
 
-  useEffect(() => {
-    loadStatus();
-  }, []);
+    const carregarOperadores = async () => {
+      try {
+        if (canManageSetorProjeto('atendimento')) {
+          const atendimento = await listarUsuariosSetor('atendimento', user?.role || 'admin', user?.setor || undefined);
+          setOperadoresAtendimento(Array.isArray(atendimento) ? atendimento : []);
+        } else {
+          setOperadoresAtendimento([]);
+        }
 
-  const loadStatus = async () => {
-    try {
-      const data = await getStatusTarefas();
-      setStatusList(data || []);
-    } catch (error) {
-      setStatusList([]);
-    }
-  };
+        if (canManageSetorProjeto('criacao')) {
+          const criacao = await listarUsuariosSetor('criacao', user?.role || 'admin', user?.setor || undefined);
+          setOperadoresCriacao(Array.isArray(criacao) ? criacao : []);
+        } else {
+          setOperadoresCriacao([]);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar operadores do projeto:', error);
+      }
+    };
 
-  const loadProjeto = async () => {
+    carregarOperadores();
+  }, [canManageProjeto, canManageSetorProjeto, user?.role, user?.setor]);
+
+  const loadProjeto = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getProjeto(
@@ -91,12 +138,7 @@ const ProjetoDetalhes = () => {
         user?.setor || null
       );
       setProjeto(data);
-
-      const contratos = data?.contratos || [];
-      const contratoExiste = contratos.some((c) => c.id === filtroContrato);
-      if (filtroContrato !== 'todos' && !contratoExiste) {
-        setFiltroContrato('todos');
-      }
+      setAditivoDate(data?.contrato?.data_aditivo || '');
     } catch (error) {
       console.error('Erro ao carregar projeto:', error);
       const detail = error?.response?.data?.detail;
@@ -109,6 +151,66 @@ const ProjetoDetalhes = () => {
     } finally {
       setLoading(false);
     }
+  }, [id, user?.id, user?.role, user?.setor]);
+
+  useEffect(() => {
+    loadProjeto();
+  }, [loadProjeto]);
+
+  useEffect(() => {
+    const contratos = projeto?.contratos || [];
+    const contratoExiste = contratos.some((contrato) => contrato.id === filtroContrato);
+    if (filtroContrato !== 'todos' && !contratoExiste) {
+      setFiltroContrato('todos');
+    }
+  }, [filtroContrato, projeto]);
+
+  const handleRegistrarAditivo = async () => {
+    const contratoId = projeto?.contrato?.id || contratosProjeto[0]?.id;
+    if (!contratoId) {
+      toast.error('Contrato principal nao encontrado');
+      return;
+    }
+
+    if (!aditivoDate) {
+      toast.error('Informe a data de aditivo');
+      return;
+    }
+
+    try {
+      setSalvandoAditivo(true);
+      const result = await registrarAditivoContrato(contratoId, aditivoDate, {
+        user_role: user?.role || 'operador',
+        user_id: user?.id || null,
+        user_setor: user?.setor || null,
+      });
+      toast.success(
+        `Aditivo aplicado. ${result?.prazos_recalculados?.length || 0} etapa(s) recalculada(s).`
+      );
+      await loadProjeto();
+    } catch (error) {
+      console.error('Erro ao aplicar aditivo:', error);
+      toast.error(error?.response?.data?.detail || 'Erro ao aplicar aditivo');
+    } finally {
+      setSalvandoAditivo(false);
+    }
+  };
+
+  const getResponsavelProjetoPorSetor = useCallback((setor) => (
+    (projeto?.tarefas || []).find(
+      (tarefa) => normalizeSetor(tarefa.setor) === normalizeSetor(setor) && tarefa.responsavel_id
+    ) || null
+  ), [projeto]);
+
+  const buildOperatorOptions = (usuarios, selectedId, fallbackNome) => {
+    const lista = Array.isArray(usuarios) ? [...usuarios] : [];
+    if (selectedId && !lista.some((usuario) => usuario.id === selectedId)) {
+      lista.unshift({
+        id: selectedId,
+        nome: fallbackNome || 'Responsavel atual',
+      });
+    }
+    return lista;
   };
 
   const contratosProjeto = useMemo(() => {
@@ -131,6 +233,91 @@ const ProjetoDetalhes = () => {
     });
 
     return Array.from(mapa.values());
+  }, [projeto]);
+
+  const contratoPrincipalDetalhes = projeto?.contrato || contratosProjeto[0] || null;
+  const enriquecerTarefaComContrato = useCallback((tarefa) => {
+    if (!tarefa) return tarefa;
+    const contratoMeta = contratosProjeto.find((contrato) => contrato.id === tarefa.contrato_id)
+      || contratoPrincipalDetalhes
+      || null;
+
+    return {
+      ...tarefa,
+      contrato_numero: tarefa.contrato_numero || contratoMeta?.numero_contrato || tarefa.contrato_id,
+      contrato_cliente: tarefa.contrato_cliente || contratoMeta?.cliente || projeto?.cliente,
+      contrato_faculdade: tarefa.contrato_faculdade || contratoMeta?.faculdade || null,
+      contrato_curso: tarefa.contrato_curso || contratoMeta?.curso || null,
+    };
+  }, [contratoPrincipalDetalhes, contratosProjeto, projeto?.cliente]);
+
+  const responsavelAtualAtendimento = useMemo(
+    () => getResponsavelProjetoPorSetor('atendimento'),
+    [getResponsavelProjetoPorSetor]
+  );
+  const responsavelAtualCriacao = useMemo(
+    () => getResponsavelProjetoPorSetor('criacao'),
+    [getResponsavelProjetoPorSetor]
+  );
+  const opcoesAtendimento = useMemo(
+    () => buildOperatorOptions(
+      operadoresAtendimento,
+      responsaveisProjeto.atendimento,
+      responsavelAtualAtendimento?.responsavel_nome
+    ),
+    [operadoresAtendimento, responsaveisProjeto.atendimento, responsavelAtualAtendimento]
+  );
+  const opcoesCriacao = useMemo(
+    () => buildOperatorOptions(
+      operadoresCriacao,
+      responsaveisProjeto.criacao,
+      responsavelAtualCriacao?.responsavel_nome
+    ),
+    [operadoresCriacao, responsaveisProjeto.criacao, responsavelAtualCriacao]
+  );
+  const prazosProjetoMap = useMemo(
+    () => Object.fromEntries((prazosProjeto || []).map((item) => [item.tarefa_id, item.prazo || ''])),
+    [prazosProjeto]
+  );
+  const tarefasPrazoEditaveis = useMemo(() => (
+    (projeto?.tarefas || [])
+      .filter((tarefa) => !tarefa.finalizada)
+      .sort((a, b) => sortKey(a) - sortKey(b))
+      .map((tarefa) => ({
+        ...tarefa,
+        prazo_editavel: prazosProjetoMap[tarefa.id] ?? formatDateInput(tarefa.prazo),
+      }))
+  ), [projeto, prazosProjetoMap]);
+  const totalPrazosAlterados = useMemo(() => (
+    tarefasPrazoEditaveis.filter(
+      (tarefa) => tarefa.prazo_editavel !== formatDateInput(tarefa.prazo)
+    ).length
+  ), [tarefasPrazoEditaveis]);
+
+  useEffect(() => {
+    if (!projeto) return;
+
+    const tarefasProjeto = projeto.tarefas || [];
+    const responsavelAtendimento = tarefasProjeto.find(
+      (tarefa) => normalizeSetor(tarefa.setor) === 'atendimento' && tarefa.responsavel_id
+    );
+    const responsavelCriacao = tarefasProjeto.find(
+      (tarefa) => normalizeSetor(tarefa.setor) === 'criacao' && tarefa.responsavel_id
+    );
+
+    setResponsaveisProjeto({
+      atendimento: responsavelAtendimento?.responsavel_id || '',
+      criacao: responsavelCriacao?.responsavel_id || '',
+    });
+
+    setPrazosProjeto(
+      tarefasProjeto
+        .filter((tarefa) => !tarefa.finalizada)
+        .map((tarefa) => ({
+          tarefa_id: tarefa.id,
+          prazo: formatDateInput(tarefa.prazo),
+        }))
+    );
   }, [projeto]);
 
   const tarefasFiltradas = useMemo(() => {
@@ -160,7 +347,7 @@ const ProjetoDetalhes = () => {
     });
   }, [projeto, filtroContrato, filtroStatus, filtroData, filtroPrioridade]);
 
-  const sortKey = (tarefa) => {
+  function sortKey(tarefa) {
     const candidates = [tarefa.prazo_original, tarefa.prazo, tarefa.criado_em];
     for (const value of candidates) {
       if (!value) continue;
@@ -170,7 +357,7 @@ const ProjetoDetalhes = () => {
       }
     }
     return 0;
-  };
+  }
 
   const tarefasPorSetor = useMemo(() => {
     const grouped = tarefasFiltradas.reduce((acc, tarefa) => {
@@ -195,17 +382,10 @@ const ProjetoDetalhes = () => {
     return grouped;
   }, [tarefasFiltradas]);
 
-  const setorOrder = [
-    'atendimento',
-    'criacao',
-    'pre-producao',
-    'producao',
-  ];
-
   const setoresOrdenados = useMemo(() => {
     return Object.keys(tarefasPorSetor).sort((a, b) => {
-      const ai = setorOrder.indexOf(a);
-      const bi = setorOrder.indexOf(b);
+      const ai = SETOR_ORDER.indexOf(a);
+      const bi = SETOR_ORDER.indexOf(b);
       if (ai === -1 && bi === -1) return a.localeCompare(b);
       if (ai === -1) return 1;
       if (bi === -1) return -1;
@@ -222,12 +402,12 @@ const ProjetoDetalhes = () => {
   }, [tarefasFiltradas]);
 
   const handleTarefaClick = (tarefa) => {
-    setSelectedTarefa(tarefa);
+    setSelectedTarefa(enriquecerTarefaComContrato(tarefa));
     setShowDetalhesModal(true);
   };
 
   const handleEditar = (tarefa) => {
-    setSelectedTarefa(tarefa);
+    setSelectedTarefa(enriquecerTarefaComContrato(tarefa));
     setShowEditarModal(true);
   };
 
@@ -250,7 +430,7 @@ const ProjetoDetalhes = () => {
       return;
     }
 
-    setSelectedTarefa(tarefa);
+    setSelectedTarefa(enriquecerTarefaComContrato(tarefa));
     setShowFinalizarModal(true);
   };
 
@@ -269,8 +449,95 @@ const ProjetoDetalhes = () => {
       }
     }
 
-    setTarefaParaAtribuir(tarefa);
+    setTarefaParaAtribuir(enriquecerTarefaComContrato(tarefa));
     setShowAtribuirModal(true);
+  };
+
+  const handleSalvarResponsaveisProjeto = async () => {
+    if (!canManageProjeto) {
+      toast.error('Apenas administradores e gerentes podem atualizar responsaveis do projeto');
+      return;
+    }
+
+    try {
+      setSalvandoResponsaveis(true);
+      const response = await atualizarResponsaveisProjeto(id, {
+        user_role: user?.role || 'admin',
+        user_id: user?.id || null,
+        user_nome: user?.nome || user?.username || 'Sistema',
+        user_setor: user?.setor || null,
+        responsavel_atendimento_id: responsaveisProjeto.atendimento || null,
+        responsavel_criacao_id: responsaveisProjeto.criacao || null,
+        aplicar_finalizadas: aplicarResponsaveisEmFinalizadas,
+      });
+
+      toast.success(
+        `Responsaveis atualizados em ${response?.atualizacoes?.length || 0} tarefa(s) do projeto`
+      );
+      if (response?.projeto) {
+        setProjeto(response.projeto);
+      } else {
+        await loadProjeto();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar responsaveis do projeto:', error);
+      toast.error(error?.response?.data?.detail || 'Erro ao atualizar responsaveis do projeto');
+    } finally {
+      setSalvandoResponsaveis(false);
+    }
+  };
+
+  const handlePrazoProjetoChange = (tarefaId, prazo) => {
+    setPrazosProjeto((prev) => prev.map((item) => (
+      item.tarefa_id === tarefaId
+        ? { ...item, prazo }
+        : item
+    )));
+  };
+
+  const handleSalvarPrazosProjeto = async () => {
+    if (!canManageProjeto) {
+      toast.error('Apenas administradores e gerentes podem ajustar prazos do projeto');
+      return;
+    }
+
+    const payload = tarefasPrazoEditaveis
+      .filter((tarefa) => tarefa.prazo_editavel !== formatDateInput(tarefa.prazo))
+      .map((tarefa) => ({
+        tarefa_id: tarefa.id,
+        prazo: tarefa.prazo_editavel || null,
+      }))
+      .filter((item) => item.prazo);
+
+    if (payload.length === 0) {
+      toast.error('Nenhum prazo foi alterado');
+      return;
+    }
+
+    try {
+      setSalvandoPrazos(true);
+      const response = await atualizarPrazosProjeto(id, {
+        user_role: user?.role || 'admin',
+        user_id: user?.id || null,
+        user_nome: user?.nome || user?.username || 'Sistema',
+        user_setor: user?.setor || null,
+        prazos: payload,
+      });
+
+      toast.success(
+        `${response?.tarefas_atualizadas?.length || payload.length} prazo(s) atualizados no projeto`
+      );
+      if (response?.projeto) {
+        setProjeto(response.projeto);
+      } else {
+        await loadProjeto();
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar prazos do projeto:', error);
+      toast.error(error?.response?.data?.detail || 'Erro ao atualizar prazos do projeto');
+    } finally {
+      setSalvandoPrazos(false);
+    }
   };
 
   const handleExcluir = async (tarefa) => {
@@ -288,34 +555,26 @@ const ProjetoDetalhes = () => {
     }
   };
 
-  const handleAlterarStatus = async (tarefa, novoStatusId) => {
-    if (!novoStatusId || novoStatusId === tarefa.status_id) return;
-
-    try {
-      setAtualizandoStatusId(tarefa.id);
-      await alterarStatusTarefa(tarefa.id, {
-        status_id: novoStatusId,
-        usuario_id: user?.id || 'unknown',
-        usuario_nome: user?.nome || user?.username || 'Operador',
-        usuario_setor: user?.setor || 'desconhecido',
-        usuario_role: user?.role || 'operador',
-        contrato_id_selecionado: filtroContrato !== 'todos' ? filtroContrato : tarefa.contrato_id,
-        observacao: `Status atualizado por ${user?.nome || user?.username || 'Usuario'}`,
-      });
-      toast.success('Status atualizado com sucesso');
-      await loadProjeto();
-    } catch (error) {
-      const detail = error?.response?.data?.detail;
-      toast.error(detail || 'Erro ao atualizar status da tarefa');
-    } finally {
-      setAtualizandoStatusId(null);
-    }
-  };
-
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('pt-BR');
   };
+
+  const getContratoMetaTarefa = (tarefa) => (
+    contratosProjeto.find((contrato) => contrato.id === tarefa?.contrato_id) || contratoPrincipalDetalhes || null
+  );
+
+  const getContratoNumeroTarefa = (tarefa) => (
+    getContratoMetaTarefa(tarefa)?.numero_contrato || tarefa?.contrato_id || 'Sem contrato'
+  );
+
+  const getContratoFaculdadeTarefa = (tarefa) => (
+    getContratoMetaTarefa(tarefa)?.faculdade || 'Faculdade nao informada'
+  );
+
+  const getContratoCursoTarefa = (tarefa) => (
+    getContratoMetaTarefa(tarefa)?.curso || null
+  );
 
   const getRiscoColor = (risco) => {
     const colors = {
@@ -339,8 +598,6 @@ const ProjetoDetalhes = () => {
     }
     return { label: 'Pendente', color: 'bg-gray-100 text-gray-800' };
   };
-
-  const statusAtualizaveis = statusList.filter((s) => s.nome !== 'Concluído');
 
   if (loading) {
     return (
@@ -478,19 +735,234 @@ const ProjetoDetalhes = () => {
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Contratos associados</CardTitle>
+            <CardTitle>Contrato e Aditivo</CardTitle>
           </CardHeader>
           <CardContent>
-            {contratosProjeto.length === 0 ? (
+            {!contratoPrincipalDetalhes ? (
               <p className="text-sm text-gray-500">Nenhum contrato associado</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {contratosProjeto.map((contrato) => (
-                  <Badge key={contrato.id} variant="outline" className="bg-white">
-                    {contrato.numero_contrato || contrato.id} - {contrato.status || 'Ativo'}
-                  </Badge>
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-4">
+                  <div className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    {contratosProjeto.map((contrato) => (
+                      <Badge key={contrato.id} variant="outline" className="bg-white">
+                        {contrato.numero_contrato || contrato.id} - {contrato.status || 'Ativo'}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-lg border p-3 bg-white">
+                      <div className="text-xs text-gray-500 mb-1">Numero do contrato</div>
+                      <div className="font-semibold text-gray-900">
+                        {contratoPrincipalDetalhes.numero_contrato || contratoPrincipalDetalhes.id}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-3 bg-white">
+                      <div className="text-xs text-gray-500 mb-1">Cliente / Faculdade</div>
+                      <div className="font-semibold text-gray-900">
+                        {contratoPrincipalDetalhes.cliente || projeto.cliente}
+                        {contratoPrincipalDetalhes.faculdade ? ` - ${contratoPrincipalDetalhes.faculdade}` : ''}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-3 bg-white">
+                      <div className="text-xs text-gray-500 mb-1">Curso</div>
+                      <div className="font-semibold text-gray-900">
+                        {contratoPrincipalDetalhes.curso || 'Nao informado'}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border p-3 bg-white">
+                      <div className="text-xs text-gray-500 mb-1">Previsao atual</div>
+                      <div className="font-semibold text-gray-900">
+                        {formatDate(projeto.data_fim_prevista)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border bg-slate-50 p-4">
+                  <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-slate-900">
+                    <Calendar size={16} />
+                    Data de aditivo
+                  </div>
+                  <p className="text-xs text-slate-600 mb-3">
+                    Ajusta proporcionalmente as etapas nao finalizadas deste contrato ate a nova data final.
+                  </p>
+                  <div className="space-y-3">
+                    <div className="text-xs text-slate-600">
+                      Ultimo aditivo: {contratoPrincipalDetalhes.data_aditivo ? formatDate(contratoPrincipalDetalhes.data_aditivo) : 'Nao informado'}
+                    </div>
+                    <input
+                      type="date"
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-white"
+                      value={aditivoDate}
+                      onChange={(e) => setAditivoDate(e.target.value)}
+                    />
+                    <Button
+                      className="w-full"
+                      onClick={handleRegistrarAditivo}
+                      disabled={salvandoAditivo}
+                    >
+                      {salvandoAditivo ? (
+                        <>
+                          <Loader2 size={16} className="mr-2 animate-spin" />
+                          Aplicando...
+                        </>
+                      ) : (
+                        'Aplicar aditivo'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                </div>
+
+                {canManageProjeto && (
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
+                  <div className="rounded-xl border bg-white p-4 space-y-4">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">Responsaveis do projeto</div>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Atualize atendimento e criacao no projeto e replique a troca em todas as tarefas do contrato.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Atendimento</label>
+                        <select
+                          className="w-full border rounded-md px-3 py-2 text-sm bg-white"
+                          value={responsaveisProjeto.atendimento}
+                          disabled={!canManageSetorProjeto('atendimento')}
+                          onChange={(e) => setResponsaveisProjeto((prev) => ({
+                            ...prev,
+                            atendimento: e.target.value,
+                          }))}
+                        >
+                          <option value="">Sem responsavel</option>
+                          {opcoesAtendimento.map((usuario) => (
+                            <option key={usuario.id} value={usuario.id}>
+                              {usuario.nome}
+                            </option>
+                          ))}
+                        </select>
+                        {!canManageSetorProjeto('atendimento') && (
+                          <p className="mt-1 text-xs text-gray-500">Seu perfil so pode alterar o proprio setor.</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Criacao</label>
+                        <select
+                          className="w-full border rounded-md px-3 py-2 text-sm bg-white"
+                          value={responsaveisProjeto.criacao}
+                          disabled={!canManageSetorProjeto('criacao')}
+                          onChange={(e) => setResponsaveisProjeto((prev) => ({
+                            ...prev,
+                            criacao: e.target.value,
+                          }))}
+                        >
+                          <option value="">Sem responsavel</option>
+                          {opcoesCriacao.map((usuario) => (
+                            <option key={usuario.id} value={usuario.id}>
+                              {usuario.nome}
+                            </option>
+                          ))}
+                        </select>
+                        {!canManageSetorProjeto('criacao') && (
+                          <p className="mt-1 text-xs text-gray-500">Seu perfil so pode alterar o proprio setor.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={aplicarResponsaveisEmFinalizadas}
+                        onChange={(e) => setAplicarResponsaveisEmFinalizadas(e.target.checked)}
+                      />
+                      <span>
+                        Aplicar tambem nas etapas finalizadas.
+                        <span className="block text-xs text-slate-500 mt-1">
+                          Desmarque se quiser preservar o responsavel historico das etapas ja concluidas.
+                        </span>
+                      </span>
+                    </label>
+
+                    <Button
+                      onClick={handleSalvarResponsaveisProjeto}
+                      disabled={salvandoResponsaveis}
+                    >
+                      {salvandoResponsaveis ? (
+                        <>
+                          <Loader2 size={16} className="mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        'Aplicar responsaveis no projeto'
+                      )}
+                    </Button>
+                  </div>
+
+                  <div className="rounded-xl border bg-white p-4 space-y-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">Ajuste manual de prazos</div>
+                        <p className="text-xs text-slate-600 mt-1">
+                          O template continua sequencial. Se necessario, ajuste manualmente as datas das etapas abertas.
+                        </p>
+                      </div>
+                      {totalPrazosAlterados > 0 && (
+                        <Badge className="bg-amber-100 text-amber-800">
+                          {totalPrazosAlterados} alterado(s)
+                        </Badge>
+                      )}
+                    </div>
+
+                    {tarefasPrazoEditaveis.length === 0 ? (
+                      <p className="text-sm text-gray-500">Nao ha etapas abertas para ajustar.</p>
+                    ) : (
+                      <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                        {tarefasPrazoEditaveis.map((tarefa) => (
+                          <div key={tarefa.id} className="rounded-lg border bg-slate-50 p-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="font-medium text-sm text-slate-900">{tarefa.titulo}</div>
+                                <div className="text-xs text-slate-500 mt-1">
+                                  {tarefa.setor} | {tarefa.contrato_numero || tarefa.contrato_id}
+                                </div>
+                              </div>
+                              <input
+                                type="date"
+                                className="border rounded-md px-3 py-2 text-sm bg-white"
+                                value={tarefa.prazo_editavel}
+                                onChange={(e) => handlePrazoProjetoChange(tarefa.id, e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      onClick={handleSalvarPrazosProjeto}
+                      disabled={salvandoPrazos || totalPrazosAlterados === 0}
+                    >
+                      {salvandoPrazos ? (
+                        <>
+                          <Loader2 size={16} className="mr-2 animate-spin" />
+                          Atualizando...
+                        </>
+                      ) : (
+                        'Salvar prazos do projeto'
+                      )}
+                    </Button>
+                  </div>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -620,8 +1092,18 @@ const ProjetoDetalhes = () => {
                             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                               <div className="flex items-center">
                                 <FileText size={14} className="mr-1" />
-                                Contrato: {tarefa.contrato_id}
+                                Contrato: {getContratoNumeroTarefa(tarefa)}
                               </div>
+                              <div className="flex items-center">
+                                <Building2 size={14} className="mr-1" />
+                                Faculdade: {getContratoFaculdadeTarefa(tarefa)}
+                              </div>
+                              {getContratoCursoTarefa(tarefa) && (
+                                <div className="flex items-center">
+                                  <FileText size={14} className="mr-1" />
+                                  Curso: {getContratoCursoTarefa(tarefa)}
+                                </div>
+                              )}
                               {tarefa.responsavel_nome && (
                                 <div className="flex items-center">
                                   <User size={14} className="mr-1" />
@@ -644,28 +1126,9 @@ const ProjetoDetalhes = () => {
 
                             {!tarefa.finalizada && (
                               <div
-                                className="mt-3 pt-3 border-t flex flex-col md:flex-row gap-2 md:items-center md:justify-between"
+                                className="mt-3 pt-3 border-t flex justify-end"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-xs text-gray-500">Atualizar status:</span>
-                                  <select
-                                    className="border rounded-md px-2 py-1 text-sm bg-white"
-                                    value={tarefa.status_id || ''}
-                                    disabled={atualizandoStatusId === tarefa.id}
-                                    onChange={(e) => handleAlterarStatus(tarefa, e.target.value)}
-                                  >
-                                    <option value="" disabled>
-                                      Selecione
-                                    </option>
-                                    {statusAtualizaveis.map((status) => (
-                                      <option key={status.id} value={status.id}>
-                                        {status.nome}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-
                                 <Button
                                   size="sm"
                                   className="bg-green-600 hover:bg-green-700"
@@ -712,6 +1175,7 @@ const ProjetoDetalhes = () => {
         onExcluir={handleExcluir}
         onFinalizar={handleFinalizar}
         onAtribuir={handleAtribuir}
+        onAtualizar={loadProjeto}
       />
 
       <EditarTarefaModal

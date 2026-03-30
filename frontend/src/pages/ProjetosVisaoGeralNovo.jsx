@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent } from '../components/ui/card';
@@ -10,6 +10,7 @@ import {
   Calendar,
   ChevronRight,
   FileText,
+  FolderOpen,
   Loader2,
   LayoutGrid,
   List,
@@ -27,6 +28,41 @@ const statusFiltroDaTarefa = (tarefa) => {
   return 'pendente';
 };
 
+const getPeriodoPasta = (dateValue) => {
+  const date = dateValue ? new Date(dateValue) : null;
+  if (!date || Number.isNaN(date.getTime())) return 'Sem periodo';
+  const semestre = date.getMonth() < 6 ? 1 : 2;
+  return `${date.getFullYear()}.${semestre}`;
+};
+
+const getPeriodoSortValue = (periodo) => {
+  const match = /^(\d{4})\.(1|2)$/.exec(periodo || '');
+  if (!match) return -1;
+  return Number(match[1]) * 10 + Number(match[2]);
+};
+
+const getPeriodoProjeto = (projeto) => {
+  const contrato = projeto?.contrato || (projeto?.contratos || [])[0] || {};
+  return getPeriodoPasta(
+    contrato?.data_fim || contrato?.data_inicio || projeto?.data_fim_prevista || projeto?.data_inicio
+  );
+};
+
+const getNomePastaContrato = (projeto) => {
+  const contrato = projeto?.contrato || (projeto?.contratos || [])[0] || {};
+  const partes = [
+    contrato.numero_contrato,
+    contrato.curso,
+    contrato.faculdade,
+  ].filter(Boolean);
+
+  if (partes.length > 0) {
+    return partes.join(' ').toUpperCase();
+  }
+
+  return (projeto?.cliente || 'CONTRATO').toUpperCase();
+};
+
 const ProjetosVisaoGeralNovo = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -34,6 +70,7 @@ const ProjetosVisaoGeralNovo = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
+  const [filterSemestre, setFilterSemestre] = useState('todos');
   const [viewMode, setViewMode] = useState('grid');
 
   const [filtroContrato, setFiltroContrato] = useState('todos');
@@ -43,11 +80,7 @@ const ProjetosVisaoGeralNovo = () => {
 
   const isOperador = user?.role === 'operador';
 
-  useEffect(() => {
-    loadProjetos();
-  }, [user?.role, user?.id, user?.setor]);
-
-  const loadProjetos = async () => {
+  const loadProjetos = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getProjetos(
@@ -63,7 +96,11 @@ const ProjetosVisaoGeralNovo = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, user?.role, user?.setor]);
+
+  useEffect(() => {
+    loadProjetos();
+  }, [loadProjetos]);
 
   const contratosDisponiveis = useMemo(() => {
     const mapa = new Map();
@@ -78,8 +115,14 @@ const ProjetosVisaoGeralNovo = () => {
     return Array.from(mapa.values());
   }, [projetos]);
 
+  const semestresDisponiveis = useMemo(() => {
+    return Array.from(new Set((projetos || []).map((projeto) => getPeriodoProjeto(projeto))))
+      .sort((a, b) => getPeriodoSortValue(b) - getPeriodoSortValue(a));
+  }, [projetos]);
+
   const projetosComContexto = useMemo(() => {
     return (projetos || []).map((projeto) => {
+      const contratoPrincipal = projeto?.contrato || (projeto?.contratos || [])[0] || {};
       const tarefasOperador = projeto.tarefas_operador || [];
       const tarefasNoContexto = tarefasOperador.filter((tarefa) => {
         if (filtroContrato !== 'todos' && tarefa.contrato_id !== filtroContrato) {
@@ -106,13 +149,21 @@ const ProjetosVisaoGeralNovo = () => {
 
       return {
         ...projeto,
+        _contratoPrincipal: contratoPrincipal,
+        _semestre: getPeriodoProjeto(projeto),
         _tarefasNoContexto: tarefasNoContexto,
       };
     });
   }, [projetos, filtroContrato, filtroStatusTarefa, filtroData, filtroPrioridade]);
 
+  const projetosBaseSemestre = useMemo(() => {
+    return projetosComContexto.filter((projeto) => (
+      filterSemestre === 'todos' || projeto._semestre === filterSemestre
+    ));
+  }, [filterSemestre, projetosComContexto]);
+
   const projetosFiltrados = useMemo(() => {
-    return projetosComContexto.filter((projeto) => {
+    return projetosBaseSemestre.filter((projeto) => {
       const matchSearch =
         (projeto.cliente || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (projeto.contratos || []).some((c) =>
@@ -138,20 +189,54 @@ const ProjetosVisaoGeralNovo = () => {
 
       return true;
     });
-  }, [projetosComContexto, searchTerm, filterStatus, isOperador]);
+  }, [projetosBaseSemestre, searchTerm, filterStatus, isOperador]);
+
+  const pastasOperador = useMemo(() => {
+    if (!isOperador) return [];
+
+    const grupos = projetosFiltrados.reduce((acc, projeto) => {
+      const contrato = projeto?.contrato || (projeto?.contratos || [])[0] || {};
+      const periodo = getPeriodoPasta(
+        contrato?.data_fim || contrato?.data_inicio || projeto?.data_fim_prevista || projeto?.data_inicio
+      );
+
+      if (!acc[periodo]) {
+        acc[periodo] = [];
+      }
+
+      acc[periodo].push({
+        ...projeto,
+        _pastaNome: getNomePastaContrato(projeto),
+      });
+      return acc;
+    }, {});
+
+    return Object.entries(grupos)
+      .sort((a, b) => getPeriodoSortValue(b[0]) - getPeriodoSortValue(a[0]))
+      .map(([periodo, itens]) => ({
+        periodo,
+        itens: itens.sort((a, b) => a._pastaNome.localeCompare(b._pastaNome)),
+      }));
+  }, [isOperador, projetosFiltrados]);
 
   const counts = useMemo(() => {
     return {
-      todos: projetos.length,
-      ativos: projetos.filter((p) => p.status === 'Em Andamento' && (p.tarefas_atrasadas || 0) === 0).length,
-      atrasados: projetos.filter((p) => (p.tarefas_atrasadas || 0) > 0).length,
-      concluidos: projetos.filter((p) => (p.progresso || 0) === 100).length,
+      todos: projetosBaseSemestre.length,
+      ativos: projetosBaseSemestre.filter((p) => p.status === 'Em Andamento' && (p.tarefas_atrasadas || 0) === 0).length,
+      atrasados: projetosBaseSemestre.filter((p) => (p.tarefas_atrasadas || 0) > 0).length,
+      concluidos: projetosBaseSemestre.filter((p) => (p.progresso || 0) === 100).length,
     };
-  }, [projetos]);
+  }, [projetosBaseSemestre]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('pt-BR');
+  };
+
+  const handleDragContratoStart = (event, projetoId) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(projetoId));
+    event.dataTransfer.setData('application/x-ideiabh-projeto', String(projetoId));
   };
 
   const getStatusBadge = (projeto) => {
@@ -193,10 +278,10 @@ const ProjetosVisaoGeralNovo = () => {
       <div className="projetos-visao-container">
         <div className="visao-header">
           <div>
-            <h1 className="page-title">{isOperador ? 'Meus Projetos' : 'Visao Geral de Projetos'}</h1>
+            <h1 className="page-title">{isOperador ? 'Meus Contratos' : 'Visao Geral de Projetos'}</h1>
             <p className="page-description">
               {isOperador
-                ? 'Projetos e contratos atribuidos ao operador logado'
+                ? 'Cada contrato atribuido aparece como uma pasta. Entre nela para acompanhar as etapas.'
                 : 'Acompanhe o status e atrasos de todos os projetos'}
             </p>
           </div>
@@ -215,6 +300,19 @@ const ProjetosVisaoGeralNovo = () => {
           </div>
 
           <div className="filtros-status">
+            <select
+              className="filtro-semestre-select"
+              value={filterSemestre}
+              onChange={(e) => setFilterSemestre(e.target.value)}
+            >
+              <option value="todos">Todos os semestres</option>
+              {semestresDisponiveis.map((semestre) => (
+                <option key={semestre} value={semestre}>
+                  {semestre}
+                </option>
+              ))}
+            </select>
+
             <button onClick={() => setFilterStatus('todos')} className={`filtro-btn ${filterStatus === 'todos' ? 'active' : ''}`}>
               Todos ({counts.todos})
             </button>
@@ -229,22 +327,24 @@ const ProjetosVisaoGeralNovo = () => {
             </button>
           </div>
 
-          <div className="view-toggle">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-              aria-label="Visualizar em grade"
-            >
-              <LayoutGrid size={18} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
-              aria-label="Visualizar em lista"
-            >
-              <List size={18} />
-            </button>
-          </div>
+          {!isOperador && (
+            <div className="view-toggle">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                aria-label="Visualizar em grade"
+              >
+                <LayoutGrid size={18} />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+                aria-label="Visualizar em lista"
+              >
+                <List size={18} />
+              </button>
+            </div>
+          )}
         </div>
 
         {isOperador && (
@@ -302,71 +402,127 @@ const ProjetosVisaoGeralNovo = () => {
           </Card>
         )}
 
-        <div className={`projetos-grid ${viewMode === 'list' ? 'list-view' : ''}`}>
-          {projetosFiltrados.map((projeto) => {
-            const statusBadge = getStatusBadge(projeto);
-            const contratoPrincipal = (projeto.contratos || [])[0];
-            const tarefasNoContexto = projeto._tarefasNoContexto || projeto.tarefas_operador || [];
-
-            return (
-              <Card key={projeto.id} className="projeto-card-novo">
-                <CardContent className="projeto-card-content-novo">
-                  <div className="card-header-novo">
-                    <div className="cliente-info">
-                      <h3 className="cliente-nome">{projeto.cliente}</h3>
-                      <div className="instituicao">
-                        <Building2 size={16} />
-                        <span>
-                          {contratoPrincipal?.numero_contrato
-                            ? `Contrato ${contratoPrincipal.numero_contrato}`
-                            : `Projeto ${projeto.id}`}
-                        </span>
-                      </div>
-                    </div>
-                    <span className={statusBadge.className}>{statusBadge.label}</span>
+        {isOperador ? (
+          <div className="operador-pastas-wrapper">
+            {pastasOperador.map((grupo) => (
+              <Card key={grupo.periodo} className="operador-pasta-grupo">
+                <CardContent className="operador-pasta-grupo-content">
+                  <div className="operador-pasta-header">
+                    <FolderOpen size={18} />
+                    <span>{grupo.periodo}</span>
                   </div>
 
-                  <div className="etapa-atual-info">
-                    <div className="dept-icon">
-                      <FileText size={18} />
-                    </div>
-                    <div className="etapa-details">
-                      <span className="dept-label">Etapa atual</span>
-                      <div className="etapa-nome">{projeto.etapa_atual}</div>
-                    </div>
-                  </div>
+                  <div className="operador-pasta-lista">
+                    {grupo.itens.map((projeto) => {
+                      const statusBadge = getStatusBadge(projeto);
+                      const contratoPrincipal = projeto?.contrato || (projeto.contratos || [])[0] || {};
+                      const tarefasNoContexto = projeto._tarefasNoContexto || projeto.tarefas_operador || [];
 
-                  <div className="progresso-section">
-                    <div className="progresso-header">
-                      <span className="progresso-label">Progresso</span>
-                      <span className="progresso-value">{projeto.progresso || 0}%</span>
-                    </div>
-                    <div className={`progresso-bar ${(projeto.tarefas_atrasadas || 0) > 0 ? 'atrasado' : ''}`}>
-                      <div className="progress-indicator" style={{ width: `${projeto.progresso || 0}%` }} />
-                    </div>
-                  </div>
-
-                  {isOperador && (
-                    <div className="text-sm text-gray-600 mb-2">
-                      Tarefas no contexto: <strong>{tarefasNoContexto.length}</strong>
-                    </div>
-                  )}
-
-                  <div className="card-footer-novo">
-                    <div className="prazo-info">
-                      <Calendar size={16} />
-                      <span>Entrega: {formatDate(projeto.data_fim_prevista)}</span>
-                    </div>
-                    <Button className="ver-detalhes-btn" onClick={() => navigate(`/projetos/${projeto.id}`)}>
-                      Ver detalhes
-                      <ChevronRight size={16} />
-                    </Button>
+                      return (
+                        <button
+                          key={projeto.id}
+                          type="button"
+                          className="operador-pasta-item"
+                          draggable
+                          onDragStart={(event) => handleDragContratoStart(event, projeto.id)}
+                          onClick={() => navigate(`/projetos/${projeto.id}`)}
+                          title="Arraste para uma pasta na sidebar ou clique para abrir"
+                        >
+                          <div className="operador-pasta-icon">
+                            <FolderOpen size={18} />
+                          </div>
+                          <div className="operador-pasta-info">
+                            <div className="operador-pasta-nome">{projeto._pastaNome}</div>
+                            <div className="operador-pasta-meta">
+                              <span>{contratoPrincipal?.cliente || projeto.cliente}</span>
+                              <span>{tarefasNoContexto.length} etapa(s) no contexto</span>
+                              <span>Entrega {formatDate(projeto.data_fim_prevista)}</span>
+                            </div>
+                          </div>
+                          <div className="operador-pasta-status">
+                            <span className={statusBadge.className}>{statusBadge.label}</span>
+                            <ChevronRight size={16} />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className={`projetos-grid ${viewMode === 'list' ? 'list-view' : ''}`}>
+            {projetosFiltrados.map((projeto) => {
+              const statusBadge = getStatusBadge(projeto);
+              const contratoPrincipal = projeto._contratoPrincipal || (projeto.contratos || [])[0] || {};
+              const tarefasNoContexto = projeto._tarefasNoContexto || projeto.tarefas_operador || [];
+              const nomeContratoDestaque = String(
+                contratoPrincipal?.numero_contrato || `Projeto ${projeto.id}`
+              ).toUpperCase();
+              const detalheContrato = [contratoPrincipal?.faculdade, contratoPrincipal?.curso]
+                .filter(Boolean)
+                .join(' • ');
+
+              return (
+                <Card key={projeto.id} className="projeto-card-novo">
+                  <CardContent className="projeto-card-content-novo">
+                    <div className="card-header-novo">
+                      <div className="cliente-info">
+                        <h3 className="cliente-nome contrato-heading">{nomeContratoDestaque}</h3>
+                        <div className="instituicao cliente-secundario">
+                          <Building2 size={16} />
+                          <span>{projeto.cliente}</span>
+                        </div>
+                        {detalheContrato && (
+                          <div className="projeto-contrato-secundario">{detalheContrato}</div>
+                        )}
+                      </div>
+                      <span className={statusBadge.className}>{statusBadge.label}</span>
+                    </div>
+
+                    <div className="etapa-atual-info">
+                      <div className="dept-icon">
+                        <FileText size={18} />
+                      </div>
+                      <div className="etapa-details">
+                        <span className="dept-label">Etapa atual</span>
+                        <div className="etapa-nome">{projeto.etapa_atual}</div>
+                      </div>
+                    </div>
+
+                    <div className="progresso-section">
+                      <div className="progresso-header">
+                        <span className="progresso-label">Progresso</span>
+                        <span className="progresso-value">{projeto.progresso || 0}%</span>
+                      </div>
+                      <div className={`progresso-bar ${(projeto.tarefas_atrasadas || 0) > 0 ? 'atrasado' : ''}`}>
+                        <div className="progress-indicator" style={{ width: `${projeto.progresso || 0}%` }} />
+                      </div>
+                    </div>
+
+                    {isOperador && (
+                      <div className="text-sm text-gray-600 mb-2">
+                        Tarefas no contexto: <strong>{tarefasNoContexto.length}</strong>
+                      </div>
+                    )}
+
+                    <div className="card-footer-novo">
+                      <div className="prazo-info">
+                        <Calendar size={16} />
+                        <span>Entrega: {formatDate(projeto.data_fim_prevista)}</span>
+                      </div>
+                      <Button className="ver-detalhes-btn" onClick={() => navigate(`/projetos/${projeto.id}`)}>
+                        Ver detalhes
+                        <ChevronRight size={16} />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
 
         {projetosFiltrados.length === 0 && (
           <div className="empty-state-projetos">

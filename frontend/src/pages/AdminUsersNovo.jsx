@@ -148,7 +148,8 @@ const AdminUsersNovo = () => {
             nome: formData.nome,
             email: formData.email,
             role: formData.role,
-            setor: formData.setor || null
+            setor: formData.setor || null,
+            password: formData.password || undefined
           }
         );
         toast.success('Usuário atualizado com sucesso!');
