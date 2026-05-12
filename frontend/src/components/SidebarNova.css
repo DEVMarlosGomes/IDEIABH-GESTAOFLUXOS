@@ -196,6 +196,40 @@
   gap: 12px;
 }
 
+.sidebar-filter-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+}
+
+.sidebar-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sidebar-filter-select {
+  width: 100%;
+  border: 1px solid var(--sidebar-border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  font-size: 12px;
+  outline: none;
+}
+
+.sidebar-filter-select:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
 .sidebar-folder-group {
   display: flex;
   flex-direction: column;

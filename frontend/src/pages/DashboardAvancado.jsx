@@ -162,6 +162,17 @@ const DashboardAvancado = () => {
     return colors[prioridade] || colors.media;
   };
 
+  const formatSetorLabel = (setor) => {
+    const labels = {
+      atendimento: 'Atendimento',
+      criacao: 'Criacao',
+      'pre-producao': 'Pre-producao',
+      producao: 'Producao',
+      'sem setor': 'Sem setor'
+    };
+    return labels[normalizeSetor(setor) || String(setor || '').toLowerCase()] || setor || 'Sem setor';
+  };
+
   const getTerminoContratoReferencia = (projeto) => (
     projeto?.contrato_data_aditivo
     || projeto?.contrato_data_fim
@@ -301,15 +312,26 @@ const DashboardAvancado = () => {
     ? {
         total_projetos: projetos_em_andamento.length,
         projetos_em_andamento: projetos_em_andamento.length,
+        projetos_finalizados: 0,
         total_tarefas_atrasadas: alertas_atrasos.length,
         responsaveis_com_atraso: 0,
       }
     : (dashboardData?.resumo || {
         total_projetos: 0,
         projetos_em_andamento: 0,
+        projetos_finalizados: 0,
         total_tarefas_atrasadas: 0,
         responsaveis_com_atraso: 0,
       });
+
+  const indicadoresEstrategicos = dashboardData?.indicadores_estrategicos || {
+    projetos_finalizados: 0,
+    setores_maior_volume_entregas: [],
+    setores_maior_indice_atrasos: [],
+  };
+
+  const setoresMaiorVolumeEntregas = indicadoresEstrategicos.setores_maior_volume_entregas || [];
+  const setoresMaiorIndiceAtrasos = indicadoresEstrategicos.setores_maior_indice_atrasos || [];
 
   const kpiCards = [
     {
@@ -326,20 +348,20 @@ const DashboardAvancado = () => {
       color: '#10b981',
       bgColor: '#ecfdf5'
     },
+    ...(!isOperador ? [{
+      title: 'Projetos Finalizados',
+      value: resumo.projetos_finalizados,
+      icon: CheckCircle2,
+      color: '#16a34a',
+      bgColor: '#f0fdf4'
+    }] : []),
     {
       title: 'Tarefas Atrasadas',
       value: resumo.total_tarefas_atrasadas,
       icon: Clock,
       color: '#ef4444',
       bgColor: '#fef2f2'
-    },
-    ...(!isOperador ? [{
-      title: 'Responsáveis com Atraso',
-      value: resumo.responsaveis_com_atraso,
-      icon: Users,
-      color: '#f59e0b',
-      bgColor: '#fffbeb'
-    }] : [])
+    }
   ];
 
   const podeCobrar = user?.role === 'admin' || user?.role === 'gerente';
@@ -572,6 +594,85 @@ const DashboardAvancado = () => {
             </CardContent>
           </Card>
         </div>
+
+        {!isOperador && (
+          <div className="dashboard-grid">
+            <Card className="chart-card">
+              <CardHeader>
+                <CardTitle className="card-title">
+                  <CheckCircle2 size={20} />
+                  Setores com Maior Volume de Entregas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="strategic-list">
+                  {setoresMaiorVolumeEntregas.map((setor) => (
+                    <div key={setor.setor} className="strategic-item">
+                      <div className="strategic-item-header">
+                        <div>
+                          <p className="strategic-name">{formatSetorLabel(setor.setor)}</p>
+                          <p className="strategic-meta">
+                            {setor.total_entregas} entregas de {setor.total_tarefas} tarefas
+                          </p>
+                        </div>
+                        <Badge className="bg-green-100 text-green-800">
+                          {setor.percentual_entregas}%
+                        </Badge>
+                      </div>
+                      <Progress value={Math.min(setor.percentual_entregas || 0, 100)} className="h-2" />
+                    </div>
+                  ))}
+
+                  {setoresMaiorVolumeEntregas.length === 0 && (
+                    <div className="empty-state">
+                      <CheckCircle2 size={36} />
+                      <p>Nenhuma entrega consolidada ate o momento</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="chart-card">
+              <CardHeader>
+                <CardTitle className="card-title text-red-600">
+                  <AlertTriangle size={20} />
+                  Setores com Maior Indice de Atrasos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="strategic-list">
+                  {setoresMaiorIndiceAtrasos.map((setor) => (
+                    <div key={setor.setor} className="strategic-item strategic-item-danger">
+                      <div className="strategic-item-header">
+                        <div>
+                          <p className="strategic-name">{formatSetorLabel(setor.setor)}</p>
+                          <p className="strategic-meta">
+                            {setor.total_atrasadas} atrasadas de {setor.total_abertas} abertas
+                          </p>
+                        </div>
+                        <Badge className="bg-red-100 text-red-800">
+                          {setor.indice_atraso}%
+                        </Badge>
+                      </div>
+                      <Progress value={Math.min(setor.indice_atraso || 0, 100)} className="h-2" />
+                      <p className="strategic-footnote">
+                        {setor.total_dias_atraso} dias acumulados de atraso no setor
+                      </p>
+                    </div>
+                  ))}
+
+                  {setoresMaiorIndiceAtrasos.length === 0 && (
+                    <div className="empty-state">
+                      <CheckCircle2 size={36} />
+                      <p>Nenhum atraso setorial consolidado</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {!isOperador && (
         <Card className="load-card mt-6">

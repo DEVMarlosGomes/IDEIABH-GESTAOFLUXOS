@@ -4,7 +4,7 @@ from starlette.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, and_, or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, load_only
 import asyncio
 import os
 import logging
@@ -118,6 +118,142 @@ def normalize_text(value: Optional[str]) -> str:
         if unicodedata.category(char) != "Mn"
     )
     return "".join(char for char in without_accents.lower() if char.isalnum())
+
+
+def calcular_dias_atraso_sync(prazo_str: Optional[str]) -> tuple[int, bool]:
+    if not prazo_str:
+        return 0, False
+    try:
+        prazo = datetime.fromisoformat(str(prazo_str)).date()
+        hoje = datetime.now(timezone.utc).date()
+        if hoje > prazo:
+            dias = (hoje - prazo).days
+            return dias, True
+        return 0, False
+    except Exception:
+        return 0, False
+
+
+def is_tarefa_efetivamente_finalizada(tarefa) -> bool:
+    if not tarefa:
+        return False
+
+    if getattr(tarefa, "finalizada", False):
+        return True
+
+    if getattr(tarefa, "data_finalizacao", None):
+        return True
+
+    status_norm = normalize_text(getattr(tarefa, "status_nome", ""))
+    return any(
+        termo in status_norm
+        for termo in ("concluido", "finalizado", "entregue")
+    )
+
+
+def resumir_status_projeto(tarefas) -> dict:
+    total_tarefas = len(tarefas or [])
+    tarefas_concluidas = sum(1 for tarefa in tarefas if is_tarefa_efetivamente_finalizada(tarefa))
+    tarefas_abertas = [tarefa for tarefa in tarefas if not is_tarefa_efetivamente_finalizada(tarefa)]
+    tarefas_em_andamento = sum(
+        1 for tarefa in tarefas_abertas
+        if normalize_text(getattr(tarefa, "status_nome", "")) == "emandamento"
+    )
+    tarefas_pendentes = max(total_tarefas - tarefas_concluidas - tarefas_em_andamento, 0)
+    tarefas_atrasadas = 0
+
+    for tarefa in tarefas_abertas:
+        _, is_atrasada = calcular_dias_atraso_sync(getattr(tarefa, "prazo", None))
+        if is_atrasada:
+            tarefas_atrasadas += 1
+
+    if total_tarefas > 0 and tarefas_concluidas == total_tarefas:
+        status = "Concluído"
+    elif tarefas_atrasadas > 0:
+        status = "Atrasado"
+    elif tarefas_em_andamento > 0 or tarefas_concluidas > 0:
+        status = "Em Andamento"
+    else:
+        status = "Pendente"
+
+    progresso = round((tarefas_concluidas / total_tarefas) * 100, 1) if total_tarefas else 0
+
+    return {
+        "status": status,
+        "progresso": progresso,
+        "total_tarefas": total_tarefas,
+        "tarefas_concluidas": tarefas_concluidas,
+        "tarefas_em_andamento": tarefas_em_andamento,
+        "tarefas_pendentes": tarefas_pendentes,
+        "tarefas_atrasadas": tarefas_atrasadas,
+        "tarefas_abertas": tarefas_abertas,
+    }
+
+
+def ordenar_tarefas_fluxo(tarefas) -> list:
+    def sort_key(tarefa):
+        prazo_original = parse_iso_date(getattr(tarefa, "prazo_original", None))
+        prazo_atual = parse_iso_date(getattr(tarefa, "prazo", None))
+        criado_em = getattr(tarefa, "criado_em", None)
+        criado_em_key = criado_em.isoformat() if isinstance(criado_em, datetime) else ""
+        return (
+            prazo_original or prazo_atual or date.max,
+            prazo_atual or prazo_original or date.max,
+            criado_em_key,
+            str(getattr(tarefa, "id", "")),
+        )
+
+    return sorted(tarefas or [], key=sort_key)
+
+
+def obter_contexto_etapa_atual(tarefas) -> dict:
+    tarefas_ordenadas = ordenar_tarefas_fluxo(tarefas)
+    tarefas_abertas = [
+        tarefa for tarefa in tarefas_ordenadas
+        if not is_tarefa_efetivamente_finalizada(tarefa)
+    ]
+
+    if not tarefas_ordenadas or not tarefas_abertas:
+        return {
+            "tarefa": None,
+            "titulo": "Projeto concluído" if tarefas_ordenadas else "Início",
+            "ordem": len(tarefas_ordenadas),
+            "setor": None,
+        }
+
+    ultimo_indice_concluido = max(
+        (
+            indice for indice, tarefa in enumerate(tarefas_ordenadas)
+            if is_tarefa_efetivamente_finalizada(tarefa)
+        ),
+        default=-1,
+    )
+
+    tarefa_atual = next(
+        (
+            tarefa for indice, tarefa in enumerate(tarefas_ordenadas)
+            if indice > ultimo_indice_concluido and not is_tarefa_efetivamente_finalizada(tarefa)
+        ),
+        None,
+    )
+
+    if tarefa_atual is None:
+        tarefa_atual = tarefas_abertas[0]
+
+    ordem = next(
+        (
+            indice for indice, tarefa in enumerate(tarefas_ordenadas, start=1)
+            if tarefa.id == tarefa_atual.id
+        ),
+        1,
+    )
+
+    return {
+        "tarefa": tarefa_atual,
+        "titulo": tarefa_atual.titulo,
+        "ordem": ordem,
+        "setor": getattr(tarefa_atual, "setor", None),
+    }
 
 
 # ==========================================
@@ -310,6 +446,15 @@ class TarefaFinalizar(BaseModel):
     usuario_setor: str
     usuario_role: str = "operador"
     contrato_id_selecionado: Optional[str] = None
+
+
+class TarefaFinalizarLote(BaseModel):
+    tarefa_ids: List[str]
+    observacao: Optional[str] = None
+    usuario_id: str
+    usuario_nome: str
+    usuario_setor: str
+    usuario_role: str = "admin"
 
 
 class TarefaAlterarStatus(BaseModel):
@@ -859,17 +1004,7 @@ async def enriquecer_tarefas_com_contrato(db: AsyncSession, tarefas_payload):
 
 async def calcular_dias_atraso(prazo_str: Optional[str]) -> tuple:
     """Calculate days of delay for a task"""
-    if not prazo_str:
-        return 0, False
-    try:
-        prazo = datetime.fromisoformat(prazo_str).date()
-        hoje = datetime.now(timezone.utc).date()
-        if hoje > prazo:
-            dias = (hoje - prazo).days
-            return dias, True
-        return 0, False
-    except:
-        return 0, False
+    return calcular_dias_atraso_sync(prazo_str)
 
 
 async def get_status_padrao(db: AsyncSession):
@@ -1081,23 +1216,20 @@ async def atualizar_projeto_prazos(db: AsyncSession, projeto_id: str):
         .where(TarefaModel.projeto_id == projeto_id)
         .order_by(TarefaModel.prazo_original)
     )
-    tarefas = tarefas_result.scalars().all()
+    tarefas = ordenar_tarefas_fluxo(tarefas_result.scalars().all())
+    resumo_projeto = resumir_status_projeto(tarefas)
+    etapa_contexto = obter_contexto_etapa_atual(tarefas)
 
     last_date = None
-    etapa_atual = None
-    etapa_ordem = 1
 
-    for idx, tarefa in enumerate(tarefas, start=1):
+    for tarefa in tarefas:
         prazo_dt = (
             parse_iso_date(tarefa.data_finalizacao)
-            if tarefa.finalizada
+            if is_tarefa_efetivamente_finalizada(tarefa)
             else parse_iso_date(tarefa.prazo)
         ) or parse_iso_date(tarefa.prazo)
         if prazo_dt and (not last_date or prazo_dt > last_date):
             last_date = prazo_dt
-        if not tarefa.finalizada and etapa_atual is None:
-            etapa_atual = tarefa.titulo
-            etapa_ordem = idx
 
     if last_date:
         projeto.data_fim_prevista = last_date.isoformat()
@@ -1121,9 +1253,14 @@ async def atualizar_projeto_prazos(db: AsyncSession, projeto_id: str):
             if prazo:
                 prazo.data_fim_prevista = last_date.isoformat()
 
-    if etapa_atual:
-        projeto.etapa_atual = etapa_atual
-        projeto.etapa_atual_ordem = etapa_ordem
+    if tarefas:
+        projeto.etapa_atual = etapa_contexto["titulo"]
+        projeto.etapa_atual_ordem = etapa_contexto["ordem"]
+
+    projeto.progresso = resumo_projeto["progresso"]
+    projeto.status = resumo_projeto["status"]
+    if resumo_projeto["status"] == "Concluído":
+        projeto.dias_restantes = 0
 
     projeto.atualizado_em = datetime.now(timezone.utc)
     await db.commit()
@@ -1910,7 +2047,13 @@ async def listar_tarefas(
                 continue
         
         tarefa_dict = model_to_dict(tarefa)
-        if not tarefa.finalizada:
+        finalizada_calc = is_tarefa_efetivamente_finalizada(tarefa)
+        tarefa_dict["finalizada"] = finalizada_calc
+        if finalizada_calc:
+            tarefa_dict["status_nome"] = "Concluído"
+            tarefa_dict["dias_atraso"] = 0
+            tarefa_dict["atrasada"] = False
+        else:
             dias_atraso, atrasada_calc = await calcular_dias_atraso(tarefa.prazo)
             tarefa_dict["dias_atraso"] = dias_atraso
             tarefa_dict["atrasada"] = atrasada_calc
@@ -1996,7 +2139,13 @@ async def listar_tarefas_por_acesso(
             continue
 
         tarefa_dict = model_to_dict(tarefa)
-        if not tarefa.finalizada:
+        finalizada_calc = is_tarefa_efetivamente_finalizada(tarefa)
+        tarefa_dict["finalizada"] = finalizada_calc
+        if finalizada_calc:
+            tarefa_dict["status_nome"] = "Concluído"
+            tarefa_dict["dias_atraso"] = 0
+            tarefa_dict["atrasada"] = False
+        else:
             dias_atraso, atrasada_calc = await calcular_dias_atraso(tarefa.prazo)
             tarefa_dict["dias_atraso"] = dias_atraso
             tarefa_dict["atrasada"] = atrasada_calc
@@ -2420,25 +2569,18 @@ async def atualizar_tarefa(
     return result_dict
 
 
-@api_router.post("/tarefas/{tarefa_id}/finalizar", response_model=dict)
-async def finalizar_tarefa(
-    tarefa_id: str,
+async def executar_finalizacao_tarefa(
+    db: AsyncSession,
+    tarefa: TarefaModel,
     input: TarefaFinalizar,
-    db: AsyncSession = Depends(get_db)
+    status_concluido: Optional[StatusTarefaModel] = None,
 ):
-    """Finaliza uma tarefa e recalcula prazos das proximas etapas"""
-    result = await db.execute(
-        select(TarefaModel).where(TarefaModel.id == tarefa_id)
-    )
-    tarefa = result.scalar_one_or_none()
-
     if not tarefa:
         raise HTTPException(status_code=404, detail="Tarefa nao encontrada")
 
-    if tarefa.finalizada:
+    if is_tarefa_efetivamente_finalizada(tarefa):
         raise HTTPException(status_code=400, detail="Tarefa ja esta finalizada")
 
-    # Operador deve finalizar apenas tarefa atribuida, no setor e contrato corretos
     if input.usuario_role == "operador":
         valido, mensagem_erro = validar_contexto_finalizacao_operador(
             tarefa_operador_id=tarefa.responsavel_id,
@@ -2462,17 +2604,11 @@ async def finalizar_tarefa(
             ),
         )
 
-    # Get "Concluido" status
-    result = await db.execute(
-        select(StatusTarefaModel).where(StatusTarefaModel.nome == "Concluído")
-    )
-    status_concluido = result.scalar_one_or_none()
-
+    status_concluido = status_concluido or await obter_status_por_nome(db, "Concluído")
     if not status_concluido:
         raise HTTPException(status_code=500, detail="Status 'Concluido' nao encontrado")
 
     now = datetime.now(timezone.utc)
-
     historico = tarefa.historico or []
     historico.append({
         "id": str(uuid.uuid4()),
@@ -2499,15 +2635,14 @@ async def finalizar_tarefa(
     await db.commit()
 
     logger.info(
-        f"Tarefa finalizada: {tarefa_id} por {input.usuario_nome} "
+        f"Tarefa finalizada: {tarefa.id} por {input.usuario_nome} "
         f"({input.usuario_setor}) no contrato {tarefa.contrato_id}"
     )
 
-    # Recalcular prazos das proximas tarefas do projeto
     prazos_recalculados = []
     if tarefa.projeto_id:
         prazos_recalculados = await recalcular_prazos_projeto(
-            db, tarefa.projeto_id, tarefa_id, now
+            db, tarefa.projeto_id, tarefa.id, now
         )
         if prazos_recalculados:
             logger.info(
@@ -2518,8 +2653,90 @@ async def finalizar_tarefa(
     await db.refresh(tarefa)
     result_dict = model_to_dict(tarefa)
     result_dict["prazos_recalculados"] = prazos_recalculados
-
     return result_dict
+
+
+@api_router.post("/tarefas/{tarefa_id}/finalizar", response_model=dict)
+async def finalizar_tarefa(
+    tarefa_id: str,
+    input: TarefaFinalizar,
+    db: AsyncSession = Depends(get_db)
+):
+    """Finaliza uma tarefa e recalcula prazos das proximas etapas"""
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id == tarefa_id)
+    )
+    tarefa = result.scalar_one_or_none()
+    return await executar_finalizacao_tarefa(db, tarefa, input)
+
+
+@api_router.post("/tarefas/finalizar-lote", response_model=dict)
+async def finalizar_tarefas_lote(
+    input: TarefaFinalizarLote,
+    db: AsyncSession = Depends(get_db)
+):
+    """Finaliza varias tarefas em lote. Disponivel apenas para administradores."""
+    if input.usuario_role != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem finalizar tarefas em lote")
+
+    tarefa_ids = []
+    vistos = set()
+    for tarefa_id in input.tarefa_ids or []:
+        tarefa_id = str(tarefa_id or "").strip()
+        if not tarefa_id or tarefa_id in vistos:
+            continue
+        vistos.add(tarefa_id)
+        tarefa_ids.append(tarefa_id)
+
+    if not tarefa_ids:
+        raise HTTPException(status_code=400, detail="Informe ao menos uma tarefa para finalizar")
+
+    result = await db.execute(
+        select(TarefaModel).where(TarefaModel.id.in_(tarefa_ids))
+    )
+    tarefas_por_id = {tarefa.id: tarefa for tarefa in result.scalars().all()}
+    status_concluido = await obter_status_por_nome(db, "Concluído")
+
+    tarefas_finalizadas = []
+    tarefas_ignoradas = []
+    erros = []
+
+    for tarefa_id in tarefa_ids:
+        tarefa = tarefas_por_id.get(tarefa_id)
+        if not tarefa:
+            tarefas_ignoradas.append({"tarefa_id": tarefa_id, "motivo": "Tarefa nao encontrada"})
+            continue
+
+        if is_tarefa_efetivamente_finalizada(tarefa):
+            tarefas_ignoradas.append({"tarefa_id": tarefa_id, "motivo": "Tarefa ja finalizada"})
+            continue
+
+        payload = TarefaFinalizar(
+            observacao=input.observacao,
+            usuario_id=input.usuario_id,
+            usuario_nome=input.usuario_nome,
+            usuario_setor=input.usuario_setor,
+            usuario_role=input.usuario_role,
+            contrato_id_selecionado=tarefa.contrato_id,
+        )
+
+        try:
+            resultado = await executar_finalizacao_tarefa(db, tarefa, payload, status_concluido=status_concluido)
+            tarefas_finalizadas.append(resultado)
+        except HTTPException as exc:
+            erros.append({"tarefa_id": tarefa_id, "motivo": exc.detail})
+        except Exception as exc:
+            erros.append({"tarefa_id": tarefa_id, "motivo": str(exc) or type(exc).__name__})
+
+    return {
+        "total_solicitadas": len(tarefa_ids),
+        "total_finalizadas": len(tarefas_finalizadas),
+        "total_ignoradas": len(tarefas_ignoradas),
+        "total_erros": len(erros),
+        "tarefas_finalizadas": tarefas_finalizadas,
+        "tarefas_ignoradas": tarefas_ignoradas,
+        "erros": erros,
+    }
 
 
 @api_router.post("/tarefas/{tarefa_id}/reabrir", response_model=dict)
@@ -4008,12 +4225,19 @@ async def listar_projetos(
             if not tarefas:
                 continue
 
+        tarefas = ordenar_tarefas_fluxo(tarefas)
         tarefas_atrasadas = 0
         total_dias_atraso = 0
         tarefas_list = []
         for tarefa in tarefas:
             tarefa_dict = model_to_dict(tarefa)
-            if not tarefa.finalizada:
+            finalizada_calc = is_tarefa_efetivamente_finalizada(tarefa)
+            tarefa_dict["finalizada"] = finalizada_calc
+            if finalizada_calc:
+                tarefa_dict["status_nome"] = "Concluído"
+                tarefa_dict["dias_atraso"] = 0
+                tarefa_dict["atrasada"] = False
+            else:
                 dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
                 tarefa_dict["dias_atraso"] = dias_atraso
                 tarefa_dict["atrasada"] = is_atrasada
@@ -4024,21 +4248,16 @@ async def listar_projetos(
 
         tarefas_list = await enriquecer_tarefas_com_contrato(db, tarefas_list)
 
-        total_tarefas = len(tarefas)
-        tarefas_concluidas = sum(1 for t in tarefas if t.finalizada)
-        tarefas_em_andamento = sum(
-            1 for t in tarefas if not t.finalizada and t.status_nome == "Em Andamento"
-        )
-        tarefas_pendentes = sum(
-            1 for t in tarefas if not t.finalizada and t.status_nome != "Em Andamento"
-        )
+        resumo_projeto = resumir_status_projeto(tarefas)
+        etapa_contexto = obter_contexto_etapa_atual(tarefas)
 
-        projeto_dict["total_tarefas"] = total_tarefas
-        projeto_dict["tarefas_concluidas"] = tarefas_concluidas
-        projeto_dict["tarefas_em_andamento"] = tarefas_em_andamento
-        projeto_dict["tarefas_pendentes"] = tarefas_pendentes
+        projeto_dict["total_tarefas"] = resumo_projeto["total_tarefas"]
+        projeto_dict["tarefas_concluidas"] = resumo_projeto["tarefas_concluidas"]
+        projeto_dict["tarefas_em_andamento"] = resumo_projeto["tarefas_em_andamento"]
+        projeto_dict["tarefas_pendentes"] = resumo_projeto["tarefas_pendentes"]
         projeto_dict["tarefas_atrasadas"] = tarefas_atrasadas
-        projeto_dict["progresso"] = round((tarefas_concluidas / total_tarefas) * 100, 1) if total_tarefas else 0
+        projeto_dict["progresso"] = resumo_projeto["progresso"]
+        projeto_dict["status"] = "Atrasado" if tarefas_atrasadas > 0 else resumo_projeto["status"]
 
         if tarefas_atrasadas == 0:
             projeto_dict["risco"] = "baixo"
@@ -4049,10 +4268,10 @@ async def listar_projetos(
         else:
             projeto_dict["risco"] = "critico"
 
-        for tarefa in tarefas:
-            if not tarefa.finalizada:
-                projeto_dict["etapa_atual"] = tarefa.titulo
-                break
+        projeto_dict["etapa_atual"] = etapa_contexto["titulo"]
+        projeto_dict["etapa_atual_setor"] = etapa_contexto["setor"]
+        projeto_dict["setor_atual"] = etapa_contexto["setor"]
+        projeto_dict["etapa_atual_ordem"] = etapa_contexto["ordem"]
 
         if user_role == "operador":
             projeto_dict["tarefas_operador"] = tarefas_list
@@ -4134,10 +4353,17 @@ async def obter_projeto(
         if not tarefas:
             raise HTTPException(status_code=403, detail="Projeto nao possui tarefas atribuidas ao operador")
 
+    tarefas = ordenar_tarefas_fluxo(tarefas)
     tarefas_list = []
     for tarefa in tarefas:
         tarefa_dict = model_to_dict(tarefa)
-        if not tarefa.finalizada:
+        finalizada_calc = is_tarefa_efetivamente_finalizada(tarefa)
+        tarefa_dict["finalizada"] = finalizada_calc
+        if finalizada_calc:
+            tarefa_dict["status_nome"] = "Concluído"
+            tarefa_dict["dias_atraso"] = 0
+            tarefa_dict["atrasada"] = False
+        else:
             dias_atraso, atrasada = await calcular_dias_atraso(tarefa.prazo)
             tarefa_dict["dias_atraso"] = dias_atraso
             tarefa_dict["atrasada"] = atrasada
@@ -4146,14 +4372,18 @@ async def obter_projeto(
     tarefas_list = await enriquecer_tarefas_com_contrato(db, tarefas_list)
 
     projeto_dict["tarefas"] = tarefas_list
-    projeto_dict["total_tarefas"] = len(tarefas)
-    projeto_dict["tarefas_concluidas"] = sum(1 for t in tarefas if t.finalizada)
-    projeto_dict["tarefas_em_andamento"] = sum(
-        1 for t in tarefas if not t.finalizada and t.status_nome == "Em Andamento"
-    )
-    projeto_dict["tarefas_pendentes"] = sum(
-        1 for t in tarefas if not t.finalizada and t.status_nome != "Em Andamento"
-    )
+    resumo_projeto = resumir_status_projeto(tarefas)
+    etapa_contexto = obter_contexto_etapa_atual(tarefas)
+    projeto_dict["total_tarefas"] = resumo_projeto["total_tarefas"]
+    projeto_dict["tarefas_concluidas"] = resumo_projeto["tarefas_concluidas"]
+    projeto_dict["tarefas_em_andamento"] = resumo_projeto["tarefas_em_andamento"]
+    projeto_dict["tarefas_pendentes"] = resumo_projeto["tarefas_pendentes"]
+    projeto_dict["progresso"] = resumo_projeto["progresso"]
+    projeto_dict["status"] = resumo_projeto["status"]
+    projeto_dict["etapa_atual"] = etapa_contexto["titulo"]
+    projeto_dict["etapa_atual_setor"] = etapa_contexto["setor"]
+    projeto_dict["setor_atual"] = etapa_contexto["setor"]
+    projeto_dict["etapa_atual_ordem"] = etapa_contexto["ordem"]
 
     return projeto_dict
 
@@ -4451,15 +4681,54 @@ async def dashboard_avancado(
             detail="Banco de dados em inicializacao. Tente novamente em alguns segundos."
         )
 
+    projeto_cols_dashboard = (
+        ProjetoModel.id,
+        ProjetoModel.contrato_id,
+        ProjetoModel.cliente,
+        ProjetoModel.status,
+        ProjetoModel.risco,
+        ProjetoModel.data_inicio,
+        ProjetoModel.data_fim_prevista,
+    )
+    tarefa_cols_dashboard = (
+        TarefaModel.id,
+        TarefaModel.titulo,
+        TarefaModel.projeto_id,
+        TarefaModel.contrato_id,
+        TarefaModel.setor,
+        TarefaModel.responsavel_id,
+        TarefaModel.responsavel_nome,
+        TarefaModel.status_nome,
+        TarefaModel.prazo,
+        TarefaModel.prazo_original,
+        TarefaModel.prioridade,
+        TarefaModel.finalizada,
+        TarefaModel.data_finalizacao,
+        TarefaModel.criado_em,
+    )
+    contrato_cols_dashboard = (
+        ContratoModel.id,
+        ContratoModel.numero_contrato,
+        ContratoModel.cliente,
+        ContratoModel.faculdade,
+        ContratoModel.curso,
+        ContratoModel.data_fim,
+        ContratoModel.data_aditivo,
+    )
+
     if user_role == "operador":
         validar_contexto_usuario_operador(user_id, user_setor)
         projetos_ids_operador, contratos_ids_operador = await obter_ids_atribuicoes_operador(db, user_id, user_setor)
         if projetos_ids_operador:
             projetos_result = await db.execute(
-                select(ProjetoModel).where(ProjetoModel.id.in_(projetos_ids_operador))
+                select(ProjetoModel)
+                .options(load_only(*projeto_cols_dashboard))
+                .where(ProjetoModel.id.in_(projetos_ids_operador))
             )
             tarefas_result = await db.execute(
-                select(TarefaModel).where(
+                select(TarefaModel)
+                .options(load_only(*tarefa_cols_dashboard))
+                .where(
                     filtro_tarefas_no_escopo_operador(
                         projetos_ids=projetos_ids_operador,
                         contratos_ids=contratos_ids_operador,
@@ -4473,10 +4742,14 @@ async def dashboard_avancado(
             tarefas = []
             contratos_ids_operador = set()
     else:
-        projetos_result = await db.execute(select(ProjetoModel))
+        projetos_result = await db.execute(
+            select(ProjetoModel).options(load_only(*projeto_cols_dashboard))
+        )
         projetos = projetos_result.scalars().all()
         
-        tarefas_result = await db.execute(select(TarefaModel))
+        tarefas_result = await db.execute(
+            select(TarefaModel).options(load_only(*tarefa_cols_dashboard))
+        )
         tarefas = tarefas_result.scalars().all()
         projetos_ids_operador = set()
         contratos_ids_operador = set()
@@ -4489,7 +4762,9 @@ async def dashboard_avancado(
     contratos_map = {}
     if contrato_ids:
         contratos_result = await db.execute(
-            select(ContratoModel).where(ContratoModel.id.in_(contrato_ids))
+            select(ContratoModel)
+            .options(load_only(*contrato_cols_dashboard))
+            .where(ContratoModel.id.in_(contrato_ids))
         )
         contratos_map = {
             contrato.id: contrato
@@ -4497,11 +4772,11 @@ async def dashboard_avancado(
         }
     
     total_projetos = len(projetos)
-    projetos_em_andamento = sum(1 for p in projetos if p.status == "Em Andamento")
-    
     carga_por_responsavel = {}
     alertas_atrasos = []
     tarefas_visiveis = []
+    tarefas_por_projeto = {}
+    metricas_por_setor = {}
     
     for tarefa in tarefas:
         if user_role == "operador":
@@ -4519,9 +4794,30 @@ async def dashboard_avancado(
         
         responsavel = tarefa.responsavel_nome or "Não atribuído"
         tarefas_visiveis.append(tarefa)
-        if tarefa.finalizada:
-            continue
-        dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
+        tarefas_por_projeto.setdefault(tarefa.projeto_id, []).append(tarefa)
+
+        setor = tarefa.setor or "Sem setor"
+        metricas_setor = metricas_por_setor.setdefault(setor, {
+            "setor": setor,
+            "total_tarefas": 0,
+            "tarefas_finalizadas": 0,
+            "tarefas_abertas": 0,
+            "tarefas_atrasadas": 0,
+            "total_dias_atraso": 0,
+        })
+        metricas_setor["total_tarefas"] += 1
+
+        finalizada_calc = is_tarefa_efetivamente_finalizada(tarefa)
+        dias_atraso = 0
+        is_atrasada = False
+        if finalizada_calc:
+            metricas_setor["tarefas_finalizadas"] += 1
+        else:
+            metricas_setor["tarefas_abertas"] += 1
+            dias_atraso, is_atrasada = await calcular_dias_atraso(tarefa.prazo)
+            if is_atrasada:
+                metricas_setor["tarefas_atrasadas"] += 1
+                metricas_setor["total_dias_atraso"] += dias_atraso
         
         if responsavel not in carga_por_responsavel:
             carga_por_responsavel[responsavel] = {
@@ -4532,6 +4828,9 @@ async def dashboard_avancado(
                 "tarefas": []
             }
         
+        if finalizada_calc:
+            continue
+
         carga_por_responsavel[responsavel]["total_tarefas"] += 1
         
         if is_atrasada:
@@ -4566,20 +4865,79 @@ async def dashboard_avancado(
         key=lambda x: x["tarefas_atrasadas"],
         reverse=True
     )
+
+    projetos_finalizados = 0
+    for projeto in projetos:
+        tarefas_projeto = tarefas_por_projeto.get(projeto.id, [])
+        if tarefas_projeto:
+            resumo_projeto = resumir_status_projeto(tarefas_projeto)
+            if (
+                resumo_projeto["total_tarefas"] > 0
+                and resumo_projeto["tarefas_concluidas"] == resumo_projeto["total_tarefas"]
+            ):
+                projetos_finalizados += 1
+        else:
+            status_norm = normalize_text(getattr(projeto, "status", ""))
+            if any(termo in status_norm for termo in ("concluido", "finalizado", "entregue")):
+                projetos_finalizados += 1
+
+    projetos_em_andamento = max(total_projetos - projetos_finalizados, 0)
+
+    setores_maior_volume_entregas = sorted(
+        (
+            {
+                "setor": dados["setor"],
+                "total_entregas": dados["tarefas_finalizadas"],
+                "total_tarefas": dados["total_tarefas"],
+                "percentual_entregas": round(
+                    (dados["tarefas_finalizadas"] / dados["total_tarefas"] * 100)
+                    if dados["total_tarefas"] > 0 else 0,
+                    1,
+                ),
+            }
+            for dados in metricas_por_setor.values()
+            if dados["tarefas_finalizadas"] > 0
+        ),
+        key=lambda item: (item["total_entregas"], item["percentual_entregas"]),
+        reverse=True,
+    )
+
+    setores_maior_indice_atrasos = sorted(
+        (
+            {
+                "setor": dados["setor"],
+                "indice_atraso": round(
+                    (dados["tarefas_atrasadas"] / dados["tarefas_abertas"] * 100)
+                    if dados["tarefas_abertas"] > 0 else 0,
+                    1,
+                ),
+                "total_atrasadas": dados["tarefas_atrasadas"],
+                "total_abertas": dados["tarefas_abertas"],
+                "total_tarefas": dados["total_tarefas"],
+                "total_dias_atraso": dados["total_dias_atraso"],
+            }
+            for dados in metricas_por_setor.values()
+            if dados["tarefas_abertas"] > 0
+        ),
+        key=lambda item: (item["indice_atraso"], item["total_atrasadas"], item["total_dias_atraso"]),
+        reverse=True,
+    )
     
     projetos_detalhados = []
     for projeto in projetos:
-        if projeto.status != "Em Andamento":
+        tarefas_projeto = ordenar_tarefas_fluxo(tarefas_por_projeto.get(projeto.id, []))
+        resumo_projeto = resumir_status_projeto(tarefas_projeto)
+        if resumo_projeto["status"] == "Concluído":
             continue
         
         contrato = contratos_map.get(projeto.contrato_id)
-        tarefas_projeto = [t for t in tarefas_visiveis if t.projeto_id == projeto.id]
+        etapa_contexto = obter_contexto_etapa_atual(tarefas_projeto)
         total = len(tarefas_projeto)
-        concluidas = sum(1 for t in tarefas_projeto if t.finalizada)
+        concluidas = resumo_projeto["tarefas_concluidas"]
         
         atrasadas = 0
         for t in tarefas_projeto:
-            if not t.finalizada:
+            if not is_tarefa_efetivamente_finalizada(t):
                 _, is_atrasada = await calcular_dias_atraso(t.prazo)
                 if is_atrasada:
                     atrasadas += 1
@@ -4599,7 +4957,9 @@ async def dashboard_avancado(
                 else contrato.data_fim if contrato and contrato.data_fim
                 else projeto.data_fim_prevista
             ),
-            "etapa_atual": projeto.etapa_atual,
+            "etapa_atual": etapa_contexto["titulo"],
+            "etapa_atual_setor": etapa_contexto["setor"],
+            "setor_atual": etapa_contexto["setor"],
             "progresso": round((concluidas / total * 100) if total > 0 else 0, 1),
             "total_tarefas": total,
             "tarefas_concluidas": concluidas,
@@ -4621,8 +4981,14 @@ async def dashboard_avancado(
         "resumo": {
             "total_projetos": total_projetos,
             "projetos_em_andamento": projetos_em_andamento,
+            "projetos_finalizados": projetos_finalizados,
             "total_tarefas_atrasadas": len(alertas_atrasos),
             "responsaveis_com_atraso": len([c for c in carga_lista if c["tarefas_atrasadas"] > 0])
+        },
+        "indicadores_estrategicos": {
+            "projetos_finalizados": projetos_finalizados,
+            "setores_maior_volume_entregas": setores_maior_volume_entregas[:3],
+            "setores_maior_indice_atrasos": setores_maior_indice_atrasos[:3],
         },
         "projetos_em_andamento": projetos_detalhados,
         "alertas_atrasos": alertas_atrasos[:20],

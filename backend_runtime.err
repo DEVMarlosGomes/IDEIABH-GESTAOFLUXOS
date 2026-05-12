@@ -1,0 +1,7 @@
+INFO:     Started server process [8800]
+INFO:     Waiting for application startup.
+2026-05-12 09:56:48,921 - server - INFO - Starting IDEIABH API with PostgreSQL...
+2026-05-12 09:56:48,924 - server - INFO - Database initialization running in background
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+2026-05-12 09:57:05,949 - server - INFO - Database initialization completed

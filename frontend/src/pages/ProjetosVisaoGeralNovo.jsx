@@ -19,49 +19,14 @@ import {
 import { getProjetos } from '../services/api';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
+import {
+  getNomePastaContrato,
+  getPeriodoProjeto,
+  getPeriodoSortValue,
+  getStatusFiltroDaTarefa,
+  getStatusProjetoEfetivo,
+} from '../lib/projetos';
 import './ProjetosVisaoGeral.css';
-
-const statusFiltroDaTarefa = (tarefa) => {
-  if (tarefa?.finalizada) return 'concluida';
-  const status = (tarefa?.status_nome || '').toLowerCase();
-  if (status.includes('andamento')) return 'em_andamento';
-  return 'pendente';
-};
-
-const getPeriodoPasta = (dateValue) => {
-  const date = dateValue ? new Date(dateValue) : null;
-  if (!date || Number.isNaN(date.getTime())) return 'Sem periodo';
-  const semestre = date.getMonth() < 6 ? 1 : 2;
-  return `${date.getFullYear()}.${semestre}`;
-};
-
-const getPeriodoSortValue = (periodo) => {
-  const match = /^(\d{4})\.(1|2)$/.exec(periodo || '');
-  if (!match) return -1;
-  return Number(match[1]) * 10 + Number(match[2]);
-};
-
-const getPeriodoProjeto = (projeto) => {
-  const contrato = projeto?.contrato || (projeto?.contratos || [])[0] || {};
-  return getPeriodoPasta(
-    contrato?.data_fim || contrato?.data_inicio || projeto?.data_fim_prevista || projeto?.data_inicio
-  );
-};
-
-const getNomePastaContrato = (projeto) => {
-  const contrato = projeto?.contrato || (projeto?.contratos || [])[0] || {};
-  const partes = [
-    contrato.numero_contrato,
-    contrato.curso,
-    contrato.faculdade,
-  ].filter(Boolean);
-
-  if (partes.length > 0) {
-    return partes.join(' ').toUpperCase();
-  }
-
-  return (projeto?.cliente || 'CONTRATO').toUpperCase();
-};
 
 const ProjetosVisaoGeralNovo = () => {
   const navigate = useNavigate();
@@ -129,7 +94,7 @@ const ProjetosVisaoGeralNovo = () => {
           return false;
         }
 
-        if (filtroStatusTarefa !== 'todos' && statusFiltroDaTarefa(tarefa) !== filtroStatusTarefa) {
+        if (filtroStatusTarefa !== 'todos' && getStatusFiltroDaTarefa(tarefa) !== filtroStatusTarefa) {
           return false;
         }
 
@@ -172,13 +137,18 @@ const ProjetosVisaoGeralNovo = () => {
 
       if (!matchSearch) return false;
 
+      const statusProjeto = getStatusProjetoEfetivo(
+        projeto,
+        isOperador ? projeto._tarefasNoContexto : []
+      );
+
       let matchStatus = true;
       if (filterStatus === 'ativos') {
-        matchStatus = projeto.status === 'Em Andamento' && (projeto.tarefas_atrasadas || 0) === 0;
+        matchStatus = statusProjeto === 'Em Andamento' || statusProjeto === 'Pendente';
       } else if (filterStatus === 'atrasados') {
-        matchStatus = (projeto.tarefas_atrasadas || 0) > 0;
+        matchStatus = statusProjeto === 'Atrasado';
       } else if (filterStatus === 'concluidos') {
-        matchStatus = (projeto.progresso || 0) === 100;
+        matchStatus = statusProjeto === 'Concluído';
       }
 
       if (!matchStatus) return false;
@@ -195,10 +165,7 @@ const ProjetosVisaoGeralNovo = () => {
     if (!isOperador) return [];
 
     const grupos = projetosFiltrados.reduce((acc, projeto) => {
-      const contrato = projeto?.contrato || (projeto?.contratos || [])[0] || {};
-      const periodo = getPeriodoPasta(
-        contrato?.data_fim || contrato?.data_inicio || projeto?.data_fim_prevista || projeto?.data_inicio
-      );
+      const periodo = getPeriodoProjeto(projeto);
 
       if (!acc[periodo]) {
         acc[periodo] = [];
@@ -222,11 +189,18 @@ const ProjetosVisaoGeralNovo = () => {
   const counts = useMemo(() => {
     return {
       todos: projetosBaseSemestre.length,
-      ativos: projetosBaseSemestre.filter((p) => p.status === 'Em Andamento' && (p.tarefas_atrasadas || 0) === 0).length,
-      atrasados: projetosBaseSemestre.filter((p) => (p.tarefas_atrasadas || 0) > 0).length,
-      concluidos: projetosBaseSemestre.filter((p) => (p.progresso || 0) === 100).length,
+      ativos: projetosBaseSemestre.filter((p) => {
+        const status = getStatusProjetoEfetivo(p, isOperador ? p._tarefasNoContexto : []);
+        return status === 'Em Andamento' || status === 'Pendente';
+      }).length,
+      atrasados: projetosBaseSemestre.filter((p) => (
+        getStatusProjetoEfetivo(p, isOperador ? p._tarefasNoContexto : []) === 'Atrasado'
+      )).length,
+      concluidos: projetosBaseSemestre.filter((p) => (
+        getStatusProjetoEfetivo(p, isOperador ? p._tarefasNoContexto : []) === 'Concluído'
+      )).length,
     };
-  }, [projetosBaseSemestre]);
+  }, [isOperador, projetosBaseSemestre]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -240,27 +214,21 @@ const ProjetosVisaoGeralNovo = () => {
   };
 
   const getStatusBadge = (projeto) => {
-    if (isOperador) {
-      const tarefas = projeto._tarefasNoContexto || projeto.tarefas_operador || [];
-      if (tarefas.length && tarefas.every((t) => t.finalizada)) {
-        return { label: 'Concluido', className: 'status-badge-novo concluido' };
-      }
-      if (tarefas.some((t) => t.atrasada)) {
-        return { label: 'Atrasado', className: 'status-badge-novo atrasado' };
-      }
-      if (tarefas.some((t) => (t.status_nome || '').toLowerCase() === 'em andamento')) {
-        return { label: 'Em andamento', className: 'status-badge-novo ativo' };
-      }
-      return { label: 'Pendente', className: 'status-badge-novo ativo' };
-    }
+    const statusProjeto = getStatusProjetoEfetivo(
+      projeto,
+      isOperador ? (projeto._tarefasNoContexto || projeto.tarefas_operador || []) : []
+    );
 
-    if ((projeto.progresso || 0) === 100) {
+    if (statusProjeto === 'Concluído') {
       return { label: 'Concluido', className: 'status-badge-novo concluido' };
     }
-    if ((projeto.tarefas_atrasadas || 0) > 0) {
+    if (statusProjeto === 'Atrasado') {
       return { label: 'Atrasado', className: 'status-badge-novo atrasado' };
     }
-    return { label: 'Ativo', className: 'status-badge-novo ativo' };
+    if (statusProjeto === 'Em Andamento') {
+      return { label: 'Em andamento', className: 'status-badge-novo ativo' };
+    }
+    return { label: 'Pendente', className: 'status-badge-novo ativo' };
   };
 
   if (loading) {

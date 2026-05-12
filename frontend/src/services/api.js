@@ -88,6 +88,11 @@ export const finalizarTarefa = async (tarefaId, data) => {
   return response.data;
 };
 
+export const finalizarTarefasLote = async (data) => {
+  const response = await api.post('/api/tarefas/finalizar-lote', data);
+  return response.data;
+};
+
 export const alterarStatusTarefa = async (tarefaId, data) => {
   const response = await api.post(`/api/tarefas/${tarefaId}/alterar-status`, data);
   return response.data;

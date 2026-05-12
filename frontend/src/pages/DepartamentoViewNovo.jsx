@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge';
 import { Progress } from '../components/ui/progress';
 import { Button } from '../components/ui/button';
+import { Checkbox } from '../components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
@@ -28,11 +29,13 @@ import { useAuth } from '../context/AuthContext';
 import { 
   getTarefas,
   finalizarTarefa,
+  finalizarTarefasLote,
   criarNotificacao,
   listarUsuariosSetor
 } from '../services/api';
 import AtribuirTarefaModal from '../components/AtribuirTarefaModal';
 import { toast } from 'sonner';
+import { isTarefaEfetivamenteFinalizada } from '../lib/projetos';
 import './DepartamentoView.css';
 
 const DepartamentoViewNovo = ({ departamento }) => {
@@ -49,7 +52,17 @@ const DepartamentoViewNovo = ({ departamento }) => {
   const [filtroResponsavel, setFiltroResponsavel] = useState('todos');
   const [filtroContrato, setFiltroContrato] = useState('todos');
   const [abaStatus, setAbaStatus] = useState('abertas');
+  const [tarefasSelecionadas, setTarefasSelecionadas] = useState([]);
+  const [finalizarLoteModal, setFinalizarLoteModal] = useState(false);
+  const [finalizandoLote, setFinalizandoLote] = useState(false);
   const [feedbackForm, setFeedbackForm] = useState({
+    observacao: '',
+    dificuldades: '',
+    tempo_gasto: '',
+    qualidade_entrega: '',
+    proximos_passos: ''
+  });
+  const [feedbackFormLote, setFeedbackFormLote] = useState({
     observacao: '',
     dificuldades: '',
     tempo_gasto: '',
@@ -176,12 +189,12 @@ const DepartamentoViewNovo = ({ departamento }) => {
   ), [filtroContrato, filtroResponsavel, tarefas]);
 
   const tarefasAbertas = useMemo(
-    () => tarefasFiltradas.filter((tarefa) => !tarefa.finalizada),
+    () => tarefasFiltradas.filter((tarefa) => !isTarefaEfetivamenteFinalizada(tarefa)),
     [tarefasFiltradas]
   );
 
   const tarefasFinalizadas = useMemo(
-    () => tarefasFiltradas.filter((tarefa) => tarefa.finalizada),
+    () => tarefasFiltradas.filter((tarefa) => isTarefaEfetivamenteFinalizada(tarefa)),
     [tarefasFiltradas]
   );
 
@@ -193,6 +206,20 @@ const DepartamentoViewNovo = ({ departamento }) => {
   );
 
   const tarefasVisiveis = abaStatus === 'finalizadas' ? tarefasFinalizadas : tarefasAbertas;
+  const tarefasSelecionaveis = useMemo(
+    () => (user?.role === 'admin' && abaStatus === 'abertas' ? tarefasVisiveis : []),
+    [abaStatus, tarefasVisiveis, user?.role]
+  );
+  const tarefasSelecionadasVisiveis = useMemo(
+    () => tarefasSelecionaveis.filter((tarefa) => tarefasSelecionadas.includes(tarefa.id)),
+    [tarefasSelecionadas, tarefasSelecionaveis]
+  );
+  const todasSelecionadas = tarefasSelecionaveis.length > 0 && tarefasSelecionadasVisiveis.length === tarefasSelecionaveis.length;
+
+  useEffect(() => {
+    const idsVisiveis = new Set(tarefasSelecionaveis.map((tarefa) => tarefa.id));
+    setTarefasSelecionadas((current) => current.filter((id) => idsVisiveis.has(id)));
+  }, [tarefasSelecionaveis]);
 
   // Estatísticas
   const stats = {
@@ -210,6 +237,55 @@ const DepartamentoViewNovo = ({ departamento }) => {
         return acc;
       }, 0) / (tarefasVisiveis.length || 1)
     )
+  };
+
+  const buildFinalizacaoObservacao = (form) => {
+    const observacao = form.observacao.trim();
+    const dificuldades = form.dificuldades.trim();
+    const tempoGasto = form.tempo_gasto.trim();
+    const proximosPassos = form.proximos_passos.trim();
+
+    const blocos = [];
+    if (observacao) {
+      blocos.push(`EXECUCAO DA TAREFA:\n${observacao}`);
+    }
+    if (dificuldades) {
+      blocos.push(`DIFICULDADES ENCONTRADAS:\n${dificuldades}`);
+    }
+    if (tempoGasto) {
+      blocos.push(`TEMPO GASTO:\n${tempoGasto}`);
+    }
+    if (form.qualidade_entrega) {
+      blocos.push(`QUALIDADE DA ENTREGA:\n${form.qualidade_entrega}`);
+    }
+    if (proximosPassos) {
+      blocos.push(`PROXIMOS PASSOS SUGERIDOS:\n${proximosPassos}`);
+    }
+
+    if (blocos.length > 0) {
+      blocos.push(
+        `Finalizado por: ${user?.nome || user?.username}\nData: ${new Date().toLocaleString('pt-BR')}`
+      );
+    }
+
+    return blocos.length > 0 ? blocos.join('\n\n---\n\n') : null;
+  };
+
+  const toggleSelecaoTarefa = (tarefaId, checked) => {
+    setTarefasSelecionadas((current) => {
+      if (checked) {
+        return current.includes(tarefaId) ? current : [...current, tarefaId];
+      }
+      return current.filter((id) => id !== tarefaId);
+    });
+  };
+
+  const toggleSelecionarTodas = (checked) => {
+    if (!checked) {
+      setTarefasSelecionadas([]);
+      return;
+    }
+    setTarefasSelecionadas(tarefasSelecionaveis.map((tarefa) => tarefa.id));
   };
 
   const handleAbrirFinalizar = (tarefa) => {
@@ -296,39 +372,13 @@ const DepartamentoViewNovo = ({ departamento }) => {
   };
 
   const handleFinalizar = async () => {
-    const observacao = feedbackForm.observacao.trim();
-    const dificuldades = feedbackForm.dificuldades.trim();
-    const tempoGasto = feedbackForm.tempo_gasto.trim();
-    const proximosPassos = feedbackForm.proximos_passos.trim();
-
-    const blocos = [];
-    if (observacao) {
-      blocos.push(`EXECUCAO DA TAREFA:\n${observacao}`);
-    }
-    if (dificuldades) {
-      blocos.push(`DIFICULDADES ENCONTRADAS:\n${dificuldades}`);
-    }
-    if (tempoGasto) {
-      blocos.push(`TEMPO GASTO:\n${tempoGasto}`);
-    }
-    if (feedbackForm.qualidade_entrega) {
-      blocos.push(`QUALIDADE DA ENTREGA:\n${feedbackForm.qualidade_entrega}`);
-    }
-    if (proximosPassos) {
-      blocos.push(`PROXIMOS PASSOS SUGERIDOS:\n${proximosPassos}`);
-    }
-
-    if (blocos.length > 0) {
-      blocos.push(
-        `Finalizado por: ${user?.nome || user?.username}\nData: ${new Date().toLocaleString('pt-BR')}`
-      );
-    }
+    const observacaoFinalizacao = buildFinalizacaoObservacao(feedbackForm);
 
     try {
       setFinalizando(true);
 
       await finalizarTarefa(tarefaSelecionada.id, {
-        observacao: blocos.length > 0 ? blocos.join('\n\n---\n\n') : null,
+        observacao: observacaoFinalizacao,
         usuario_id: user?.id || 'sistema',
         usuario_nome: user?.nome || user?.username || 'Sistema',
         usuario_setor: user?.setor || 'desconhecido',
@@ -338,7 +388,7 @@ const DepartamentoViewNovo = ({ departamento }) => {
 
       const tarefasDoProjeto = tarefas.filter(t => 
         t.projeto_id === tarefaSelecionada.projeto_id && 
-        !t.finalizada &&
+        !isTarefaEfetivamenteFinalizada(t) &&
         t.id !== tarefaSelecionada.id
       );
 
@@ -367,7 +417,7 @@ const DepartamentoViewNovo = ({ departamento }) => {
         <div>
           <p className="font-semibold">Tarefa finalizada com sucesso!</p>
           <p className="text-sm">
-            {blocos.length > 0 ? 'As observacoes foram registradas no historico.' : 'A etapa foi concluida sem observacao adicional.'}
+            {observacaoFinalizacao ? 'As observacoes foram registradas no historico.' : 'A etapa foi concluida sem observacao adicional.'}
           </p>
         </div>
       );
@@ -383,7 +433,66 @@ const DepartamentoViewNovo = ({ departamento }) => {
     }
   };
 
+  const handleFinalizarLote = async () => {
+    if (user?.role !== 'admin') {
+      toast.error('A finalizacao em lote esta disponivel apenas para administradores');
+      return;
+    }
+
+    if (tarefasSelecionadas.length === 0) {
+      toast.error('Selecione ao menos uma tarefa para finalizar em lote');
+      return;
+    }
+
+    try {
+      setFinalizandoLote(true);
+      const observacaoFinalizacao = buildFinalizacaoObservacao(feedbackFormLote);
+      const response = await finalizarTarefasLote({
+        tarefa_ids: tarefasSelecionadas,
+        observacao: observacaoFinalizacao,
+        usuario_id: user?.id || 'sistema',
+        usuario_nome: user?.nome || user?.username || 'Sistema',
+        usuario_setor: user?.setor || 'administracao',
+        usuario_role: user?.role || 'admin',
+      });
+
+      toast.success(
+        `${response?.total_finalizadas || 0} tarefa(s) finalizada(s) em lote`
+      );
+
+      if ((response?.total_ignoradas || 0) > 0 || (response?.total_erros || 0) > 0) {
+        toast.info(
+          `${response?.total_ignoradas || 0} ignorada(s) e ${response?.total_erros || 0} com erro`
+        );
+      }
+
+      setFinalizarLoteModal(false);
+      setTarefasSelecionadas([]);
+      setFeedbackFormLote({
+        observacao: '',
+        dificuldades: '',
+        tempo_gasto: '',
+        qualidade_entrega: '',
+        proximos_passos: ''
+      });
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao finalizar tarefas em lote:', error);
+      toast.error(error?.response?.data?.detail || 'Erro ao finalizar tarefas em lote');
+    } finally {
+      setFinalizandoLote(false);
+    }
+  };
+
   const getStatusBadge = (tarefa) => {
+    if (isTarefaEfetivamenteFinalizada(tarefa)) {
+      return (
+        <span className="status-badge status-concluido">
+          Concluido
+        </span>
+      );
+    }
+
     if (tarefa.atrasada) {
       return (
         <span className="status-badge status-atrasado">
@@ -400,11 +509,7 @@ const DepartamentoViewNovo = ({ departamento }) => {
       'Concluído': 'status-concluido'
     };
 
-    return (
-      <span className={`status-badge ${colors[tarefa.status_nome] || 'status-pendente'}`}>
-        {tarefa.status_nome}
-      </span>
-    );
+    return <span className={`status-badge ${colors[tarefa.status_nome] || 'status-pendente'}`}>{tarefa.status_nome}</span>;
   };
 
   const formatDate = (dateStr) => {
@@ -618,9 +723,40 @@ const DepartamentoViewNovo = ({ departamento }) => {
         {/* Lista de Tarefas */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 size={20} />
-              Tarefas do Departamento
+            <CardTitle className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <CheckCircle2 size={20} />
+                Tarefas do Departamento
+              </span>
+              {user?.role === 'admin' && abaStatus === 'abertas' && tarefasSelecionaveis.length > 0 && (
+                <div className="flex items-center gap-3 text-sm">
+                  <label className="flex items-center gap-2 text-gray-600">
+                    <Checkbox
+                      checked={todasSelecionadas}
+                      onCheckedChange={(checked) => toggleSelecionarTodas(Boolean(checked))}
+                    />
+                    <span>Selecionar todas</span>
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={tarefasSelecionadas.length === 0}
+                    onClick={() => {
+                      setFeedbackFormLote({
+                        observacao: '',
+                        dificuldades: '',
+                        tempo_gasto: '',
+                        qualidade_entrega: '',
+                        proximos_passos: ''
+                      });
+                      setFinalizarLoteModal(true);
+                    }}
+                  >
+                    Finalizar em lote ({tarefasSelecionadas.length})
+                  </Button>
+                </div>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -643,7 +779,16 @@ const DepartamentoViewNovo = ({ departamento }) => {
                       tarefa.atrasada ? 'bg-red-50 border-red-200' : 'bg-white'
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start justify-between mb-3 gap-3">
+                      {user?.role === 'admin' && abaStatus === 'abertas' && (
+                        <div className="pt-1">
+                          <Checkbox
+                            checked={tarefasSelecionadas.includes(tarefa.id)}
+                            onCheckedChange={(checked) => toggleSelecaoTarefa(tarefa.id, Boolean(checked))}
+                            aria-label={`Selecionar tarefa ${tarefa.titulo}`}
+                          />
+                        </div>
+                      )}
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg mb-1">{tarefa.titulo}</h3>
                         {tarefa.descricao && (
@@ -684,7 +829,7 @@ const DepartamentoViewNovo = ({ departamento }) => {
                             </Badge>
                           )}
 
-                          {tarefa.finalizada && tarefa.data_finalizacao && (
+                          {isTarefaEfetivamenteFinalizada(tarefa) && tarefa.data_finalizacao && (
                             <Badge className="bg-green-100 text-green-800">
                               <CheckCircle2 size={12} className="mr-1" />
                               Finalizada em {formatDate(tarefa.data_finalizacao)}
@@ -694,7 +839,7 @@ const DepartamentoViewNovo = ({ departamento }) => {
                       </div>
                        
                       <div className="ml-4 flex gap-2">
-                        {['admin', 'gerente'].includes(user?.role) && !tarefa.finalizada && (
+                        {['admin', 'gerente'].includes(user?.role) && !isTarefaEfetivamenteFinalizada(tarefa) && (
                           <Button
                             onClick={() => handleAbrirAtribuir(tarefa)}
                             variant="outline"
@@ -704,7 +849,7 @@ const DepartamentoViewNovo = ({ departamento }) => {
                             Atribuir
                           </Button>
                         )}
-                        {!tarefa.finalizada && (
+                        {!isTarefaEfetivamenteFinalizada(tarefa) && (
                           <Button
                             onClick={() => handleAbrirFinalizar(tarefa)}
                             className="bg-green-600 hover:bg-green-700"
@@ -888,6 +1033,131 @@ const DepartamentoViewNovo = ({ departamento }) => {
         </Dialog>
 
         {/* Modal de Atribuição de Tarefa */}
+        <Dialog open={finalizarLoteModal} onOpenChange={setFinalizarLoteModal}>
+          <DialogContent className="max-w-3xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle2 className="text-green-600" />
+                Finalizar Tarefas em Lote
+              </DialogTitle>
+            </DialogHeader>
+
+            <ScrollArea className="max-h-[60vh] pr-4">
+              <div className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="font-semibold text-amber-900">
+                    {tarefasSelecionadas.length} tarefa(s) selecionada(s)
+                  </p>
+                  <p className="text-sm text-amber-800 mt-1">
+                    Esta acao sera aplicada apenas as tarefas abertas visiveis no filtro atual.
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {tarefasSelecionadasVisiveis.map((tarefa) => (
+                      <div key={tarefa.id} className="text-sm text-amber-900">
+                        {tarefa.titulo} • {getContratoNumero(tarefa)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-semibold">
+                      Observacao geral da finalizacao (opcional)
+                    </Label>
+                    <Textarea
+                      rows={4}
+                      value={feedbackFormLote.observacao}
+                      onChange={(e) => setFeedbackFormLote({ ...feedbackFormLote, observacao: e.target.value })}
+                      placeholder="Descreva o contexto da finalizacao em lote, se necessario."
+                      className="resize-none mt-2"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-base font-semibold">
+                      Dificuldades ou observacoes adicionais (opcional)
+                    </Label>
+                    <Textarea
+                      rows={3}
+                      value={feedbackFormLote.dificuldades}
+                      onChange={(e) => setFeedbackFormLote({ ...feedbackFormLote, dificuldades: e.target.value })}
+                      placeholder="Informe excecoes, bloqueios removidos ou contexto relevante."
+                      className="resize-none mt-2"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-base font-semibold">
+                      Tempo gasto (opcional)
+                    </Label>
+                    <input
+                      type="text"
+                      value={feedbackFormLote.tempo_gasto}
+                      onChange={(e) => setFeedbackFormLote({ ...feedbackFormLote, tempo_gasto: e.target.value })}
+                      placeholder="Exemplo: 1 hora / 1 turno"
+                      className="w-full px-3 py-2 border rounded-md mt-2"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-base font-semibold">
+                      Qualidade da entrega
+                    </Label>
+                    <select
+                      value={feedbackFormLote.qualidade_entrega}
+                      onChange={(e) => setFeedbackFormLote({ ...feedbackFormLote, qualidade_entrega: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md mt-2"
+                    >
+                      <option value="">Selecionar apenas se quiser classificar</option>
+                      <option value="excelente">Excelente - Superou expectativas</option>
+                      <option value="boa">Boa - Atendeu plenamente</option>
+                      <option value="satisfatoria">Satisfatoria - Atendeu minimamente</option>
+                      <option value="insatisfatoria">Insatisfatoria - Precisa revisao</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label className="text-base font-semibold">
+                      Proximos passos ou recomendacoes (opcional)
+                    </Label>
+                    <Textarea
+                      rows={3}
+                      value={feedbackFormLote.proximos_passos}
+                      onChange={(e) => setFeedbackFormLote({ ...feedbackFormLote, proximos_passos: e.target.value })}
+                      placeholder="Sugestoes gerais para as proximas etapas."
+                      className="resize-none mt-2"
+                    />
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setFinalizarLoteModal(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleFinalizarLote}
+                disabled={finalizandoLote || tarefasSelecionadas.length === 0}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {finalizandoLote ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Finalizando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Finalizar selecionadas
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <AtribuirTarefaModal
           isOpen={atribuirModalAberto}
           onClose={() => {

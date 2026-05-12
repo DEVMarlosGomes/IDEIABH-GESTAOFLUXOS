@@ -1,9 +1,0 @@
-INFO:     Started server process [16464]
-INFO:     Waiting for application startup.
-2026-03-29 23:45:57,593 - server - INFO - Starting IDEIABH API with PostgreSQL...
-2026-03-29 23:45:57,596 - server - INFO - Database initialization running in background
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-2026-03-29 23:46:08,772 - server - INFO - Database initialization completed
-2026-03-29 23:48:23,267 - server - INFO - Tarefa finalizada: 125a4719-f8be-4c8f-912f-f8fef73cf0f0 por Admin Teste (desconhecido) no contrato 6b474065-6b6c-46e6-9aa5-016c2d7e55c6
-2026-03-29 23:48:25,827 - server - INFO - Prazos recalculados para 50 tarefas do projeto c01c836a-7c51-41f1-b4ee-a2bc08cfc6f7

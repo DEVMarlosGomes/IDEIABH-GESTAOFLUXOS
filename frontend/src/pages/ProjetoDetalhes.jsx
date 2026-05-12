@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import LayoutNovo from '../components/LayoutNovo';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -28,22 +28,27 @@ import {
   listarUsuariosSetor,
   atualizarResponsaveisProjeto,
   atualizarPrazosProjeto,
+  finalizarTarefasLote,
 } from '../services/api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../components/ui/dialog';
+import { Checkbox } from '../components/ui/checkbox';
+import { Textarea } from '../components/ui/textarea';
+import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import TarefaDetalhesModal from '../components/TarefaDetalhesModal';
 import EditarTarefaModal from '../components/EditarTarefaModal';
 import FinalizarTarefaModal from '../components/FinalizarTarefaModal';
 import AtribuirTarefaModal from '../components/AtribuirTarefaModal';
-
-const statusFiltroDaTarefa = (tarefa) => {
-  if (tarefa?.finalizada) return 'concluida';
-  const status = (tarefa?.status_nome || '').toLowerCase();
-  if (status.includes('andamento')) return 'em_andamento';
-  return 'pendente';
-};
+import { getStatusFiltroDaTarefa, isTarefaEfetivamenteFinalizada } from '../lib/projetos';
 
 const prioridadeDaTarefa = (tarefa) => (tarefa?.prioridade || 'media').toLowerCase();
+
+const extractErrorMsg = (error, fallback) => {
+  const detail = error?.response?.data?.detail;
+  if (Array.isArray(detail)) return detail.map((e) => e?.msg || String(e)).join('; ');
+  return detail || fallback;
+};
 
 const normalizeSetor = (setor = '') => String(setor)
   .normalize('NFD')
@@ -83,6 +88,8 @@ const ProjetoDetalhes = () => {
   const [showAtribuirModal, setShowAtribuirModal] = useState(false);
   const [selectedTarefa, setSelectedTarefa] = useState(null);
   const [tarefaParaAtribuir, setTarefaParaAtribuir] = useState(null);
+  const [setorAtivo, setSetorAtivo] = useState('');
+  const setorEscolhidoRef = useRef('');
   const [aditivoDate, setAditivoDate] = useState('');
   const [salvandoAditivo, setSalvandoAditivo] = useState(false);
   const [operadoresAtendimento, setOperadoresAtendimento] = useState([]);
@@ -95,6 +102,10 @@ const ProjetoDetalhes = () => {
   const [salvandoResponsaveis, setSalvandoResponsaveis] = useState(false);
   const [prazosProjeto, setPrazosProjeto] = useState([]);
   const [salvandoPrazos, setSalvandoPrazos] = useState(false);
+  const [tarefasSelecionadas, setTarefasSelecionadas] = useState([]);
+  const [finalizarLoteModal, setFinalizarLoteModal] = useState(false);
+  const [finalizandoLote, setFinalizandoLote] = useState(false);
+  const [feedbackFormLote, setFeedbackFormLote] = useState({ observacao: '' });
 
   const canManageProjeto = isAdminOrGerente ? isAdminOrGerente() : false;
   const setorUsuarioNormalizado = normalizeSetor(user?.setor);
@@ -141,11 +152,10 @@ const ProjetoDetalhes = () => {
       setAditivoDate(data?.contrato?.data_aditivo || '');
     } catch (error) {
       console.error('Erro ao carregar projeto:', error);
-      const detail = error?.response?.data?.detail;
       if (error?.response?.status === 403) {
-        toast.error(detail || 'Acesso negado a este projeto');
+        toast.error(extractErrorMsg(error, 'Acesso negado a este projeto'));
       } else {
-        toast.error(detail || 'Erro ao carregar detalhes do projeto');
+        toast.error(extractErrorMsg(error, 'Erro ao carregar detalhes do projeto'));
       }
       setProjeto(null);
     } finally {
@@ -190,7 +200,7 @@ const ProjetoDetalhes = () => {
       await loadProjeto();
     } catch (error) {
       console.error('Erro ao aplicar aditivo:', error);
-      toast.error(error?.response?.data?.detail || 'Erro ao aplicar aditivo');
+      toast.error(extractErrorMsg(error, 'Erro ao aplicar aditivo'));
     } finally {
       setSalvandoAditivo(false);
     }
@@ -281,7 +291,7 @@ const ProjetoDetalhes = () => {
   );
   const tarefasPrazoEditaveis = useMemo(() => (
     (projeto?.tarefas || [])
-      .filter((tarefa) => !tarefa.finalizada)
+      .filter((tarefa) => !isTarefaEfetivamenteFinalizada(tarefa))
       .sort((a, b) => sortKey(a) - sortKey(b))
       .map((tarefa) => ({
         ...tarefa,
@@ -312,7 +322,7 @@ const ProjetoDetalhes = () => {
 
     setPrazosProjeto(
       tarefasProjeto
-        .filter((tarefa) => !tarefa.finalizada)
+        .filter((tarefa) => !isTarefaEfetivamenteFinalizada(tarefa))
         .map((tarefa) => ({
           tarefa_id: tarefa.id,
           prazo: formatDateInput(tarefa.prazo),
@@ -328,7 +338,7 @@ const ProjetoDetalhes = () => {
         return false;
       }
 
-      if (filtroStatus !== 'todos' && statusFiltroDaTarefa(tarefa) !== filtroStatus) {
+      if (filtroStatus !== 'todos' && getStatusFiltroDaTarefa(tarefa) !== filtroStatus) {
         return false;
       }
 
@@ -393,10 +403,54 @@ const ProjetoDetalhes = () => {
     });
   }, [tarefasPorSetor]);
 
+  const tarefasAbertasDoSetorAtivo = useMemo(
+    () => (user?.role === 'admin' && setorAtivo
+      ? (tarefasPorSetor[setorAtivo] || []).filter((t) => !isTarefaEfetivamenteFinalizada(t))
+      : []),
+    [user?.role, setorAtivo, tarefasPorSetor],
+  );
+
+  const todasSelecionadasNoSetor = tarefasAbertasDoSetorAtivo.length > 0
+    && tarefasAbertasDoSetorAtivo.every((t) => tarefasSelecionadas.includes(t.id));
+
+  const handleSetorChange = useCallback((setor) => {
+    setorEscolhidoRef.current = setor;
+    setSetorAtivo(setor);
+    setTarefasSelecionadas([]);
+  }, []);
+
+  useEffect(() => {
+    if (setoresOrdenados.length === 0) {
+      if (setorAtivo) {
+        setSetorAtivo('');
+      }
+      return;
+    }
+
+    if (setorAtivo && setoresOrdenados.includes(setorAtivo)) {
+      return;
+    }
+
+    // Restore the sector the user last chose manually, if it still exists
+    if (setorEscolhidoRef.current && setoresOrdenados.includes(setorEscolhidoRef.current)) {
+      setSetorAtivo(setorEscolhidoRef.current);
+      return;
+    }
+
+    const setorUsuario = setoresOrdenados.find(
+      (setor) => normalizeSetor(setor) === setorUsuarioNormalizado
+    );
+
+    setSetorAtivo(setorUsuario || setoresOrdenados[0]);
+  }, [setorAtivo, setorUsuarioNormalizado, setoresOrdenados]);
+
   const resumoFiltrado = useMemo(() => {
     const total = tarefasFiltradas.length;
-    const concluidas = tarefasFiltradas.filter((t) => t.finalizada).length;
-    const emAndamento = tarefasFiltradas.filter((t) => !t.finalizada && (t.status_nome || '').toLowerCase() === 'em andamento').length;
+    const concluidas = tarefasFiltradas.filter((t) => isTarefaEfetivamenteFinalizada(t)).length;
+    const emAndamento = tarefasFiltradas.filter((t) => (
+      !isTarefaEfetivamenteFinalizada(t)
+      && (t.status_nome || '').toLowerCase() === 'em andamento'
+    )).length;
     const pendentes = total - concluidas - emAndamento;
     return { total, concluidas, emAndamento, pendentes };
   }, [tarefasFiltradas]);
@@ -453,6 +507,51 @@ const ProjetoDetalhes = () => {
     setShowAtribuirModal(true);
   };
 
+  const toggleSelecaoTarefa = useCallback((tarefaId, checked) => {
+    setTarefasSelecionadas((prev) => (checked
+      ? prev.includes(tarefaId) ? prev : [...prev, tarefaId]
+      : prev.filter((id) => id !== tarefaId)));
+  }, []);
+
+  const toggleSelecionarTodasDoSetor = useCallback((checked) => {
+    if (!checked) {
+      setTarefasSelecionadas([]);
+      return;
+    }
+    setTarefasSelecionadas(tarefasAbertasDoSetorAtivo.map((t) => t.id));
+  }, [tarefasAbertasDoSetorAtivo]);
+
+  const handleFinalizarLote = async () => {
+    if (tarefasSelecionadas.length === 0) {
+      toast.error('Selecione ao menos uma tarefa para finalizar em lote');
+      return;
+    }
+    try {
+      setFinalizandoLote(true);
+      const response = await finalizarTarefasLote({
+        tarefa_ids: tarefasSelecionadas,
+        observacao: feedbackFormLote.observacao.trim() || null,
+        usuario_id: user?.id || 'sistema',
+        usuario_nome: user?.nome || user?.username || 'Sistema',
+        usuario_setor: user?.setor || '',
+        usuario_role: user?.role || 'admin',
+      });
+      toast.success(`${response?.total_finalizadas || 0} tarefa(s) finalizada(s) em lote`);
+      if ((response?.total_ignoradas || 0) > 0 || (response?.total_erros || 0) > 0) {
+        toast.info(`${response?.total_ignoradas || 0} ignorada(s), ${response?.total_erros || 0} com erro`);
+      }
+      setTarefasSelecionadas([]);
+      setFeedbackFormLote({ observacao: '' });
+      setFinalizarLoteModal(false);
+      await loadProjeto();
+    } catch (error) {
+      console.error('Erro ao finalizar tarefas em lote:', error);
+      toast.error(extractErrorMsg(error, 'Erro ao finalizar tarefas em lote'));
+    } finally {
+      setFinalizandoLote(false);
+    }
+  };
+
   const handleSalvarResponsaveisProjeto = async () => {
     if (!canManageProjeto) {
       toast.error('Apenas administradores e gerentes podem atualizar responsaveis do projeto');
@@ -481,7 +580,7 @@ const ProjetoDetalhes = () => {
       }
     } catch (error) {
       console.error('Erro ao atualizar responsaveis do projeto:', error);
-      toast.error(error?.response?.data?.detail || 'Erro ao atualizar responsaveis do projeto');
+      toast.error(extractErrorMsg(error, 'Erro ao atualizar responsaveis do projeto'));
     } finally {
       setSalvandoResponsaveis(false);
     }
@@ -534,7 +633,7 @@ const ProjetoDetalhes = () => {
       }
     } catch (error) {
       console.error('Erro ao atualizar prazos do projeto:', error);
-      toast.error(error?.response?.data?.detail || 'Erro ao atualizar prazos do projeto');
+      toast.error(extractErrorMsg(error, 'Erro ao atualizar prazos do projeto'));
     } finally {
       setSalvandoPrazos(false);
     }
@@ -551,7 +650,7 @@ const ProjetoDetalhes = () => {
       toast.success('Tarefa excluida com sucesso');
       loadProjeto();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Erro ao excluir tarefa');
+      toast.error(extractErrorMsg(err, 'Erro ao excluir tarefa'));
     }
   };
 
@@ -587,7 +686,7 @@ const ProjetoDetalhes = () => {
   };
 
   const getStatusBadge = (tarefa) => {
-    if (tarefa.finalizada) {
+    if (isTarefaEfetivamenteFinalizada(tarefa)) {
       return { label: 'Concluida', color: 'bg-green-100 text-green-800' };
     }
     if (tarefa.atrasada) {
@@ -1048,7 +1147,7 @@ const ProjetoDetalhes = () => {
                 <p>Nenhuma tarefa encontrada para os filtros selecionados.</p>
               </div>
             ) : (
-              <Tabs defaultValue={setoresOrdenados[0]}>
+              <Tabs value={setorAtivo} onValueChange={handleSetorChange}>
                 <TabsList className="grid w-full grid-cols-4 mb-6">
                   {setoresOrdenados.map((setor) => (
                     <TabsTrigger key={setor} value={setor} className="capitalize">
@@ -1059,6 +1158,27 @@ const ProjetoDetalhes = () => {
 
                 {setoresOrdenados.map((setor) => (
                   <TabsContent key={setor} value={setor}>
+                    {user?.role === 'admin' && (tarefasPorSetor[setor] || []).some((t) => !isTarefaEfetivamenteFinalizada(t)) && (
+                      <div className="flex items-center justify-between mb-3 px-1">
+                        <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-gray-600">
+                          <Checkbox
+                            checked={todasSelecionadasNoSetor && setor === setorAtivo}
+                            onCheckedChange={(checked) => toggleSelecionarTodasDoSetor(checked)}
+                          />
+                          Selecionar todas abertas
+                        </label>
+                        {tarefasSelecionadas.length > 0 && (
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={() => setFinalizarLoteModal(true)}
+                          >
+                            <CheckCircle2 size={14} className="mr-2" />
+                            Finalizar em lote ({tarefasSelecionadas.length})
+                          </Button>
+                        )}
+                      </div>
+                    )}
                     <div className="space-y-3">
                       {(tarefasPorSetor[setor] || []).map((tarefa, index) => {
                         const statusBadge = getStatusBadge(tarefa);
@@ -1074,6 +1194,17 @@ const ProjetoDetalhes = () => {
                             tabIndex={0}
                           >
                             <div className="flex items-start justify-between mb-2 gap-3">
+                              {user?.role === 'admin' && !isTarefaEfetivamenteFinalizada(tarefa) && (
+                                <div
+                                  className="flex-shrink-0 mt-0.5"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Checkbox
+                                    checked={tarefasSelecionadas.includes(tarefa.id)}
+                                    onCheckedChange={(checked) => toggleSelecaoTarefa(tarefa.id, checked)}
+                                  />
+                                </div>
+                              )}
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-xs font-medium text-gray-500">#{index + 1}</span>
@@ -1116,7 +1247,7 @@ const ProjetoDetalhes = () => {
                                   Prazo: {formatDate(tarefa.prazo)}
                                 </div>
                               )}
-                              {tarefa.finalizada && tarefa.data_finalizacao && (
+                              {isTarefaEfetivamenteFinalizada(tarefa) && tarefa.data_finalizacao && (
                                 <div className="flex items-center text-green-600">
                                   <CheckCircle2 size={14} className="mr-1" />
                                   Finalizada em: {formatDate(tarefa.data_finalizacao)}
@@ -1124,7 +1255,7 @@ const ProjetoDetalhes = () => {
                               )}
                             </div>
 
-                            {!tarefa.finalizada && (
+                            {!isTarefaEfetivamenteFinalizada(tarefa) && (
                               <div
                                 className="mt-3 pt-3 border-t flex justify-end"
                                 onClick={(e) => e.stopPropagation()}
@@ -1210,6 +1341,43 @@ const ProjetoDetalhes = () => {
         tarefa={tarefaParaAtribuir}
         onSuccess={loadProjeto}
       />
+
+      <Dialog open={finalizarLoteModal} onOpenChange={(open) => { if (!open) setFinalizarLoteModal(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Finalizar {tarefasSelecionadas.length} tarefa(s) em lote</DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <p className="text-sm text-gray-600">
+              As tarefas selecionadas serão marcadas como concluídas. Esta ação não pode ser desfeita.
+            </p>
+            <div>
+              <Label htmlFor="lote-obs" className="text-sm font-medium">Observação (opcional)</Label>
+              <Textarea
+                id="lote-obs"
+                rows={3}
+                className="resize-none mt-1"
+                placeholder="Contexto ou justificativa da finalização em lote..."
+                value={feedbackFormLote.observacao}
+                onChange={(e) => setFeedbackFormLote({ observacao: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFinalizarLoteModal(false)} disabled={finalizandoLote}>
+              Cancelar
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleFinalizarLote}
+              disabled={finalizandoLote}
+            >
+              {finalizandoLote ? <Loader2 size={14} className="mr-2 animate-spin" /> : <CheckCircle2 size={14} className="mr-2" />}
+              {finalizandoLote ? 'Finalizando...' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </LayoutNovo>
   );
 };

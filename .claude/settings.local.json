@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"c:\\\\Users\\\\MARLOS\\\\Documents\\\\IDEIABH\\\\IDEIABH-GESTAOFLUXOS\\\\backend\" /b)",
+      "Bash(yarn test *)",
+      "Bash(venv/Scripts/python -m pytest test_projetos.py -v)",
+      "Bash(xargs grep -l \"search\\\\|Search\")"
+    ]
+  }
+}

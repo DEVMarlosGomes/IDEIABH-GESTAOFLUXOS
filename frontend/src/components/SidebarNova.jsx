@@ -3,6 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getProjetos } from '../services/api';
 import {
+  getNomePastaContrato,
+  getPeriodoProjeto,
+  getPeriodoSortValue,
+} from '../lib/projetos';
+import {
   LayoutDashboard,
   Users,
   Palette,
@@ -35,6 +40,7 @@ const SidebarNova = ({ isOpen, onClose }) => {
   const [periodosExpandidos, setPeriodosExpandidos] = useState({});
   const [pastasExpandidas, setPastasExpandidas] = useState({});
   const [periodoNovaPasta, setPeriodoNovaPasta] = useState('');
+  const [periodoFiltroSidebar, setPeriodoFiltroSidebar] = useState('todos');
   const [nomeNovaPasta, setNomeNovaPasta] = useState('');
   const [draggingProjectId, setDraggingProjectId] = useState(null);
   const [dropTarget, setDropTarget] = useState('');
@@ -181,6 +187,7 @@ const SidebarNova = ({ isOpen, onClose }) => {
       setPeriodosExpandidos({});
       setPastasExpandidas({});
       setPeriodoNovaPasta('');
+      setPeriodoFiltroSidebar('todos');
       setNomeNovaPasta('');
       setStorageReady(false);
       return;
@@ -195,6 +202,7 @@ const SidebarNova = ({ isOpen, onClose }) => {
         setOrganizacaoProjetos({});
         setPeriodosExpandidos({});
         setPastasExpandidas({});
+        setPeriodoFiltroSidebar('todos');
         setStorageReady(true);
         return;
       }
@@ -204,6 +212,7 @@ const SidebarNova = ({ isOpen, onClose }) => {
       setOrganizacaoProjetos(state.organizacaoProjetos || {});
       setPeriodosExpandidos(state.periodosExpandidos || {});
       setPastasExpandidas(state.pastasExpandidas || {});
+      setPeriodoFiltroSidebar(state.periodoFiltroSidebar || 'todos');
       setStorageReady(true);
     } catch (error) {
       console.error('Erro ao recuperar organizacao da sidebar:', error);
@@ -211,6 +220,7 @@ const SidebarNova = ({ isOpen, onClose }) => {
       setOrganizacaoProjetos({});
       setPeriodosExpandidos({});
       setPastasExpandidas({});
+      setPeriodoFiltroSidebar('todos');
       setStorageReady(true);
     }
   }, [isOperador, storageKey]);
@@ -226,6 +236,7 @@ const SidebarNova = ({ isOpen, onClose }) => {
           organizacaoProjetos,
           periodosExpandidos,
           pastasExpandidas,
+          periodoFiltroSidebar,
         })
       );
     } catch (error) {
@@ -236,41 +247,13 @@ const SidebarNova = ({ isOpen, onClose }) => {
     organizacaoProjetos,
     pastasExpandidas,
     pastasPersonalizadas,
+    periodoFiltroSidebar,
     periodosExpandidos,
     storageKey,
     storageReady,
   ]);
 
-  const getPeriodoPasta = useCallback((dateValue) => {
-    const date = dateValue ? new Date(dateValue) : null;
-    if (!date || Number.isNaN(date.getTime())) return 'Sem periodo';
-    const semestre = date.getMonth() < 6 ? 1 : 2;
-    return `${date.getFullYear()}.${semestre}`;
-  }, []);
-
-  const getPeriodoProjetoBase = useCallback((projeto) => {
-    const contrato = projeto?.contrato || (projeto?.contratos || [])[0] || {};
-    return getPeriodoPasta(
-      contrato?.data_fim || contrato?.data_inicio || projeto?.data_fim_prevista || projeto?.data_inicio
-    );
-  }, [getPeriodoPasta]);
-
-  const getPeriodoSortValue = (periodo) => {
-    const match = /^(\d{4})\.(1|2)$/.exec(periodo || '');
-    if (!match) return -1;
-    return Number(match[1]) * 10 + Number(match[2]);
-  };
-
-  const getNomePastaContrato = (projeto) => {
-    const contrato = projeto?.contrato || (projeto?.contratos || [])[0] || {};
-    const partes = [contrato.numero_contrato, contrato.curso, contrato.faculdade].filter(Boolean);
-
-    if (partes.length > 0) {
-      return partes.join(' ').toUpperCase();
-    }
-
-    return String(projeto?.cliente || 'CONTRATO').toUpperCase();
-  };
+  const getPeriodoProjetoBase = useCallback((projeto) => getPeriodoProjeto(projeto), []);
 
   const sortByNome = (a, b) => a.nome.localeCompare(b.nome);
 
@@ -336,6 +319,16 @@ const SidebarNova = ({ isOpen, onClose }) => {
         })),
       }));
   }, [getPeriodoProjetoBase, isOperador, organizacaoProjetos, pastasPersonalizadas, projetosOperador]);
+
+  const periodosDisponiveisSidebar = useMemo(
+    () => pastasOperador.map((grupo) => grupo.periodo),
+    [pastasOperador]
+  );
+
+  const pastasOperadorFiltradas = useMemo(() => {
+    if (periodoFiltroSidebar === 'todos') return pastasOperador;
+    return pastasOperador.filter((grupo) => grupo.periodo === periodoFiltroSidebar);
+  }, [pastasOperador, periodoFiltroSidebar]);
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
   const isProjectPathActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -572,6 +565,27 @@ const SidebarNova = ({ isOpen, onClose }) => {
             ))}
 
             <div className="sidebar-folder-groups">
+              {periodosDisponiveisSidebar.length > 0 && (
+                <div className="sidebar-filter-box">
+                  <label htmlFor="sidebar-semestre-filter" className="sidebar-filter-label">
+                    Semestre
+                  </label>
+                  <select
+                    id="sidebar-semestre-filter"
+                    className="sidebar-filter-select"
+                    value={periodoFiltroSidebar}
+                    onChange={(event) => setPeriodoFiltroSidebar(event.target.value)}
+                  >
+                    <option value="todos">Todos</option>
+                    {periodosDisponiveisSidebar.map((periodo) => (
+                      <option key={periodo} value={periodo}>
+                        {periodo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {carregandoProjetos && (
                 <div className="sidebar-folder-loading">
                   <Loader2 size={14} className="animate-spin" />
@@ -580,7 +594,7 @@ const SidebarNova = ({ isOpen, onClose }) => {
               )}
 
               {!carregandoProjetos &&
-                pastasOperador.map((grupo) => {
+                pastasOperadorFiltradas.map((grupo) => {
                   const periodoExpandido = periodosExpandidos[grupo.periodo] !== false;
 
                   return (
@@ -707,6 +721,10 @@ const SidebarNova = ({ isOpen, onClose }) => {
 
               {!carregandoProjetos && pastasOperador.length === 0 && (
                 <div className="sidebar-folder-empty">Nenhum contrato atribuido</div>
+              )}
+
+              {!carregandoProjetos && pastasOperador.length > 0 && pastasOperadorFiltradas.length === 0 && (
+                <div className="sidebar-folder-empty">Nenhum contrato neste semestre</div>
               )}
             </div>
           </div>
