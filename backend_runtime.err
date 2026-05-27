@@ -1,7 +1,8 @@
-INFO:     Started server process [8800]
+INFO:     Started server process [3440]
 INFO:     Waiting for application startup.
-2026-05-12 09:56:48,921 - server - INFO - Starting IDEIABH API with PostgreSQL...
-2026-05-12 09:56:48,924 - server - INFO - Database initialization running in background
+2026-05-27 17:02:15,468 - server - INFO - Starting IDEIABH API with PostgreSQL...
+2026-05-27 17:02:15,469 - server - INFO - Database initialization running in background
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-2026-05-12 09:57:05,949 - server - INFO - Database initialization completed
+ERROR:    [Errno 10048] error while attempting to bind on address ('0.0.0.0', 8001): [winerror 10048] normalmente é permitida apenas uma utilização de cada endereço de soquete (protocolo/endereço de rede/porta)
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.

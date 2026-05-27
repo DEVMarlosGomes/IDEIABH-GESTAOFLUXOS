@@ -163,35 +163,27 @@ describe('getPeriodoSortValue', () => {
 // ---------------------------------------------------------------------------
 
 describe('getPeriodoProjeto', () => {
-  test('prioriza contrato.data_fim', () => {
-    const projeto = {
-      contrato: { data_fim: '2024-08-15', data_inicio: '2024-01-01' },
-      data_fim_prevista: '2023-12-01',
-    };
-    expect(getPeriodoProjeto(projeto)).toBe('2024.2');
+  test('extrai período do numero_contrato com padrão AAAA.1', () => {
+    const projeto = { contrato: { numero_contrato: 'IDEIA 2026.1 UFMG ADM' } };
+    expect(getPeriodoProjeto(projeto)).toBe('2026.1');
   });
 
-  test('usa contrato.data_inicio quando data_fim está ausente', () => {
-    const projeto = { contrato: { data_inicio: '2024-03-01' } };
-    expect(getPeriodoProjeto(projeto)).toBe('2024.1');
-  });
-
-  test('usa primeiro contrato do array contratos quando contrato está ausente', () => {
-    const projeto = { contratos: [{ data_fim: '2024-11-01' }] };
-    expect(getPeriodoProjeto(projeto)).toBe('2024.2');
-  });
-
-  test('usa projeto.data_fim_prevista como fallback', () => {
-    const projeto = { data_fim_prevista: '2024-02-20' };
-    expect(getPeriodoProjeto(projeto)).toBe('2024.1');
-  });
-
-  test('usa projeto.data_inicio como último fallback', () => {
-    const projeto = { data_inicio: '2025-09-05' };
+  test('extrai período do numero_contrato com padrão AAAA.2', () => {
+    const projeto = { contrato: { numero_contrato: 'CONTRATO 2025.2 PUC' } };
     expect(getPeriodoProjeto(projeto)).toBe('2025.2');
   });
 
-  test('retorna "Sem periodo" para projeto sem datas', () => {
+  test('extrai período do primeiro contrato do array contratos', () => {
+    const projeto = { contratos: [{ numero_contrato: '2024.1 - FUMEC' }] };
+    expect(getPeriodoProjeto(projeto)).toBe('2024.1');
+  });
+
+  test('retorna "Sem periodo" quando numero_contrato não contém padrão de semestre', () => {
+    const projeto = { contrato: { numero_contrato: 'CT-001-2024' } };
+    expect(getPeriodoProjeto(projeto)).toBe('Sem periodo');
+  });
+
+  test('retorna "Sem periodo" para projeto sem contrato', () => {
     expect(getPeriodoProjeto({})).toBe('Sem periodo');
     expect(getPeriodoProjeto(null)).toBe('Sem periodo');
   });
@@ -356,10 +348,10 @@ describe('isProjetoEfetivamenteConcluido', () => {
 
 describe('Integração: filtro de semestres na sidebar/visão geral', () => {
   const projetos = [
-    { id: 1, contrato: { data_fim: '2024-03-15' } },  // 2024.1
-    { id: 2, contrato: { data_fim: '2024-09-10' } },  // 2024.2
-    { id: 3, contrato: { data_fim: '2025-02-01' } },  // 2025.1
-    { id: 4, contratos: [{ data_fim: '2023-11-20' }] }, // 2023.2
+    { id: 1, contrato: { numero_contrato: 'IDEIA 2024.1 UFMG ADM' } },
+    { id: 2, contrato: { numero_contrato: 'IDEIA 2024.2 PUC DIR' } },
+    { id: 3, contrato: { numero_contrato: 'IDEIA 2025.1 FUMEC MED' } },
+    { id: 4, contratos: [{ numero_contrato: 'IDEIA 2023.2 NEWTON ADM' }] },
   ];
 
   test('cada projeto mapeia para o semestre correto', () => {

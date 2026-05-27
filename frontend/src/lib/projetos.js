@@ -37,9 +37,10 @@ export const getPeriodoSortValue = (periodo) => {
 
 export const getPeriodoProjeto = (projeto) => {
   const contrato = projeto?.contrato || (projeto?.contratos || [])[0] || {};
-  return getPeriodoPasta(
-    contrato?.data_fim || contrato?.data_inicio || projeto?.data_fim_prevista || projeto?.data_inicio
-  );
+  const titulo = contrato?.numero_contrato || '';
+  const match = /(\d{4}\.[12])/.exec(titulo);
+  if (match) return match[1];
+  return 'Sem periodo';
 };
 
 export const getNomePastaContrato = (projeto) => {

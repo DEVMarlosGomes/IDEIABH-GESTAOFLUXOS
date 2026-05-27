@@ -1261,6 +1261,14 @@ async def atualizar_projeto_prazos(db: AsyncSession, projeto_id: str):
     projeto.status = resumo_projeto["status"]
     if resumo_projeto["status"] == "Concluído":
         projeto.dias_restantes = 0
+        if projeto.contrato_id:
+            contrato_concluido_result = await db.execute(
+                select(ContratoModel).where(ContratoModel.id == projeto.contrato_id)
+            )
+            contrato_concluido = contrato_concluido_result.scalar_one_or_none()
+            if contrato_concluido:
+                contrato_concluido.status = "Finalizado"
+                contrato_concluido.atualizado_em = datetime.now(timezone.utc)
 
     projeto.atualizado_em = datetime.now(timezone.utc)
     await db.commit()
