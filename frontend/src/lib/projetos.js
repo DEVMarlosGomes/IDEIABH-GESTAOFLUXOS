@@ -82,7 +82,7 @@ export const getStatusProjetoEfetivo = (projeto, tarefas = []) => {
   }
 
   const statusProjeto = normalizeText(projeto?.status);
-  if (statusProjeto.includes('concluido') || (projeto?.progresso || 0) >= 100) {
+  if (statusProjeto.includes('concluido') || statusProjeto.includes('finalizado') || (projeto?.progresso || 0) >= 100) {
     return 'Concluído';
   }
   if (statusProjeto.includes('atrasado') || (projeto?.tarefas_atrasadas || 0) > 0) {

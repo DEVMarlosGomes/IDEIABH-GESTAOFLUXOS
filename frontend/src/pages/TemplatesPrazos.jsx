@@ -777,7 +777,7 @@ const TemplatesPrazos = () => {
                         </SelectItem>
                       )}
                       {!contratosLoading && contratos
-                        .filter(c => c.status !== 'Concluído')
+                        .filter(c => c.status !== 'Finalizado' && c.status !== 'Entregue')
                         .map(contrato => (
                           <SelectItem key={contrato.id} value={contrato.id}>
                             {contrato.numero_contrato} - {contrato.cliente}

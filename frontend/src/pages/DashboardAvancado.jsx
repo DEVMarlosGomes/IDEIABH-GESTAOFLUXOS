@@ -182,13 +182,9 @@ const DashboardAvancado = () => {
   );
 
   const getSemestreProjeto = (projeto) => {
-    const referencia = getTerminoContratoReferencia(projeto) || projeto?.data_inicio || null;
-    if (!referencia) return 'Sem data';
-    const data = new Date(referencia);
-    if (Number.isNaN(data.getTime())) return 'Sem data';
-    const ano = data.getFullYear();
-    const semestre = data.getMonth() < 6 ? 1 : 2;
-    return `${ano}.${semestre}`;
+    const titulo = projeto?.contrato_numero || '';
+    const match = /(\d{4}\.[12])/.exec(titulo);
+    return match ? match[1] : 'Sem data';
   };
 
   const getRiscoPorTerminoContrato = (projeto) => {

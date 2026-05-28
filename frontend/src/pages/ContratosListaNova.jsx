@@ -43,22 +43,17 @@ import { useAuth } from '../context/AuthContext';
 import { toast } from 'sonner';
 import './ContratosLista.css';
 
-const getSemestrePeriodo = (dateValue) => {
-  const date = dateValue ? new Date(dateValue) : null;
-  if (!date || Number.isNaN(date.getTime())) return 'Sem semestre';
-  const semestre = date.getMonth() < 6 ? 1 : 2;
-  return `${date.getFullYear()}.${semestre}`;
-};
-
 const getSemestreSortValue = (periodo) => {
   const match = /^(\d{4})\.(1|2)$/.exec(periodo || '');
   if (!match) return -1;
   return Number(match[1]) * 10 + Number(match[2]);
 };
 
-const getSemestreContrato = (contrato) => (
-  getSemestrePeriodo(contrato?.data_fim || contrato?.data_inicio)
-);
+const getSemestreContrato = (contrato) => {
+  const titulo = contrato?.numero_contrato || '';
+  const match = /(\d{4}\.[12])/.exec(titulo);
+  return match ? match[1] : 'Sem semestre';
+};
 
 const normalizeSetor = (setor) => {
   if (!setor) return '';

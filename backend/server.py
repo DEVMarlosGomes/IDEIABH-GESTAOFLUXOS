@@ -1258,8 +1258,9 @@ async def atualizar_projeto_prazos(db: AsyncSession, projeto_id: str):
         projeto.etapa_atual_ordem = etapa_contexto["ordem"]
 
     projeto.progresso = resumo_projeto["progresso"]
-    projeto.status = resumo_projeto["status"]
-    if resumo_projeto["status"] == "Concluído":
+    status_calculado = resumo_projeto["status"]
+    projeto.status = "Finalizado" if status_calculado == "Concluído" else status_calculado
+    if status_calculado == "Concluído":
         projeto.dias_restantes = 0
         if projeto.contrato_id:
             contrato_concluido_result = await db.execute(
@@ -3934,7 +3935,8 @@ async def criar_contrato(input: ContratoCreate, db: AsyncSession = Depends(get_d
         observacao=input.observacao,
         template_id=input.template_id,
         template_nome=template.nome,
-        criado_por=input.criado_por
+        criado_por=input.criado_por,
+        status="Em Andamento",
     )
     
     db.add(contrato_obj)
